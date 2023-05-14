@@ -1,6 +1,7 @@
 package main
 
 import (
+	"building-git/jit/workspace"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -46,6 +47,23 @@ func main() {
 		}
 
 		fmt.Printf("Initialized empty Jit repository in %s\n", gitPath)
+	case "commit":
+		path, err := os.Getwd()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		rootPath, err := filepath.Abs(path)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		// gitPath := filepath.Join(rootPath, ".git")
+		// dbPath := filepath.Join(gitPath, "objects")
+
+		ws := workspace.NewWorkspace(rootPath)
+		files, _ := ws.ListFiles()
+		fmt.Println(files)
 	default:
 		fmt.Fprintf(os.Stderr, "jit: '%s' is not a jit command.\n", command)
 		os.Exit(1)
