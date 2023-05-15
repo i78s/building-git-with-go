@@ -1,6 +1,8 @@
 package main
 
 import (
+	"building-git/jit/blob"
+	"building-git/jit/database"
 	"building-git/jit/workspace"
 	"fmt"
 	"os"
@@ -58,12 +60,16 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-		// gitPath := filepath.Join(rootPath, ".git")
-		// dbPath := filepath.Join(gitPath, "objects")
+		gitPath := filepath.Join(rootPath, ".git")
+		dbPath := filepath.Join(gitPath, "objects")
 
 		ws := workspace.NewWorkspace(rootPath)
+		db := database.NewDatabase(dbPath)
 		files, _ := ws.ListFiles()
-		fmt.Println(files)
+		for _, path := range files {
+			data, _ := ws.ReadFile(path)
+			db.Store(blob.NewBlob(data))
+		}
 	default:
 		fmt.Fprintf(os.Stderr, "jit: '%s' is not a jit command.\n", command)
 		os.Exit(1)
