@@ -1,7 +1,7 @@
 package blob
 
 type Blob struct {
-	Oid  string
+	oid  string
 	Data string
 }
 
@@ -17,4 +17,12 @@ func (b *Blob) Type() string {
 
 func (b *Blob) String() string {
 	return b.Data
+}
+
+func (b *Blob) GetOid() string {
+	return b.oid
+}
+
+func (b *Blob) SetOid(oid string) {
+	b.oid = oid
 }

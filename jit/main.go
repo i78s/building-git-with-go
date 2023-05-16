@@ -3,6 +3,8 @@ package main
 import (
 	"building-git/jit/blob"
 	"building-git/jit/database"
+	"building-git/jit/entry"
+	"building-git/jit/tree"
 	"building-git/jit/workspace"
 	"fmt"
 	"os"
@@ -65,11 +67,19 @@ func main() {
 
 		ws := workspace.NewWorkspace(rootPath)
 		db := database.NewDatabase(dbPath)
+		entries := make([]entry.Entry, 0)
 		files, _ := ws.ListFiles()
 		for _, path := range files {
 			data, _ := ws.ReadFile(path)
-			db.Store(blob.NewBlob(data))
+			b := blob.NewBlob(data)
+			db.Store(b)
+
+			entries = append(entries, *entry.NewEntry(path, b.GetOid()))
 		}
+
+		t := tree.NewTree(entries)
+		db.Store(t)
+		fmt.Println(t.GetOid())
 	default:
 		fmt.Fprintf(os.Stderr, "jit: '%s' is not a jit command.\n", command)
 		os.Exit(1)

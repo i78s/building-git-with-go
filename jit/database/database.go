@@ -1,7 +1,6 @@
 package database
 
 import (
-	"building-git/jit/blob"
 	"bytes"
 	"compress/zlib"
 	"crypto/sha1"
@@ -16,13 +15,20 @@ type Database struct {
 	pathname string
 }
 
+type GitObject interface {
+	GetOid() string
+	SetOid(string)
+	Type() string
+	String() string
+}
+
 func NewDatabase(pathname string) *Database {
 	return &Database{
 		pathname: pathname,
 	}
 }
 
-func (d *Database) Store(object *blob.Blob) error {
+func (d *Database) Store(object GitObject) error {
 	data := []byte(object.String())
 	var buf bytes.Buffer
 	fmt.Fprintf(&buf, "%s %d\x00", object.Type(), len(data))
@@ -35,8 +41,8 @@ func (d *Database) Store(object *blob.Blob) error {
 		return err
 	}
 
-	object.Oid = fmt.Sprintf("%x", hash.Sum(nil))
-	d.writeObject(object.Oid, cont)
+	object.SetOid(fmt.Sprintf("%x", hash.Sum(nil)))
+	d.writeObject(object.GetOid(), cont)
 	return nil
 }
 
