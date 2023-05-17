@@ -1,14 +1,20 @@
 package main
 
 import (
+	"bufio"
+	"building-git/jit/author"
 	"building-git/jit/blob"
+	"building-git/jit/commit"
 	"building-git/jit/database"
 	"building-git/jit/entry"
 	"building-git/jit/tree"
 	"building-git/jit/workspace"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 )
 
 func main() {
@@ -79,7 +85,42 @@ func main() {
 
 		t := tree.NewTree(entries)
 		db.Store(t)
-		fmt.Println(t.GetOid())
+
+		name, exists := os.LookupEnv("GIT_AUTHOR_NAME")
+		if !exists {
+			fmt.Println("GIT_AUTHOR_NAME is not set")
+			os.Exit(1)
+		}
+
+		email, exists := os.LookupEnv("GIT_AUTHOR_EMAIL")
+		if !exists {
+			fmt.Println("GIT_AUTHOR_EMAIL is not set")
+			os.Exit(1)
+		}
+
+		a := author.NewAuthor(name, email, time.Now())
+
+		reader := bufio.NewReader(os.Stdin)
+		message, _ := reader.ReadString('\n')
+
+		c := commit.NewCommit(t.GetOid(), a, message)
+		db.Store(c)
+
+		f, err := os.OpenFile(filepath.Join(gitPath, "HEAD"), os.O_WRONLY|os.O_CREATE, 0644)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer f.Close()
+
+		_, err = f.WriteString(c.GetOid() + "\n")
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		messageLines := strings.Split(message, "\n")
+		fmt.Printf("[(root-commit) %s] %s\n", c.GetOid(), messageLines[0])
+
+		os.Exit(0)
 	default:
 		fmt.Fprintf(os.Stderr, "jit: '%s' is not a jit command.\n", command)
 		os.Exit(1)

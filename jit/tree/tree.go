@@ -2,9 +2,10 @@ package tree
 
 import (
 	"building-git/jit/entry"
+	"bytes"
+	"encoding/hex"
 	"fmt"
 	"sort"
-	"strings"
 )
 
 type Tree struct {
@@ -27,12 +28,16 @@ func (t *Tree) String() string {
 		return t.entries[i].Name < t.entries[j].Name
 	})
 
-	var entries []string
+	var buf bytes.Buffer
 	for _, entry := range t.entries {
-		entryString := fmt.Sprintf("100644 %s\x00%s", entry.Name, entry.Oid)
-		entries = append(entries, entryString)
+		entryOidBytes, _ := hex.DecodeString(entry.Oid)
+		entryString := fmt.Sprintf("100644 %s", entry.Name)
+		buf.WriteString(entryString)
+		buf.WriteByte(0)
+		buf.Write(entryOidBytes)
 	}
-	return strings.Join(entries, "")
+
+	return buf.String()
 }
 
 func (t *Tree) GetOid() string {
