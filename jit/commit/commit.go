@@ -6,14 +6,16 @@ import (
 )
 
 type Commit struct {
+	parent  string
 	oid     string
 	tree    string
 	author  *author.Author
 	message string
 }
 
-func NewCommit(tree string, author *author.Author, message string) *Commit {
+func NewCommit(parent, tree string, author *author.Author, message string) *Commit {
 	return &Commit{
+		parent:  parent,
 		tree:    tree,
 		author:  author,
 		message: message,
@@ -27,11 +29,17 @@ func (c *Commit) Type() string {
 func (c Commit) String() string {
 	lines := []string{
 		"tree " + c.tree,
-		"author " + c.author.String(),
-		"committer " + c.author.String(),
+	}
+
+	if c.parent != "" {
+		lines = append(lines, "parent "+c.parent)
+	}
+	lines = append(lines,
+		"author "+c.author.String(),
+		"committer "+c.author.String(),
 		"",
 		c.message,
-	}
+	)
 
 	return strings.Join(lines, "\n")
 }

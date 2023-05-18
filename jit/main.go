@@ -7,6 +7,7 @@ import (
 	"building-git/jit/commit"
 	"building-git/jit/database"
 	"building-git/jit/entry"
+	"building-git/jit/refs"
 	"building-git/jit/tree"
 	"building-git/jit/workspace"
 	"fmt"
@@ -73,6 +74,7 @@ func main() {
 
 		ws := workspace.NewWorkspace(rootPath)
 		db := database.NewDatabase(dbPath)
+		r := refs.NewRefs(gitPath)
 		entries := make([]entry.Entry, 0)
 		files, _ := ws.ListFiles()
 		for _, path := range files {
@@ -86,6 +88,7 @@ func main() {
 		t := tree.NewTree(entries)
 		db.Store(t)
 
+		parent, _ := r.ReadHead()
 		name, exists := os.LookupEnv("GIT_AUTHOR_NAME")
 		if !exists {
 			fmt.Println("GIT_AUTHOR_NAME is not set")
@@ -103,7 +106,7 @@ func main() {
 		reader := bufio.NewReader(os.Stdin)
 		message, _ := reader.ReadString('\n')
 
-		c := commit.NewCommit(t.GetOid(), a, message)
+		c := commit.NewCommit(parent, t.GetOid(), a, message)
 		db.Store(c)
 
 		f, err := os.OpenFile(filepath.Join(gitPath, "HEAD"), os.O_WRONLY|os.O_CREATE, 0644)
