@@ -1,11 +1,21 @@
 package refs
 
 import (
+	"building-git/jit/lockfile"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 )
+
+type LockDeniedError struct {
+	Message string
+}
+
+func (e *LockDeniedError) Error() string {
+	return e.Message
+}
 
 type Refs struct {
 	pathname string
@@ -34,15 +44,21 @@ func (r *Refs) ReadHead() (string, error) {
 
 func (r *Refs) UpdateHead(oid string) error {
 	headPath := r.getHeadPath()
+	lf := lockfile.NewLockfile(headPath)
+	_, err := lf.HoldForUpdate()
 
-	f, err := os.OpenFile(headPath, os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		if os.IsPermission(err) {
+			return &LockDeniedError{err.Error()}
+		}
+		log.Fatalf("Could not acquire lock on file: %s", headPath)
+	}
+
+	err = lf.Write(oid + "\n")
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-
-	_, err = f.WriteString(oid + "\n")
-	return err
+	return lf.Commit()
 }
 
 func (r *Refs) getHeadPath() string {
