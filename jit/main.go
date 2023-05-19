@@ -81,8 +81,9 @@ func main() {
 			data, _ := ws.ReadFile(path)
 			b := blob.NewBlob(data)
 			db.Store(b)
+			stat, _ := ws.StatFile(path)
 
-			entries = append(entries, *entry.NewEntry(path, b.GetOid()))
+			entries = append(entries, *entry.NewEntry(path, b.GetOid(), stat))
 		}
 
 		t := tree.NewTree(entries)

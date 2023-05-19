@@ -31,7 +31,7 @@ func (t *Tree) String() string {
 	var buf bytes.Buffer
 	for _, entry := range t.entries {
 		entryOidBytes, _ := hex.DecodeString(entry.Oid)
-		entryString := fmt.Sprintf("100644 %s", entry.Name)
+		entryString := fmt.Sprintf("%s %s", entry.Mode(), entry.Name)
 		buf.WriteString(entryString)
 		buf.WriteByte(0)
 		buf.Write(entryOidBytes)

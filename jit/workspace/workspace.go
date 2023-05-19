@@ -1,9 +1,9 @@
 package workspace
 
 import (
+	"io/fs"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 )
 
@@ -51,9 +51,13 @@ func (w *Workspace) ListFiles() ([]string, error) {
 }
 
 func (ws *Workspace) ReadFile(filePath string) (string, error) {
-	data, err := ioutil.ReadFile(path.Join(ws.pathname, filePath))
+	data, err := ioutil.ReadFile(filepath.Join(ws.pathname, filePath))
 	if err != nil {
 		return "", err
 	}
 	return string(data), nil
+}
+
+func (ws *Workspace) StatFile(filePath string) (fs.FileInfo, error) {
+	return os.Stat(filepath.Join(ws.pathname, filePath))
 }
