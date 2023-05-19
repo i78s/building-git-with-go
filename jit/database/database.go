@@ -51,6 +51,10 @@ func (d *Database) writeObject(oid string, content []byte) error {
 	dirname := filepath.Dir(objectPath)
 	tempPath := filepath.Join(dirname, generateTempName())
 
+	if _, err := os.Stat(objectPath); err == nil {
+		return nil
+	}
+
 	if _, err := os.Stat(dirname); os.IsNotExist(err) {
 		if err := os.MkdirAll(dirname, os.ModePerm); err != nil {
 			return err
