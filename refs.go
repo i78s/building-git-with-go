@@ -1,7 +1,6 @@
-package refs
+package jit
 
 import (
-	"building-git/jit/lockfile"
 	"io/ioutil"
 	"log"
 	"os"
@@ -44,7 +43,7 @@ func (r *Refs) ReadHead() (string, error) {
 
 func (r *Refs) UpdateHead(oid string) error {
 	headPath := r.getHeadPath()
-	lf := lockfile.NewLockfile(headPath)
+	lf := NewLockfile(headPath)
 	_, err := lf.HoldForUpdate()
 
 	if err != nil {

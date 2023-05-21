@@ -1,4 +1,4 @@
-package lockfile
+package jit
 
 import "os"
 

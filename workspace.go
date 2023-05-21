@@ -1,4 +1,4 @@
-package workspace
+package jit
 
 import (
 	"io/fs"

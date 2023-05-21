@@ -2,14 +2,8 @@ package main
 
 import (
 	"bufio"
-	"building-git/jit/author"
-	"building-git/jit/blob"
-	"building-git/jit/commit"
-	"building-git/jit/database"
-	"building-git/jit/entry"
-	"building-git/jit/refs"
-	"building-git/jit/tree"
-	"building-git/jit/workspace"
+	jit "building-git"
+	"building-git/database"
 	"fmt"
 	"log"
 	"os"
@@ -72,22 +66,22 @@ func main() {
 		gitPath := filepath.Join(rootPath, ".git")
 		dbPath := filepath.Join(gitPath, "objects")
 
-		ws := workspace.NewWorkspace(rootPath)
+		workspace := jit.NewWorkspace(rootPath)
 		db := database.NewDatabase(dbPath)
-		r := refs.NewRefs(gitPath)
-		entries := make([]*entry.Entry, 0)
-		files, _ := ws.ListFiles()
+		refs := jit.NewRefs(gitPath)
+		entries := make([]*jit.Entry, 0)
+		files, _ := workspace.ListFiles()
 		for _, path := range files {
-			data, _ := ws.ReadFile(path)
-			b := blob.NewBlob(data)
-			db.Store(b)
-			stat, _ := ws.StatFile(path)
+			data, _ := workspace.ReadFile(path)
+			blob := database.NewBlob(data)
+			db.Store(blob)
+			stat, _ := workspace.StatFile(path)
 
-			entries = append(entries, entry.NewEntry(path, b.GetOid(), stat))
+			entries = append(entries, jit.NewEntry(path, blob.GetOid(), stat))
 		}
 
-		root := tree.Build(entries)
-		root.Traverse(func(t tree.TreeObject) {
+		root := database.BuildTree(entries)
+		root.Traverse(func(t database.TreeObject) {
 			if gitObj, ok := t.(database.GitObject); ok {
 				if err := db.Store(gitObj); err != nil {
 					log.Fatalf("Failed to store object: %v", err)
@@ -97,7 +91,7 @@ func main() {
 			}
 		})
 
-		parent, _ := r.ReadHead()
+		parent, _ := refs.ReadHead()
 		name, exists := os.LookupEnv("GIT_AUTHOR_NAME")
 		if !exists {
 			fmt.Println("GIT_AUTHOR_NAME is not set")
@@ -110,12 +104,12 @@ func main() {
 			os.Exit(1)
 		}
 
-		a := author.NewAuthor(name, email, time.Now())
+		a := database.NewAuthor(name, email, time.Now())
 
 		reader := bufio.NewReader(os.Stdin)
 		message, _ := reader.ReadString('\n')
 
-		c := commit.NewCommit(parent, root.GetOid(), a, message)
+		c := database.NewCommit(parent, root.GetOid(), a, message)
 		db.Store(c)
 
 		f, err := os.OpenFile(filepath.Join(gitPath, "HEAD"), os.O_WRONLY|os.O_CREATE, 0644)

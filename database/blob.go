@@ -1,4 +1,4 @@
-package blob
+package database
 
 type Blob struct {
 	oid  string

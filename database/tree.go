@@ -1,7 +1,7 @@
-package tree
+package database
 
 import (
-	"building-git/jit/entry"
+	jit "building-git"
 	"bytes"
 	"encoding/hex"
 	"fmt"
@@ -24,7 +24,7 @@ func NewTree() *Tree {
 	}
 }
 
-func Build(entries []*entry.Entry) *Tree {
+func BuildTree(entries []*jit.Entry) *Tree {
 	sort.Slice(entries, func(i, j int) bool {
 		return entries[i].Name < entries[j].Name
 	})
@@ -39,7 +39,7 @@ func Build(entries []*entry.Entry) *Tree {
 
 func (t *Tree) addEntry(parents []string, e TreeObject) {
 	if len(parents) == 0 {
-		t.entries[e.(*entry.Entry).Basename()] = e
+		t.entries[e.(*jit.Entry).Basename()] = e
 	} else {
 		subtree, exists := t.entries[parents[0]]
 		if !exists {
@@ -60,7 +60,7 @@ func (t *Tree) Traverse(fn func(TreeObject)) {
 }
 
 func (t *Tree) Mode() string {
-	return entry.DIRECTORY_MODE
+	return jit.DIRECTORY_MODE
 }
 
 func (t *Tree) Type() string {

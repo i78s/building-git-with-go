@@ -1,7 +1,6 @@
-package commit
+package database
 
 import (
-	"building-git/jit/author"
 	"strings"
 )
 
@@ -9,11 +8,11 @@ type Commit struct {
 	parent  string
 	oid     string
 	tree    string
-	author  *author.Author
+	author  *Author
 	message string
 }
 
-func NewCommit(parent, tree string, author *author.Author, message string) *Commit {
+func NewCommit(parent, tree string, author *Author, message string) *Commit {
 	return &Commit{
 		parent:  parent,
 		tree:    tree,

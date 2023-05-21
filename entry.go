@@ -1,4 +1,4 @@
-package entry
+package jit
 
 import (
 	"io/fs"
