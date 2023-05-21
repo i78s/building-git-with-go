@@ -75,7 +75,7 @@ func main() {
 		ws := workspace.NewWorkspace(rootPath)
 		db := database.NewDatabase(dbPath)
 		r := refs.NewRefs(gitPath)
-		entries := make([]entry.Entry, 0)
+		entries := make([]*entry.Entry, 0)
 		files, _ := ws.ListFiles()
 		for _, path := range files {
 			data, _ := ws.ReadFile(path)
@@ -83,11 +83,19 @@ func main() {
 			db.Store(b)
 			stat, _ := ws.StatFile(path)
 
-			entries = append(entries, *entry.NewEntry(path, b.GetOid(), stat))
+			entries = append(entries, entry.NewEntry(path, b.GetOid(), stat))
 		}
 
-		t := tree.NewTree(entries)
-		db.Store(t)
+		root := tree.Build(entries)
+		root.Traverse(func(t tree.TreeObject) {
+			if gitObj, ok := t.(database.GitObject); ok {
+				if err := db.Store(gitObj); err != nil {
+					log.Fatalf("Failed to store object: %v", err)
+				}
+			} else {
+				log.Fatalf("Object does not implement GitObject interface")
+			}
+		})
 
 		parent, _ := r.ReadHead()
 		name, exists := os.LookupEnv("GIT_AUTHOR_NAME")
@@ -107,7 +115,7 @@ func main() {
 		reader := bufio.NewReader(os.Stdin)
 		message, _ := reader.ReadString('\n')
 
-		c := commit.NewCommit(parent, t.GetOid(), a, message)
+		c := commit.NewCommit(parent, root.GetOid(), a, message)
 		db.Store(c)
 
 		f, err := os.OpenFile(filepath.Join(gitPath, "HEAD"), os.O_WRONLY|os.O_CREATE, 0644)
