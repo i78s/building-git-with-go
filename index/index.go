@@ -16,6 +16,7 @@ const (
 
 type Index struct {
 	entries  map[string]*Entry
+	keys     []string
 	lockfile *jit.Lockfile
 	digest   hash.Hash
 }
@@ -23,13 +24,21 @@ type Index struct {
 func NewIndex(pathname string) *Index {
 	return &Index{
 		entries:  make(map[string]*Entry),
+		keys:     make([]string, 0),
 		lockfile: jit.NewLockfile(pathname),
 	}
 }
 
 func (i *Index) Add(pathname, oid string, stat fs.FileInfo) {
-	entry := CreateEntry(pathname, oid, stat)
-	i.entries[pathname] = entry
+	if _, exists := i.entries[pathname]; !exists {
+		entry := CreateEntry(pathname, oid, stat)
+		i.entries[entry.Key()] = entry
+
+		index := sort.SearchStrings(i.keys, pathname)
+		i.keys = append(i.keys, "")
+		copy(i.keys[index+1:], i.keys[index:])
+		i.keys[index] = pathname
+	}
 }
 
 func (i *Index) WriteUpdates() bool {
@@ -45,14 +54,8 @@ func (i *Index) WriteUpdates() bool {
 	binary.BigEndian.PutUint32(header[8:12], uint32(len(i.entries)))
 	i.write(header)
 
-	var paths []string
-	for path := range i.entries {
-		paths = append(paths, path)
-	}
-	sort.Strings(paths)
-
-	for _, path := range paths {
-		i.write([]byte(i.entries[path].String()))
+	for _, key := range i.keys {
+		i.write([]byte(i.entries[key].String()))
 	}
 
 	i.finishWrite()
@@ -65,11 +68,11 @@ func (i *Index) beginWrite() {
 }
 
 func (i *Index) write(data []byte) {
-	i.lockfile.Write(string(data))
+	i.lockfile.Write(data)
 	i.digest.Write(data)
 }
 
 func (i *Index) finishWrite() {
-	i.lockfile.Write(string(i.digest.Sum(nil)))
+	i.lockfile.Write(i.digest.Sum(nil))
 	i.lockfile.Commit()
 }

@@ -53,7 +53,7 @@ func (r *Refs) UpdateHead(oid string) error {
 		log.Fatalf("Could not acquire lock on file: %s", headPath)
 	}
 
-	err = lf.Write(oid + "\n")
+	err = lf.Write([]byte(oid + "\n"))
 	if err != nil {
 		return err
 	}

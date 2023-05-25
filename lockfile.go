@@ -59,11 +59,11 @@ func (lf *Lockfile) HoldForUpdate() (bool, error) {
 	return true, nil
 }
 
-func (lf *Lockfile) Write(data string) error {
+func (lf *Lockfile) Write(data []byte) error {
 	if lf.Lock == nil {
 		return &StaleLockError{"Not holding lock on file: " + lf.LockPath}
 	}
-	_, err := lf.Lock.Write([]byte(data))
+	_, err := lf.Lock.Write(data)
 	return err
 }
 

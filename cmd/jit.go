@@ -143,15 +143,23 @@ func main() {
 		workspace := jit.NewWorkspace(rootPath)
 		db := database.NewDatabase(filepath.Join(gitPath, "objects"))
 		index := index.NewIndex(filepath.Join(gitPath, "index"))
-		path = ""
-		if len(os.Args) > 2 {
-			path = os.Args[2]
+
+		for _, path := range os.Args[2:] {
+			data, err := workspace.ReadFile(path)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "fatal: %s\n", err.Error())
+				os.Exit(1)
+			}
+			stat, err := workspace.StatFile(path)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "fatal: %s\n", err.Error())
+				os.Exit(1)
+			}
+			blob := database.NewBlob(data)
+			db.Store(blob)
+			index.Add(path, blob.GetOid(), stat)
 		}
-		data, _ := workspace.ReadFile(path)
-		stat, _ := workspace.StatFile(path)
-		blob := database.NewBlob(data)
-		db.Store(blob)
-		index.Add(path, blob.GetOid(), stat)
+
 		index.WriteUpdates()
 
 		os.Exit(0)
