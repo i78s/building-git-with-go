@@ -4,6 +4,7 @@ import (
 	"bufio"
 	jit "building-git"
 	"building-git/database"
+	"building-git/index"
 	"fmt"
 	"log"
 	"os"
@@ -64,10 +65,9 @@ func main() {
 			os.Exit(1)
 		}
 		gitPath := filepath.Join(rootPath, ".git")
-		dbPath := filepath.Join(gitPath, "objects")
 
 		workspace := jit.NewWorkspace(rootPath)
-		db := database.NewDatabase(dbPath)
+		db := database.NewDatabase(filepath.Join(gitPath, "objects"))
 		refs := jit.NewRefs(gitPath)
 		entries := make([]*jit.Entry, 0)
 		files, _ := workspace.ListFiles()
@@ -125,6 +125,34 @@ func main() {
 
 		messageLines := strings.Split(message, "\n")
 		fmt.Printf("[(root-commit) %s] %s\n", c.GetOid(), messageLines[0])
+
+		os.Exit(0)
+	case "add":
+		path, err := os.Getwd()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		rootPath, err := filepath.Abs(path)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		gitPath := filepath.Join(rootPath, ".git")
+
+		workspace := jit.NewWorkspace(rootPath)
+		db := database.NewDatabase(filepath.Join(gitPath, "objects"))
+		index := index.NewIndex(filepath.Join(gitPath, "index"))
+		path = ""
+		if len(os.Args) > 2 {
+			path = os.Args[2]
+		}
+		data, _ := workspace.ReadFile(path)
+		stat, _ := workspace.StatFile(path)
+		blob := database.NewBlob(data)
+		db.Store(blob)
+		index.Add(path, blob.GetOid(), stat)
+		index.WriteUpdates()
 
 		os.Exit(0)
 	default:
