@@ -70,7 +70,7 @@ func main() {
 		db := database.NewDatabase(filepath.Join(gitPath, "objects"))
 		refs := jit.NewRefs(gitPath)
 		entries := make([]*jit.Entry, 0)
-		files, _ := workspace.ListFiles()
+		files, _ := workspace.ListFiles(rootPath)
 		for _, path := range files {
 			data, _ := workspace.ReadFile(path)
 			blob := database.NewBlob(data)
@@ -145,21 +145,28 @@ func main() {
 		index := index.NewIndex(filepath.Join(gitPath, "index"))
 
 		for _, path := range os.Args[2:] {
-			data, err := workspace.ReadFile(path)
+			absPath, err := filepath.Abs(path)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "fatal: %s\n", err.Error())
+				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
 			}
-			stat, err := workspace.StatFile(path)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "fatal: %s\n", err.Error())
-				os.Exit(1)
+			files, _ := workspace.ListFiles(absPath)
+			for _, pathname := range files {
+				data, err := workspace.ReadFile(pathname)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "fatal: %s\n", err.Error())
+					os.Exit(1)
+				}
+				stat, err := workspace.StatFile(pathname)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "fatal: %s\n", err.Error())
+					os.Exit(1)
+				}
+				blob := database.NewBlob(data)
+				db.Store(blob)
+				index.Add(pathname, blob.GetOid(), stat)
 			}
-			blob := database.NewBlob(data)
-			db.Store(blob)
-			index.Add(path, blob.GetOid(), stat)
 		}
-
 		index.WriteUpdates()
 
 		os.Exit(0)

@@ -1,6 +1,7 @@
 package jit
 
 import (
+	"fmt"
 	"io/fs"
 	"io/ioutil"
 	"os"
@@ -17,37 +18,49 @@ func NewWorkspace(pathname string) *Workspace {
 	}
 }
 
-func (w *Workspace) ListFiles() ([]string, error) {
+func (w *Workspace) ListFiles(path string) ([]string, error) {
 	var files []string
+	err := w.listFilesRecursive(path, &files)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println(files)
+	return files, nil
+}
+
+func (w *Workspace) listFilesRecursive(path string, files *[]string) error {
 	ignore := map[string]struct{}{
 		".":    {},
 		"..":   {},
 		".git": {},
 	}
-	err := filepath.Walk(w.pathname,
-		func(path string, info os.FileInfo, err error) error {
+
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		if _, ok := ignore[entry.Name()]; ok {
+			continue
+		}
+
+		fullPath := filepath.Join(path, entry.Name())
+
+		if entry.IsDir() {
+			err := w.listFilesRecursive(fullPath, files)
 			if err != nil {
 				return err
 			}
-			if _, ok := ignore[info.Name()]; ok {
-				if info.IsDir() {
-					return filepath.SkipDir
-				}
-				return nil
+		} else {
+			rel, err := filepath.Rel(w.pathname, fullPath)
+			if err != nil {
+				return err
 			}
-			if !info.IsDir() {
-				rel, err := filepath.Rel(w.pathname, path)
-				if err != nil {
-					return err
-				}
-				files = append(files, rel)
-			}
-			return nil
-		})
-	if err != nil {
-		return nil, err
+			*files = append(*files, rel)
+		}
 	}
-	return files, nil
+	return nil
 }
 
 func (ws *Workspace) ReadFile(filePath string) (string, error) {
