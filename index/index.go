@@ -35,21 +35,15 @@ func NewIndex(pathname string) *Index {
 	}
 }
 
-func (i *Index) Add(pathname, oid string, stat fs.FileInfo) {
-	entry := CreateEntry(pathname, oid, stat)
-	i.storeEntry(entry)
-	i.changed = true
-}
-
 func (i *Index) LoadForUpdate() bool {
 	if _, err := i.lockfile.HoldForUpdate(); err != nil {
-		i.load()
+		i.Load()
 		return true
 	}
 	return false
 }
 
-func (i *Index) load() {
+func (i *Index) Load() {
 	i.clear()
 	file, err := i.openIndexFile()
 
@@ -89,6 +83,20 @@ func (i *Index) WriteUpdates() {
 	i.lockfile.Commit()
 
 	i.changed = false
+}
+
+func (i *Index) Add(pathname, oid string, stat fs.FileInfo) {
+	entry := CreateEntry(pathname, oid, stat)
+	i.storeEntry(entry)
+	i.changed = true
+}
+
+func (i *Index) EachEntry() []*Entry {
+	entries := []*Entry{}
+	for _, key := range i.keys {
+		entries = append(entries, i.entries[key])
+	}
+	return entries
 }
 
 func (i *Index) clear() {

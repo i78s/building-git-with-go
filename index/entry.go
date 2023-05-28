@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"os"
+	"path/filepath"
 	"syscall"
 	"time"
 )
@@ -77,6 +78,31 @@ func ParseEntry(data []byte) *Entry {
 
 func (e *Entry) Key() string {
 	return e.path
+}
+
+func (e *Entry) Mode() int {
+	return int(e.mode)
+}
+
+func (e *Entry) GetOid() string {
+	return e.oid
+}
+
+func (e *Entry) ParentDirectories() []string {
+	var dirs []string
+	path := e.path
+	for {
+		path = filepath.Dir(path)
+		if path == "." || path == string(filepath.Separator) {
+			break
+		}
+		dirs = append(dirs, path)
+	}
+	return dirs
+}
+
+func (e *Entry) Basename() string {
+	return filepath.Base(e.path)
 }
 
 func (e *Entry) String() string {

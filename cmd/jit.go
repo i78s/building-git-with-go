@@ -66,21 +66,13 @@ func main() {
 		}
 		gitPath := filepath.Join(rootPath, ".git")
 
-		workspace := jit.NewWorkspace(rootPath)
 		db := database.NewDatabase(filepath.Join(gitPath, "objects"))
+		index := index.NewIndex(filepath.Join(gitPath, "index"))
 		refs := jit.NewRefs(gitPath)
-		entries := make([]*jit.Entry, 0)
-		files, _ := workspace.ListFiles(rootPath)
-		for _, path := range files {
-			data, _ := workspace.ReadFile(path)
-			blob := database.NewBlob(data)
-			db.Store(blob)
-			stat, _ := workspace.StatFile(path)
 
-			entries = append(entries, jit.NewEntry(path, blob.GetOid(), stat))
-		}
+		index.Load()
 
-		root := database.BuildTree(entries)
+		root := database.BuildTree(index.EachEntry())
 		root.Traverse(func(t database.TreeObject) {
 			if gitObj, ok := t.(database.GitObject); ok {
 				if err := db.Store(gitObj); err != nil {

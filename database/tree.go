@@ -1,12 +1,14 @@
 package database
 
 import (
-	jit "building-git"
+	"building-git/index"
 	"bytes"
 	"encoding/hex"
 	"fmt"
 	"sort"
 )
+
+const TREE_MODE = 040000
 
 type Tree struct {
 	oid     string
@@ -15,7 +17,7 @@ type Tree struct {
 
 type TreeObject interface {
 	GetOid() string
-	Mode() string
+	Mode() int
 }
 
 func NewTree() *Tree {
@@ -24,11 +26,7 @@ func NewTree() *Tree {
 	}
 }
 
-func BuildTree(entries []*jit.Entry) *Tree {
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].Name < entries[j].Name
-	})
-
+func BuildTree(entries []*index.Entry) *Tree {
 	root := NewTree()
 	for _, e := range entries {
 		root.addEntry(e.ParentDirectories(), e)
@@ -39,7 +37,7 @@ func BuildTree(entries []*jit.Entry) *Tree {
 
 func (t *Tree) addEntry(parents []string, e TreeObject) {
 	if len(parents) == 0 {
-		t.entries[e.(*jit.Entry).Basename()] = e
+		t.entries[e.(*index.Entry).Basename()] = e
 	} else {
 		subtree, exists := t.entries[parents[0]]
 		if !exists {
@@ -59,8 +57,8 @@ func (t *Tree) Traverse(fn func(TreeObject)) {
 	fn(t)
 }
 
-func (t *Tree) Mode() string {
-	return jit.DIRECTORY_MODE
+func (t *Tree) Mode() int {
+	return TREE_MODE
 }
 
 func (t *Tree) Type() string {
@@ -78,7 +76,8 @@ func (t *Tree) String() string {
 	for _, name := range keys {
 		entry := t.entries[name]
 		entryOidBytes, _ := hex.DecodeString(entry.GetOid())
-		entryString := fmt.Sprintf("%s %s", entry.Mode(), name)
+
+		entryString := fmt.Sprintf("%o %s", entry.Mode(), name)
 		buf.WriteString(entryString)
 		buf.WriteByte(0)
 		buf.Write(entryOidBytes)
