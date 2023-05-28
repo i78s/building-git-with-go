@@ -1,7 +1,6 @@
 package jit
 
 import (
-	"fmt"
 	"io/fs"
 	"io/ioutil"
 	"os"
@@ -24,7 +23,6 @@ func (w *Workspace) ListFiles(path string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(files)
 	return files, nil
 }
 

@@ -9,9 +9,11 @@ import (
 )
 
 const (
-	REGULAR_MODE    = 0100644
-	EXECUTABLE_MODE = 0100755
-	MAX_PATH_SIZE   = 0xfff
+	ENTRY_BLOCK_SIZE = 8
+	ENTRY_MIN_SIZE   = 64
+	REGULAR_MODE     = 0100644
+	EXECUTABLE_MODE  = 0100755
+	MAX_PATH_SIZE    = 0xfff
 )
 
 type Entry struct {
@@ -52,6 +54,24 @@ func CreateEntry(pathname string, oid string, stat os.FileInfo) *Entry {
 		oid:       oid,
 		flags:     flags,
 		path:      pathname,
+	}
+}
+
+func ParseEntry(data []byte) *Entry {
+	return &Entry{
+		ctime:     binary.BigEndian.Uint32(data[0:4]),
+		ctimeNsec: binary.BigEndian.Uint32(data[4:8]),
+		mtime:     binary.BigEndian.Uint32(data[8:12]),
+		mtimeNsec: binary.BigEndian.Uint32(data[12:16]),
+		dev:       binary.BigEndian.Uint32(data[16:20]),
+		ino:       binary.BigEndian.Uint32(data[20:24]),
+		mode:      binary.BigEndian.Uint32(data[24:28]),
+		uid:       binary.BigEndian.Uint32(data[28:32]),
+		gid:       binary.BigEndian.Uint32(data[32:36]),
+		size:      binary.BigEndian.Uint32(data[36:40]),
+		oid:       hex.EncodeToString(data[40:60]),
+		flags:     binary.BigEndian.Uint16(data[60:62]),
+		path:      string(data[62:]),
 	}
 }
 

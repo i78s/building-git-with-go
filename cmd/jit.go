@@ -144,6 +144,8 @@ func main() {
 		db := database.NewDatabase(filepath.Join(gitPath, "objects"))
 		index := index.NewIndex(filepath.Join(gitPath, "index"))
 
+		index.LoadForUpdate()
+
 		for _, path := range os.Args[2:] {
 			absPath, err := filepath.Abs(path)
 			if err != nil {
