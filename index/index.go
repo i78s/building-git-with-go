@@ -21,6 +21,7 @@ type Index struct {
 	pathname string
 	entries  map[string]*Entry
 	keys     []string
+	parents  map[string]map[string]struct{}
 	lockfile *jit.Lockfile
 	digest   hash.Hash
 	changed  bool
@@ -31,6 +32,7 @@ func NewIndex(pathname string) *Index {
 		pathname: pathname,
 		entries:  make(map[string]*Entry),
 		keys:     make([]string, 0),
+		parents:  make(map[string]map[string]struct{}),
 		lockfile: jit.NewLockfile(pathname),
 	}
 }
@@ -87,6 +89,7 @@ func (i *Index) WriteUpdates() {
 
 func (i *Index) Add(pathname, oid string, stat fs.FileInfo) {
 	entry := CreateEntry(pathname, oid, stat)
+	i.discardConflicts(entry)
 	i.storeEntry(entry)
 	i.changed = true
 }
@@ -105,6 +108,45 @@ func (i *Index) clear() {
 	i.changed = false
 }
 
+func (i *Index) discardConflicts(entry *Entry) {
+	for _, parent := range entry.ParentDirectories() {
+		i.removeEntry(parent)
+	}
+	i.removeChildren(entry.path)
+}
+
+func (i *Index) removeEntry(pathname string) {
+	entry, ok := i.entries[pathname]
+	if !ok {
+		return
+	}
+
+	for index, key := range i.keys {
+		if key == entry.Key() {
+			i.keys = append(i.keys[:index], i.keys[index+1:]...)
+			break
+		}
+	}
+	delete(i.entries, entry.Key())
+
+	for _, dirname := range entry.ParentDirectories() {
+		delete(i.parents[dirname], entry.path)
+		if len(i.parents[dirname]) == 0 {
+			delete(i.parents, dirname)
+		}
+	}
+}
+
+func (i *Index) removeChildren(path string) {
+	children, ok := i.parents[path]
+	if !ok {
+		return
+	}
+	for child := range children {
+		i.removeEntry(child)
+	}
+}
+
 func (i *Index) storeEntry(entry *Entry) {
 	key := entry.Key()
 
@@ -116,6 +158,13 @@ func (i *Index) storeEntry(entry *Entry) {
 		i.keys[index] = key
 	}
 	i.entries[key] = entry
+
+	for _, dirname := range entry.ParentDirectories() {
+		if i.parents[dirname] == nil {
+			i.parents[dirname] = make(map[string]struct{})
+		}
+		i.parents[dirname][entry.path] = struct{}{}
+	}
 }
 
 func (i *Index) openIndexFile() (*os.File, error) {
