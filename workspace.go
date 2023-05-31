@@ -1,10 +1,12 @@
 package jit
 
 import (
+	"fmt"
 	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type Workspace struct {
@@ -19,56 +21,64 @@ func NewWorkspace(pathname string) *Workspace {
 
 func (w *Workspace) ListFiles(path string) ([]string, error) {
 	var files []string
-	err := w.listFilesRecursive(path, &files)
-	if err != nil {
-		return nil, err
-	}
-	return files, nil
-}
-
-func (w *Workspace) listFilesRecursive(path string, files *[]string) error {
 	ignore := map[string]struct{}{
 		".":    {},
 		"..":   {},
 		".git": {},
 	}
 
-	entries, err := os.ReadDir(path)
+	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		relativePath, err := filepath.Rel(w.pathname, path)
+		if err != nil {
+			return err
+		}
+		parts := strings.Split(relativePath, "/")
+		for _, part := range parts {
+			if _, ok := ignore[part]; ok {
+				return nil
+			}
+		}
+		if info.Mode().IsRegular() {
+			relative, err := filepath.Rel(w.pathname, path)
+			if err != nil {
+				return err
+			}
+			files = append(files, relative)
+		}
+
+		return nil
+	})
+
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("pathspec '%s' did not match any files", path)
 	}
 
-	for _, entry := range entries {
-		if _, ok := ignore[entry.Name()]; ok {
-			continue
-		}
-
-		fullPath := filepath.Join(path, entry.Name())
-
-		if entry.IsDir() {
-			err := w.listFilesRecursive(fullPath, files)
-			if err != nil {
-				return err
-			}
-		} else {
-			rel, err := filepath.Rel(w.pathname, fullPath)
-			if err != nil {
-				return err
-			}
-			*files = append(*files, rel)
-		}
-	}
-	return nil
+	return files, nil
 }
 
 func (ws *Workspace) ReadFile(filePath string) (string, error) {
 	data, err := ioutil.ReadFile(filepath.Join(ws.pathname, filePath))
 	if err != nil {
+		if os.IsPermission(err) {
+			return "", fmt.Errorf("open('%s'): Permission denied", filePath)
+		}
 		return "", err
 	}
 	return string(data), nil
 }
 
 func (ws *Workspace) StatFile(filePath string) (fs.FileInfo, error) {
-	return os.Stat(filepath.Join(ws.pathname, filePath))
+	info, err := os.Stat(filepath.Join(ws.pathname, filePath))
+
+	if err != nil {
+		if os.IsPermission(err) {
+			return nil, fmt.Errorf("stat('%s'): Permission denied", filePath)
+		}
+		return nil, err
+	}
+	return info, nil
 }

@@ -87,6 +87,10 @@ func (i *Index) WriteUpdates() {
 	i.changed = false
 }
 
+func (i *Index) ReleaseLock() {
+	i.lockfile.Rollback()
+}
+
 func (i *Index) Add(pathname, oid string, stat fs.FileInfo) {
 	entry := CreateEntry(pathname, oid, stat)
 	i.discardConflicts(entry)

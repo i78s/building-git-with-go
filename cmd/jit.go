@@ -138,28 +138,37 @@ func main() {
 
 		index.LoadForUpdate()
 
+		var paths []string
 		for _, path := range os.Args[2:] {
 			absPath, err := filepath.Abs(path)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
-				os.Exit(1)
+				os.Exit(128)
 			}
-			files, _ := workspace.ListFiles(absPath)
-			for _, pathname := range files {
-				data, err := workspace.ReadFile(pathname)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "fatal: %s\n", err.Error())
-					os.Exit(1)
-				}
-				stat, err := workspace.StatFile(pathname)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "fatal: %s\n", err.Error())
-					os.Exit(1)
-				}
-				blob := database.NewBlob(data)
-				db.Store(blob)
-				index.Add(pathname, blob.GetOid(), stat)
+			files, err := workspace.ListFiles(absPath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "fatal: %s\n", err.Error())
+				os.Exit(128)
 			}
+			paths = append(paths, files...)
+		}
+
+		for _, pathname := range paths {
+			data, err := workspace.ReadFile(pathname)
+			if err != nil {
+				index.ReleaseLock()
+				fmt.Fprintf(os.Stderr, "fatal: %s\n", err.Error())
+				os.Exit(128)
+			}
+			stat, err := workspace.StatFile(pathname)
+			if err != nil {
+				index.ReleaseLock()
+				fmt.Fprintf(os.Stderr, "fatal: %s\n", err.Error())
+				os.Exit(128)
+			}
+			blob := database.NewBlob(data)
+			db.Store(blob)
+			index.Add(pathname, blob.GetOid(), stat)
 		}
 		index.WriteUpdates()
 
