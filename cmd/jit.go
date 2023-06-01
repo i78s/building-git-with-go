@@ -5,6 +5,7 @@ import (
 	jit "building-git"
 	"building-git/database"
 	"building-git/index"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -136,7 +137,16 @@ func main() {
 		db := database.NewDatabase(filepath.Join(gitPath, "objects"))
 		index := index.NewIndex(filepath.Join(gitPath, "index"))
 
-		index.LoadForUpdate()
+		err = index.LoadForUpdate()
+		if errors.Is(err, &jit.LockDeniedError{}) {
+			fmt.Fprint(os.Stderr, `fatal: `, err.Error(), `
+		Another git process seems to be running in this repository.
+		Please make sure all processes are terminated then try again.
+		If it still fails, a git process may have crashed in this
+		repository earlier: remove the file manually to continue.
+		`)
+			os.Exit(128)
+		}
 
 		var paths []string
 		for _, path := range os.Args[2:] {

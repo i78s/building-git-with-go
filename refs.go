@@ -2,19 +2,10 @@ package jit
 
 import (
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
 )
-
-type LockDeniedError struct {
-	Message string
-}
-
-func (e *LockDeniedError) Error() string {
-	return e.Message
-}
 
 type Refs struct {
 	pathname string
@@ -44,13 +35,10 @@ func (r *Refs) ReadHead() (string, error) {
 func (r *Refs) UpdateHead(oid string) error {
 	headPath := r.getHeadPath()
 	lf := NewLockfile(headPath)
-	_, err := lf.HoldForUpdate()
+	err := lf.HoldForUpdate()
 
 	if err != nil {
-		if os.IsPermission(err) {
-			return &LockDeniedError{err.Error()}
-		}
-		log.Fatalf("Could not acquire lock on file: %s", headPath)
+		return err
 	}
 
 	err = lf.Write([]byte(oid + "\n"))

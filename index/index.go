@@ -37,12 +37,10 @@ func NewIndex(pathname string) *Index {
 	}
 }
 
-func (i *Index) LoadForUpdate() bool {
-	if _, err := i.lockfile.HoldForUpdate(); err != nil {
-		i.Load()
-		return true
-	}
-	return false
+func (i *Index) LoadForUpdate() error {
+	err := i.lockfile.HoldForUpdate()
+	i.Load()
+	return err
 }
 
 func (i *Index) Load() {

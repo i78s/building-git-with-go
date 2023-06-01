@@ -2,6 +2,14 @@ package jit
 
 import "os"
 
+type LockDeniedError struct {
+	Message string
+}
+
+func (e *LockDeniedError) Error() string {
+	return e.Message
+}
+
 type MissingParentError struct {
 	Message string
 }
@@ -39,24 +47,24 @@ func NewLockfile(filePath string) *Lockfile {
 	}
 }
 
-func (lf *Lockfile) HoldForUpdate() (bool, error) {
+func (lf *Lockfile) HoldForUpdate() error {
 	if lf.Lock == nil {
 		lock, err := os.OpenFile(lf.lockPath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666)
 		if err != nil {
 			if os.IsExist(err) {
-				return false, nil
+				return &LockDeniedError{err.Error()}
 			}
 			if os.IsNotExist(err) {
-				return false, &MissingParentError{err.Error()}
+				return &MissingParentError{err.Error()}
 			}
 			if os.IsPermission(err) {
-				return false, &NoPermissionError{err.Error()}
+				return &NoPermissionError{err.Error()}
 			}
-			return false, err
+			return err
 		}
 		lf.Lock = lock
 	}
-	return true, nil
+	return nil
 }
 
 func (lf *Lockfile) Write(data []byte) error {
