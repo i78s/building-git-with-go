@@ -1,7 +1,6 @@
 package database
 
 import (
-	"building-git/index"
 	"bytes"
 	"encoding/hex"
 	"fmt"
@@ -20,13 +19,21 @@ type TreeObject interface {
 	Mode() int
 }
 
+type EntryObject interface {
+	GetOid() string
+	Key() string
+	Mode() int
+	ParentDirectories() []string
+	Basename() string
+}
+
 func NewTree() *Tree {
 	return &Tree{
 		entries: make(map[string]TreeObject),
 	}
 }
 
-func BuildTree(entries []*index.Entry) *Tree {
+func BuildTree(entries []EntryObject) *Tree {
 	root := NewTree()
 	for _, e := range entries {
 		root.addEntry(e.ParentDirectories(), e)
@@ -37,7 +44,7 @@ func BuildTree(entries []*index.Entry) *Tree {
 
 func (t *Tree) addEntry(parents []string, e TreeObject) {
 	if len(parents) == 0 {
-		t.entries[e.(*index.Entry).Basename()] = e
+		t.entries[e.(EntryObject).Basename()] = e
 	} else {
 		subtree, exists := t.entries[parents[0]]
 		if !exists {

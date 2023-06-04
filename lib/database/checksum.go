@@ -1,4 +1,4 @@
-package index
+package database
 
 import (
 	"crypto/sha1"

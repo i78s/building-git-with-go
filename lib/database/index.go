@@ -1,7 +1,6 @@
-package index
+package database
 
 import (
-	jit "building-git"
 	"encoding/binary"
 	"fmt"
 	"hash"
@@ -22,7 +21,7 @@ type Index struct {
 	entries  map[string]*Entry
 	keys     []string
 	parents  map[string]map[string]struct{}
-	lockfile *jit.Lockfile
+	lockfile *Lockfile
 	digest   hash.Hash
 	changed  bool
 }
@@ -33,7 +32,7 @@ func NewIndex(pathname string) *Index {
 		entries:  make(map[string]*Entry),
 		keys:     make([]string, 0),
 		parents:  make(map[string]map[string]struct{}),
-		lockfile: jit.NewLockfile(pathname),
+		lockfile: NewLockfile(pathname),
 	}
 }
 
@@ -54,7 +53,6 @@ func (i *Index) Load() {
 	}
 
 	reader := NewChecksum(*file)
-	i.readHeader(reader)
 	count, err := i.readHeader(reader)
 	if err != nil {
 		return
@@ -64,7 +62,7 @@ func (i *Index) Load() {
 }
 
 func (i *Index) WriteUpdates() {
-	if i.changed {
+	if !i.changed {
 		i.lockfile.Rollback()
 	}
 
@@ -96,8 +94,8 @@ func (i *Index) Add(pathname, oid string, stat fs.FileInfo) {
 	i.changed = true
 }
 
-func (i *Index) EachEntry() []*Entry {
-	entries := []*Entry{}
+func (i *Index) EachEntry() []EntryObject {
+	entries := []EntryObject{}
 	for _, key := range i.keys {
 		entries = append(entries, i.entries[key])
 	}
@@ -114,7 +112,7 @@ func (i *Index) discardConflicts(entry *Entry) {
 	for _, parent := range entry.ParentDirectories() {
 		i.removeEntry(parent)
 	}
-	i.removeChildren(entry.path)
+	i.removeChildren(entry.Key())
 }
 
 func (i *Index) removeEntry(pathname string) {
@@ -132,7 +130,7 @@ func (i *Index) removeEntry(pathname string) {
 	delete(i.entries, entry.Key())
 
 	for _, dirname := range entry.ParentDirectories() {
-		delete(i.parents[dirname], entry.path)
+		delete(i.parents[dirname], entry.Key())
 		if len(i.parents[dirname]) == 0 {
 			delete(i.parents, dirname)
 		}
@@ -165,7 +163,7 @@ func (i *Index) storeEntry(entry *Entry) {
 		if i.parents[dirname] == nil {
 			i.parents[dirname] = make(map[string]struct{})
 		}
-		i.parents[dirname][entry.path] = struct{}{}
+		i.parents[dirname][entry.Key()] = struct{}{}
 	}
 }
 
