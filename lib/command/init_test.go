@@ -1,20 +1,17 @@
 package command
 
 import (
-	"io/ioutil"
+	"building-git/lib/command/commandtest"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
 func TestInit(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "jit")
-	if err != nil {
-		t.Fatal(err)
-	}
+	tmpDir, stdout, stderr := commandtest.SetupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)
 
-	Init([]string{tmpDir})
+	Init([]string{tmpDir}, stdout, stderr)
 
 	gitDir := filepath.Join(tmpDir, ".git")
 	if _, err := os.Stat(gitDir); os.IsNotExist(err) {

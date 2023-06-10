@@ -1,6 +1,7 @@
 package database
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"os"
@@ -12,8 +13,8 @@ import (
 const (
 	ENTRY_BLOCK_SIZE = 8
 	ENTRY_MIN_SIZE   = 64
-	REGULAR_MODE     = 0100644
-	EXECUTABLE_MODE  = 0100755
+	REGULAR_MODE     = 0o100644
+	EXECUTABLE_MODE  = 0o100755
 	MAX_PATH_SIZE    = 0xfff
 )
 
@@ -59,6 +60,11 @@ func CreateEntry(pathname string, oid string, stat os.FileInfo) *Entry {
 }
 
 func ParseEntry(data []byte) *Entry {
+	nullPos := bytes.IndexByte(data[62:], 0)
+	if nullPos == -1 {
+		nullPos = len(data) - 62
+	}
+
 	return &Entry{
 		ctime:     binary.BigEndian.Uint32(data[0:4]),
 		ctimeNsec: binary.BigEndian.Uint32(data[4:8]),
@@ -72,12 +78,12 @@ func ParseEntry(data []byte) *Entry {
 		size:      binary.BigEndian.Uint32(data[36:40]),
 		oid:       hex.EncodeToString(data[40:60]),
 		flags:     binary.BigEndian.Uint16(data[60:62]),
-		path:      string(data[62:]),
+		path:      string(data[62 : 62+nullPos]),
 	}
 }
 
 func (e *Entry) Key() string {
-	return e.path
+	return string(bytes.TrimRight([]byte(e.path), "\x00"))
 }
 
 func (e *Entry) Mode() int {

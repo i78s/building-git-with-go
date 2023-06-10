@@ -7,7 +7,7 @@ import (
 	"sort"
 )
 
-const TREE_MODE = 040000
+const TREE_MODE = 0o40000
 
 type Tree struct {
 	oid     string

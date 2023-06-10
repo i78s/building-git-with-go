@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"building-git/lib/command"
+	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -16,6 +17,9 @@ var initCmd = &cobra.Command{
 	Long:  ``,
 	Args:  cobra.RangeArgs(0, 1),
 	Run: func(cmd *cobra.Command, args []string) {
-		command.Init(args)
+		stdout := cmd.OutOrStdout()
+		stderr := cmd.ErrOrStderr()
+		code := command.Init(args, stdout, stderr)
+		os.Exit(code)
 	},
 }

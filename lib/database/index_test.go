@@ -18,22 +18,22 @@ func TestIndexAdd(t *testing.T) {
 		Expected    []string
 	}{
 		{
-			Description: "AddSingleFile",
+			Description: "adds a single file",
 			FilesToAdd:  []string{"alice.txt"},
 			Expected:    []string{"alice.txt"},
 		},
 		{
-			Description: "ReplaceFileWithDirectory",
+			Description: "replaces a file with a directory",
 			FilesToAdd:  []string{"alice.txt", "bob.txt", "alice.txt/nested.txt"},
 			Expected:    []string{"alice.txt/nested.txt", "bob.txt"},
 		},
 		{
-			Description: "Replace directory with file",
+			Description: "replaces a directory with a file",
 			FilesToAdd:  []string{"alice.txt", "nested/bob.txt", "nested"},
 			Expected:    []string{"alice.txt", "nested"},
 		},
 		{
-			Description: "Recursively replace directory with file",
+			Description: "recursively replaces a directory with a file",
 			FilesToAdd:  []string{"alice.txt", "nested/bob.txt", "nested/inner/claire.txt", "nested"},
 			Expected:    []string{"alice.txt", "nested"},
 		},
