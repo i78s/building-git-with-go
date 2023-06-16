@@ -13,13 +13,8 @@ import (
 	"time"
 )
 
-func Commit(args []string, stdout, stderr io.Writer) int {
-	path, err := os.Getwd()
-	if err != nil {
-		fmt.Fprintf(stderr, "fatal: %v", err)
-		return 1
-	}
-	rootPath, err := filepath.Abs(path)
+func Commit(dir string, args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	rootPath, err := filepath.Abs(dir)
 	if err != nil {
 		fmt.Fprintf(stderr, "fatal: %v", err)
 		return 1
@@ -52,7 +47,7 @@ func Commit(args []string, stdout, stderr io.Writer) int {
 	}
 
 	author := database.NewAuthor(name, email, time.Now())
-	reader := bufio.NewReader(os.Stdin)
+	reader := bufio.NewReader(stdin)
 	message, _ := reader.ReadString('\n')
 
 	commit := database.NewCommit(parent, root.GetOid(), author, message)

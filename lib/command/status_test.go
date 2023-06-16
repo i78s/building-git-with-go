@@ -2,11 +2,13 @@ package command
 
 import (
 	"building-git/lib/command/commandtest"
+	"bytes"
 	"os"
+	"strings"
 	"testing"
 )
 
-func TestStatus(t *testing.T) {
+func TestStatusListUntrackedFilesInNameOrder(t *testing.T) {
 	tmpDir, stdout, stderr := commandtest.SetupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)
 
@@ -22,6 +24,32 @@ func TestStatus(t *testing.T) {
 
 	expected := `?? another.txt
 ?? file.txt
+`
+	if got := stdout.String(); got != expected {
+		t.Errorf("want %q, but got %q", expected, got)
+	}
+}
+
+func TestStatusListFilesAsUntrackedIfTheyAreNotInTheIndex(t *testing.T) {
+	tmpDir, stdout, stderr := commandtest.SetupTestEnvironment(t)
+	defer os.RemoveAll(tmpDir)
+
+	commandtest.SetupRepo(t, tmpDir)
+	commandtest.WriteFile(t, tmpDir, "committed.txt", "")
+
+	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
+
+	os.Setenv("GIT_AUTHOR_NAME", "A. U. Thor")
+	os.Setenv("GIT_AUTHOR_EMAIL", "author@example.com")
+	defer os.Unsetenv("GIT_AUTHOR_NAME")
+	defer os.Unsetenv("GIT_AUTHOR_EMAIL")
+	stdin := strings.NewReader("commit message")
+	Commit(tmpDir, []string{}, stdin, new(bytes.Buffer), new(bytes.Buffer))
+
+	commandtest.WriteFile(t, tmpDir, "file.txt", "")
+	Status(tmpDir, stdout, stderr)
+
+	expected := `?? file.txt
 `
 	if got := stdout.String(); got != expected {
 		t.Errorf("want %q, but got %q", expected, got)

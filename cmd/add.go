@@ -14,13 +14,13 @@ var addCmd = &cobra.Command{
 	Long:  ``,
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		dir, err := os.Getwd()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
-		}
 		stdout := cmd.OutOrStdout()
 		stderr := cmd.ErrOrStderr()
+		dir, err := os.Getwd()
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			os.Exit(1)
+		}
 		code := command.Add(dir, args, stdout, stderr)
 		os.Exit(code)
 	},

@@ -102,6 +102,11 @@ func (i *Index) EachEntry() []EntryObject {
 	return entries
 }
 
+func (i *Index) IsTracked(path string) bool {
+	_, exists := i.entries[path]
+	return exists
+}
+
 func (i *Index) clear() {
 	i.entries = make(map[string]*Entry)
 	i.keys = make([]string, 0)

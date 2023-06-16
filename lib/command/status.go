@@ -14,6 +14,7 @@ func Status(dir string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	repo := lib.NewRepository(rootPath)
+	repo.Index.Load()
 
 	files, err := repo.Workspace.ListFiles(rootPath)
 	if err != nil {
@@ -22,6 +23,9 @@ func Status(dir string, stdout, stderr io.Writer) int {
 	}
 
 	for _, filename := range files {
+		if repo.Index.IsTracked(filename) {
+			continue
+		}
 		fmt.Fprintf(stdout, "?? %s\n", filename)
 	}
 
