@@ -9,6 +9,12 @@ import (
 	"strings"
 )
 
+var IGNORE = map[string]struct{}{
+	".":    {},
+	"..":   {},
+	".git": {},
+}
+
 type Workspace struct {
 	pathname string
 }
@@ -19,13 +25,29 @@ func NewWorkspace(pathname string) *Workspace {
 	}
 }
 
+func (w *Workspace) ListDir(dirname string) (map[string]os.FileInfo, error) {
+	path := filepath.Join(w.pathname, dirname)
+	files, err := ioutil.ReadDir(path)
+	if err != nil {
+		return nil, err
+	}
+
+	stats := map[string]os.FileInfo{}
+	for _, file := range files {
+		if _, exists := IGNORE[file.Name()]; exists {
+			continue
+		}
+		relativePath, err := filepath.Rel(w.pathname, filepath.Join(path, file.Name()))
+		if err != nil {
+			return nil, err
+		}
+		stats[relativePath] = file
+	}
+	return stats, nil
+}
+
 func (w *Workspace) ListFiles(path string) ([]string, error) {
 	var files []string
-	ignore := map[string]struct{}{
-		".":    {},
-		"..":   {},
-		".git": {},
-	}
 
 	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -38,7 +60,7 @@ func (w *Workspace) ListFiles(path string) ([]string, error) {
 		}
 		parts := strings.Split(relativePath, "/")
 		for _, part := range parts {
-			if _, ok := ignore[part]; ok {
+			if _, ok := IGNORE[part]; ok {
 				return nil
 			}
 		}

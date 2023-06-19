@@ -20,7 +20,11 @@ func TestStatusListUntrackedFilesInNameOrder(t *testing.T) {
 		commandtest.WriteFile(t, tmpDir, file.name, file.content)
 	}
 
-	Status(tmpDir, stdout, stderr)
+	statusCmd, err := NewStatus(tmpDir, stdout, stderr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	statusCmd.Run()
 
 	expected := `?? another.txt
 ?? file.txt
@@ -47,9 +51,74 @@ func TestStatusListFilesAsUntrackedIfTheyAreNotInTheIndex(t *testing.T) {
 	Commit(tmpDir, []string{}, stdin, new(bytes.Buffer), new(bytes.Buffer))
 
 	commandtest.WriteFile(t, tmpDir, "file.txt", "")
-	Status(tmpDir, stdout, stderr)
+	statusCmd, err := NewStatus(tmpDir, stdout, stderr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	statusCmd.Run()
 
 	expected := `?? file.txt
+`
+	if got := stdout.String(); got != expected {
+		t.Errorf("want %q, but got %q", expected, got)
+	}
+}
+
+func TestStatusListUntrackedDirectoriesNotTheirContents(t *testing.T) {
+	tmpDir, stdout, stderr := commandtest.SetupTestEnvironment(t)
+	defer os.RemoveAll(tmpDir)
+
+	filesToAdd := []*filesToAdd{
+		{name: "file.txt", content: ""},
+		{name: "dir/another.txt", content: ""},
+	}
+	for _, file := range filesToAdd {
+		commandtest.WriteFile(t, tmpDir, file.name, file.content)
+	}
+
+	statusCmd, err := NewStatus(tmpDir, stdout, stderr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	statusCmd.Run()
+
+	expected := `?? dir/
+?? file.txt
+`
+	if got := stdout.String(); got != expected {
+		t.Errorf("want %q, but got %q", expected, got)
+	}
+}
+
+func TestStatusListUntrackedFilesInsideTrackedDirectories(t *testing.T) {
+	tmpDir, stdout, stderr := commandtest.SetupTestEnvironment(t)
+	defer os.RemoveAll(tmpDir)
+
+	commandtest.SetupRepo(t, tmpDir)
+	commandtest.WriteFile(t, tmpDir, "a/b/inner.txt", "")
+	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
+	os.Setenv("GIT_AUTHOR_NAME", "A. U. Thor")
+	os.Setenv("GIT_AUTHOR_EMAIL", "author@example.com")
+	defer os.Unsetenv("GIT_AUTHOR_NAME")
+	defer os.Unsetenv("GIT_AUTHOR_EMAIL")
+	stdin := strings.NewReader("commit message")
+	Commit(tmpDir, []string{}, stdin, new(bytes.Buffer), new(bytes.Buffer))
+
+	filesToAdd := []*filesToAdd{
+		{name: "a/outer.txt", content: ""},
+		{name: "a/b/c/file.txt", content: ""},
+	}
+	for _, file := range filesToAdd {
+		commandtest.WriteFile(t, tmpDir, file.name, file.content)
+	}
+	statusCmd, err := NewStatus(tmpDir, stdout, stderr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	statusCmd.Run()
+
+	expected := `?? a/b/c/
+?? a/outer.txt
 `
 	if got := stdout.String(); got != expected {
 		t.Errorf("want %q, but got %q", expected, got)

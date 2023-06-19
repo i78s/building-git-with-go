@@ -103,8 +103,9 @@ func (i *Index) EachEntry() []EntryObject {
 }
 
 func (i *Index) IsTracked(path string) bool {
-	_, exists := i.entries[path]
-	return exists
+	_, existsInEntries := i.entries[path]
+	_, existsInParents := i.parents[path]
+	return existsInEntries || existsInParents
 }
 
 func (i *Index) clear() {
