@@ -4,6 +4,7 @@ import (
 	"building-git/lib"
 	"fmt"
 	"io"
+	"io/fs"
 	"path/filepath"
 	"sort"
 )
@@ -66,11 +67,46 @@ func (s *Status) scanWorkspace(prefix string) error {
 			}
 			continue
 		}
-
+		if !s.isTrackableFile(path, stat) {
+			continue
+		}
 		if stat.IsDir() {
 			path += string(filepath.Separator)
 		}
 		s.untracked[path] = struct{}{}
 	}
 	return nil
+}
+
+func (st *Status) isTrackableFile(path string, stat fs.FileInfo) bool {
+	if stat.Mode().IsRegular() {
+		return !st.repo.Index.IsTracked(path)
+	}
+	if !stat.IsDir() {
+		return false
+	}
+
+	items, _ := st.repo.Workspace.ListDir(path)
+	files := map[string]fs.FileInfo{}
+	dirs := map[string]fs.FileInfo{}
+	for p, s := range items {
+		if s.Mode().IsRegular() {
+			files[p] = s
+		}
+		if s.IsDir() {
+			dirs[p] = s
+		}
+	}
+
+	for p, s := range files {
+		if st.isTrackableFile(p, s) {
+			return true
+		}
+	}
+	for p, s := range dirs {
+		if st.isTrackableFile(p, s) {
+			return true
+		}
+	}
+	return false
 }

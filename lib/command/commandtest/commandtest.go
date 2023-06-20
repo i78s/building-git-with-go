@@ -77,3 +77,13 @@ func MakeUnreadable(t *testing.T, path, name string) {
 		t.Fatalf("Failed to make file unreadable: %s", err)
 	}
 }
+
+func Mkdir(t *testing.T, path, name string) {
+	t.Helper()
+
+	dir := filepath.Join(path, name)
+	err := os.MkdirAll(dir, 0755)
+	if err != nil {
+		t.Fatalf("Failed to create directory: %s", err)
+	}
+}

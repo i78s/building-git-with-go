@@ -124,3 +124,40 @@ func TestStatusListUntrackedFilesInsideTrackedDirectories(t *testing.T) {
 		t.Errorf("want %q, but got %q", expected, got)
 	}
 }
+
+func TestStatusDoesNotListEmptyUntrackedDirectories(t *testing.T) {
+	tmpDir, stdout, stderr := commandtest.SetupTestEnvironment(t)
+	defer os.RemoveAll(tmpDir)
+
+	commandtest.Mkdir(t, tmpDir, "outer")
+
+	statusCmd, err := NewStatus(tmpDir, stdout, stderr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	statusCmd.Run()
+
+	expected := ``
+	if got := stdout.String(); got != expected {
+		t.Errorf("want %q, but got %q", expected, got)
+	}
+}
+
+func TestStatusListUntrackedDirectoriesIndirectlyContainFiles(t *testing.T) {
+	tmpDir, stdout, stderr := commandtest.SetupTestEnvironment(t)
+	defer os.RemoveAll(tmpDir)
+
+	commandtest.WriteFile(t, tmpDir, "outer/inner/file.txt", "")
+
+	statusCmd, err := NewStatus(tmpDir, stdout, stderr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	statusCmd.Run()
+
+	expected := `?? outer/
+`
+	if got := stdout.String(); got != expected {
+		t.Errorf("want %q, but got %q", expected, got)
+	}
+}
