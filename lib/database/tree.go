@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"io/fs"
 	"sort"
 )
 
@@ -25,6 +26,7 @@ type EntryObject interface {
 	Mode() int
 	ParentDirectories() []string
 	Basename() string
+	IsStatMatch(stat fs.FileInfo) bool
 }
 
 func NewTree() *Tree {

@@ -2,6 +2,7 @@ package command
 
 import (
 	"building-git/lib"
+	"building-git/lib/database"
 	"fmt"
 	"io"
 	"io/fs"
@@ -12,6 +13,8 @@ import (
 type Status struct {
 	rootPath  string
 	repo      *lib.Repository
+	stats     map[string]fs.FileInfo
+	changed   map[string]struct{}
 	untracked map[string]struct{}
 	stdout    io.Writer
 	stderr    io.Writer
@@ -27,6 +30,8 @@ func NewStatus(dir string, stdout, stderr io.Writer) (*Status, error) {
 	return &Status{
 		rootPath:  rootPath,
 		repo:      repo,
+		stats:     map[string]fs.FileInfo{},
+		changed:   map[string]struct{}{},
 		untracked: map[string]struct{}{},
 		stdout:    stdout,
 		stderr:    stderr,
@@ -41,12 +46,22 @@ func (s *Status) Run() int {
 		return 128
 	}
 
+	s.detectWorkspaceChanges()
+
+	changed := []string{}
+	for filename := range s.changed {
+		changed = append(changed, filename)
+	}
+	sort.Strings(changed)
+	for _, filename := range changed {
+		fmt.Fprintf(s.stdout, " M %s\n", filename)
+	}
+
 	untracked := []string{}
 	for filename := range s.untracked {
 		untracked = append(untracked, filename)
 	}
 	sort.Strings(untracked)
-
 	for _, filename := range untracked {
 		fmt.Fprintf(s.stdout, "?? %s\n", filename)
 	}
@@ -62,6 +77,9 @@ func (s *Status) scanWorkspace(prefix string) error {
 
 	for path, stat := range files {
 		if s.repo.Index.IsTracked(path) {
+			if stat.Mode().IsRegular() {
+				s.stats[path] = stat
+			}
 			if stat.IsDir() {
 				s.scanWorkspace(path)
 			}
@@ -109,4 +127,20 @@ func (st *Status) isTrackableFile(path string, stat fs.FileInfo) bool {
 		}
 	}
 	return false
+}
+
+func (s *Status) detectWorkspaceChanges() {
+	for _, entry := range s.repo.Index.EachEntry() {
+		s.checkIndexEntry(entry)
+	}
+}
+
+func (s *Status) checkIndexEntry(entry database.EntryObject) {
+	if stat, exists := s.stats[entry.Key()]; exists {
+		if entry.IsStatMatch(stat) {
+			return
+		}
+		s.changed[entry.Key()] = struct{}{}
+	}
+
 }

@@ -8,6 +8,18 @@ import (
 	"testing"
 )
 
+func commit(t *testing.T, dir string, message string) {
+	t.Helper()
+
+	os.Setenv("GIT_AUTHOR_NAME", "A. U. Thor")
+	os.Setenv("GIT_AUTHOR_EMAIL", "author@example.com")
+	defer os.Unsetenv("GIT_AUTHOR_NAME")
+	defer os.Unsetenv("GIT_AUTHOR_EMAIL")
+
+	stdin := strings.NewReader(message)
+	Commit(dir, []string{}, stdin, new(bytes.Buffer), new(bytes.Buffer))
+}
+
 func TestStatusListUntrackedFilesInNameOrder(t *testing.T) {
 	tmpDir, stdout, stderr := commandtest.SetupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)
@@ -42,13 +54,7 @@ func TestStatusListFilesAsUntrackedIfTheyAreNotInTheIndex(t *testing.T) {
 	commandtest.WriteFile(t, tmpDir, "committed.txt", "")
 
 	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-
-	os.Setenv("GIT_AUTHOR_NAME", "A. U. Thor")
-	os.Setenv("GIT_AUTHOR_EMAIL", "author@example.com")
-	defer os.Unsetenv("GIT_AUTHOR_NAME")
-	defer os.Unsetenv("GIT_AUTHOR_EMAIL")
-	stdin := strings.NewReader("commit message")
-	Commit(tmpDir, []string{}, stdin, new(bytes.Buffer), new(bytes.Buffer))
+	commit(t, tmpDir, "commit message")
 
 	commandtest.WriteFile(t, tmpDir, "file.txt", "")
 	statusCmd, err := NewStatus(tmpDir, stdout, stderr)
@@ -97,12 +103,7 @@ func TestStatusListUntrackedFilesInsideTrackedDirectories(t *testing.T) {
 	commandtest.SetupRepo(t, tmpDir)
 	commandtest.WriteFile(t, tmpDir, "a/b/inner.txt", "")
 	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-	os.Setenv("GIT_AUTHOR_NAME", "A. U. Thor")
-	os.Setenv("GIT_AUTHOR_EMAIL", "author@example.com")
-	defer os.Unsetenv("GIT_AUTHOR_NAME")
-	defer os.Unsetenv("GIT_AUTHOR_EMAIL")
-	stdin := strings.NewReader("commit message")
-	Commit(tmpDir, []string{}, stdin, new(bytes.Buffer), new(bytes.Buffer))
+	commit(t, tmpDir, "commit message")
 
 	filesToAdd := []*filesToAdd{
 		{name: "a/outer.txt", content: ""},
@@ -160,4 +161,53 @@ func TestStatusListUntrackedDirectoriesIndirectlyContainFiles(t *testing.T) {
 	if got := stdout.String(); got != expected {
 		t.Errorf("want %q, but got %q", expected, got)
 	}
+}
+
+func TestStatusIndexWorkspaceChanges(t *testing.T) {
+	tmpDir, stdout, stderr := commandtest.SetupTestEnvironment(t)
+	defer os.RemoveAll(tmpDir)
+
+	commandtest.SetupRepo(t, tmpDir)
+	filesToAdd := []*filesToAdd{
+		{name: "1.txt", content: "one"},
+		{name: "a/2.txt", content: "two"},
+		{name: "a/b/3.txt", content: "three"},
+	}
+	for _, file := range filesToAdd {
+		commandtest.WriteFile(t, tmpDir, file.name, file.content)
+	}
+
+	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
+	commit(t, tmpDir, "commit message")
+
+	t.Run("prints nothing when no files are changed", func(t *testing.T) {
+		statusCmd, err := NewStatus(tmpDir, stdout, stderr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		statusCmd.Run()
+
+		expected := ``
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("reports files with modified contents", func(t *testing.T) {
+		commandtest.WriteFile(t, tmpDir, "1.txt", "changed")
+		commandtest.WriteFile(t, tmpDir, "a/2.txt", "modified")
+
+		statusCmd, err := NewStatus(tmpDir, stdout, stderr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		statusCmd.Run()
+
+		expected := ` M 1.txt
+ M a/2.txt
+`
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -109,6 +110,10 @@ func (e *Entry) ParentDirectories() []string {
 
 func (e *Entry) Basename() string {
 	return filepath.Base(e.path)
+}
+
+func (e *Entry) IsStatMatch(stat fs.FileInfo) bool {
+	return e.size == 0 || e.size == uint32(stat.Size())
 }
 
 func (e *Entry) String() string {
