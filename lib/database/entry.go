@@ -32,12 +32,7 @@ type Entry struct {
 }
 
 func CreateEntry(pathname string, oid string, stat os.FileInfo) *Entry {
-	var mode uint32
-	if stat.Mode().Perm()&0111 == 0 {
-		mode = REGULAR_MODE
-	} else {
-		mode = EXECUTABLE_MODE
-	}
+	mode := ModeForStat(stat)
 	flags := uint16(len(pathname))
 	if flags > MAX_PATH_SIZE {
 		flags = MAX_PATH_SIZE
@@ -58,6 +53,13 @@ func CreateEntry(pathname string, oid string, stat os.FileInfo) *Entry {
 		flags:     flags,
 		path:      pathname,
 	}
+}
+
+func ModeForStat(stat fs.FileInfo) uint32 {
+	if stat.Mode().Perm()&0111 == 0 {
+		return REGULAR_MODE
+	}
+	return EXECUTABLE_MODE
 }
 
 func ParseEntry(data []byte) *Entry {
@@ -113,7 +115,8 @@ func (e *Entry) Basename() string {
 }
 
 func (e *Entry) IsStatMatch(stat fs.FileInfo) bool {
-	return e.size == 0 || e.size == uint32(stat.Size())
+	return e.mode == ModeForStat(stat) &&
+		(e.size == 0 || e.size == uint32(stat.Size()))
 }
 
 func (e *Entry) String() string {

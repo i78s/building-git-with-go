@@ -142,5 +142,4 @@ func (s *Status) checkIndexEntry(entry database.EntryObject) {
 		}
 		s.changed[entry.Key()] = struct{}{}
 	}
-
 }
