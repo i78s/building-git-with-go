@@ -217,6 +217,24 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 		}
 	})
 
+	t.Run("reports modified files with unchanged size", func(t *testing.T) {
+		tmpDir, stdout, stderr := setup()
+		defer os.RemoveAll(tmpDir)
+		commandtest.WriteFile(t, tmpDir, "a/b/3.txt", "hello")
+
+		statusCmd, err := NewStatus(tmpDir, stdout, stderr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		statusCmd.Run()
+
+		expected := ` M a/b/3.txt
+`
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
 	t.Run("reports files with changed modes", func(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)

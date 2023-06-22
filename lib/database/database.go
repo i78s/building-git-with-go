@@ -29,21 +29,36 @@ func NewDatabase(pathname string) *Database {
 }
 
 func (d *Database) Store(object GitObject) error {
-	data := []byte(object.String())
-	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "%s %d\x00", object.Type(), len(data))
-	buf.Write(data)
-	cont := buf.Bytes()
-
-	hash := sha1.New()
-	_, err := hash.Write(cont)
+	cont := d.serializeObject(object)
+	oid, err := d.hashContent(cont)
 	if err != nil {
 		return err
 	}
 
-	object.SetOid(fmt.Sprintf("%x", hash.Sum(nil)))
+	object.SetOid(oid)
 	d.writeObject(object.GetOid(), cont)
 	return nil
+}
+
+func (d *Database) HashObject(object GitObject) (string, error) {
+	return d.hashContent(d.serializeObject(object))
+}
+
+func (d *Database) serializeObject(object GitObject) []byte {
+	data := []byte(object.String())
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "%s %d\x00", object.Type(), len(data))
+	buf.Write(data)
+	return buf.Bytes()
+}
+
+func (d *Database) hashContent(content []byte) (string, error) {
+	hash := sha1.New()
+	_, err := hash.Write(content)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
 func (d *Database) writeObject(oid string, content []byte) error {

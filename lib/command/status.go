@@ -137,9 +137,17 @@ func (s *Status) detectWorkspaceChanges() {
 
 func (s *Status) checkIndexEntry(entry database.EntryObject) {
 	if stat, exists := s.stats[entry.Key()]; exists {
-		if entry.IsStatMatch(stat) {
+		if !entry.IsStatMatch(stat) {
+			s.changed[entry.Key()] = struct{}{}
 			return
 		}
-		s.changed[entry.Key()] = struct{}{}
+
+		data, _ := s.repo.Workspace.ReadFile(entry.Key())
+		blob := database.NewBlob(data)
+		oid, _ := s.repo.Database.HashObject(blob)
+
+		if entry.GetOid() != oid {
+			s.changed[entry.Key()] = struct{}{}
+		}
 	}
 }
