@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
-	"time"
 )
 
 const (
@@ -40,9 +39,9 @@ func CreateEntry(pathname string, oid string, stat os.FileInfo) *Entry {
 
 	return &Entry{
 		ctime:     uint32(stat.ModTime().Unix()),
-		ctimeNsec: uint32(stat.ModTime().UnixNano() - stat.ModTime().Unix()*int64(time.Second)),
+		ctimeNsec: uint32(stat.ModTime().Nanosecond()),
 		mtime:     uint32(stat.ModTime().Unix()),
-		mtimeNsec: uint32(stat.ModTime().UnixNano() - stat.ModTime().Unix()*int64(time.Second)),
+		mtimeNsec: uint32(stat.ModTime().Nanosecond()),
 		dev:       uint32(stat.Sys().(*syscall.Stat_t).Dev),
 		ino:       uint32(stat.Sys().(*syscall.Stat_t).Ino),
 		mode:      mode,
@@ -117,6 +116,38 @@ func (e *Entry) Basename() string {
 func (e *Entry) IsStatMatch(stat fs.FileInfo) bool {
 	return e.mode == ModeForStat(stat) &&
 		(e.size == 0 || e.size == uint32(stat.Size()))
+}
+
+func (e *Entry) UpdateStat(stat fs.FileInfo) {
+	e.mtime = uint32(stat.ModTime().Unix())
+	e.mtimeNsec = uint32(stat.ModTime().Nanosecond())
+	e.mode = ModeForStat(stat)
+	e.size = uint32(stat.Size())
+	if stat, ok := stat.Sys().(*syscall.Stat_t); ok {
+		s, n := stat.Ctimespec.Unix()
+		e.ctime = uint32(s)
+		e.ctimeNsec = uint32(n)
+		e.dev = uint32(stat.Dev)
+		e.ino = uint32(stat.Ino)
+		e.uid = stat.Uid
+		e.gid = stat.Gid
+	}
+}
+
+func (e *Entry) IsTimesMatch(stat fs.FileInfo) bool {
+	mtime := uint32(stat.ModTime().Unix())
+	mtimeNsec := uint32(stat.ModTime().Nanosecond())
+	var ctime uint32
+	var ctimeNsec uint32
+	if stat, ok := stat.Sys().(*syscall.Stat_t); ok {
+		s, n := stat.Ctimespec.Unix()
+		ctime = uint32(s)
+		ctimeNsec = uint32(n)
+	}
+	return e.ctime == ctime &&
+		e.ctimeNsec == ctimeNsec &&
+		e.mtime == mtime &&
+		e.mtimeNsec == mtimeNsec
 }
 
 func (e *Entry) String() string {

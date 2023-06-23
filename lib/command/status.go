@@ -39,7 +39,7 @@ func NewStatus(dir string, stdout, stderr io.Writer) (*Status, error) {
 }
 
 func (s *Status) Run() int {
-	s.repo.Index.Load()
+	s.repo.Index.LoadForUpdate()
 	err := s.scanWorkspace("")
 	if err != nil {
 		fmt.Fprintf(s.stderr, "fatal: %v", err)
@@ -47,6 +47,7 @@ func (s *Status) Run() int {
 	}
 
 	s.detectWorkspaceChanges()
+	s.repo.Index.WriteUpdates()
 
 	changed := []string{}
 	for filename := range s.changed {
@@ -141,13 +142,18 @@ func (s *Status) checkIndexEntry(entry database.EntryObject) {
 			s.changed[entry.Key()] = struct{}{}
 			return
 		}
+		if entry.IsTimesMatch(stat) {
+			return
+		}
 
 		data, _ := s.repo.Workspace.ReadFile(entry.Key())
 		blob := database.NewBlob(data)
 		oid, _ := s.repo.Database.HashObject(blob)
 
-		if entry.GetOid() != oid {
-			s.changed[entry.Key()] = struct{}{}
+		if entry.GetOid() == oid {
+			s.repo.Index.UpdateEntryStat(entry, stat)
+			return
 		}
+		s.changed[entry.Key()] = struct{}{}
 	}
 }

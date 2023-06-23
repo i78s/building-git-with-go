@@ -64,6 +64,7 @@ func (i *Index) Load() {
 func (i *Index) WriteUpdates() {
 	if !i.changed {
 		i.lockfile.Rollback()
+		return
 	}
 
 	writer := NewChecksum(*i.lockfile.Lock)
@@ -106,6 +107,11 @@ func (i *Index) IsTracked(path string) bool {
 	_, existsInEntries := i.entries[path]
 	_, existsInParents := i.parents[path]
 	return existsInEntries || existsInParents
+}
+
+func (i *Index) UpdateEntryStat(entry EntryObject, stat fs.FileInfo) {
+	entry.UpdateStat(stat)
+	i.changed = true
 }
 
 func (i *Index) clear() {

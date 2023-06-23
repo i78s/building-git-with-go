@@ -27,6 +27,8 @@ type EntryObject interface {
 	ParentDirectories() []string
 	Basename() string
 	IsStatMatch(stat fs.FileInfo) bool
+	UpdateStat(stat fs.FileInfo)
+	IsTimesMatch(stat fs.FileInfo) bool
 }
 
 func NewTree() *Tree {

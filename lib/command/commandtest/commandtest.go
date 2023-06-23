@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func SetupTestEnvironment(t *testing.T) (string, *bytes.Buffer, *bytes.Buffer) {
@@ -16,10 +17,12 @@ func SetupTestEnvironment(t *testing.T) (string, *bytes.Buffer, *bytes.Buffer) {
 	}
 	outStream, errStream := new(bytes.Buffer), new(bytes.Buffer)
 
+	setupRepo(t, tmpDir)
+
 	return tmpDir, outStream, errStream
 }
 
-func SetupRepo(t *testing.T, path string) {
+func setupRepo(t *testing.T, path string) {
 	t.Helper()
 
 	rootPath, err := filepath.Abs(path)
@@ -85,5 +88,25 @@ func Mkdir(t *testing.T, path, name string) {
 	err := os.MkdirAll(dir, 0755)
 	if err != nil {
 		t.Fatalf("Failed to create directory: %s", err)
+	}
+}
+
+func Touch(t *testing.T, path, name string) {
+	t.Helper()
+
+	filePath := filepath.Join(path, name)
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		_, err := os.Create(filePath)
+		if err != nil {
+			t.Fatalf("Failed to create file: %s", err)
+		}
+	} else if err != nil {
+		t.Fatalf("Failed to touch file: %s", err)
+	}
+
+	currentTime := time.Now()
+	err := os.Chtimes(filePath, currentTime, currentTime)
+	if err != nil {
+		t.Fatalf("Failed to touch file: %s", err)
 	}
 }

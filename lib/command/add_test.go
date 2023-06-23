@@ -44,7 +44,6 @@ func TestAddRegularFileToIndex(t *testing.T) {
 		{mode: 0o100644, path: "hello.txt"},
 	}
 
-	commandtest.SetupRepo(t, tmpDir)
 	fileNames := make([]string, len(filesToAdd))
 	for i, file := range filesToAdd {
 		fileNames[i] = file.name
@@ -66,7 +65,6 @@ func TestAddExecutableFileToIndex(t *testing.T) {
 		{mode: 0o100755, path: "hello.txt"},
 	}
 
-	commandtest.SetupRepo(t, tmpDir)
 	fileNames := make([]string, len(filesToAdd))
 	for i, file := range filesToAdd {
 		fileNames[i] = file.name
@@ -91,7 +89,6 @@ func TestAddMultipleFilesToIndex(t *testing.T) {
 		{mode: 0o100644, path: "world.txt"},
 	}
 
-	commandtest.SetupRepo(t, tmpDir)
 	fileNames := make([]string, len(filesToAdd))
 	for i, file := range filesToAdd {
 		fileNames[i] = file.name
@@ -111,7 +108,6 @@ func TestIncrementallyAddFilesToIndex(t *testing.T) {
 		{name: "world.txt", content: "world"},
 	}
 
-	commandtest.SetupRepo(t, tmpDir)
 	fileNames := make([]string, len(filesToAdd))
 	for i, file := range filesToAdd {
 		fileNames[i] = file.name
@@ -137,7 +133,6 @@ func TestAddDirectoryToIndex(t *testing.T) {
 		{name: "a-dir/nested.txt", content: "content"},
 	}
 
-	commandtest.SetupRepo(t, tmpDir)
 	fileNames := make([]string, len(filesToAdd))
 	for i, file := range filesToAdd {
 		fileNames[i] = file.name
@@ -158,7 +153,6 @@ func TestAddRepositoryRootToIndex(t *testing.T) {
 		{name: "a/b/c/file.txt", content: "content"},
 	}
 
-	commandtest.SetupRepo(t, tmpDir)
 	fileNames := make([]string, len(filesToAdd))
 	for i, file := range filesToAdd {
 		fileNames[i] = file.name
@@ -179,7 +173,6 @@ func TestIsSilentOnSuccess(t *testing.T) {
 		{name: "hello.txt", content: "hello"},
 	}
 
-	commandtest.SetupRepo(t, tmpDir)
 	fileNames := make([]string, len(filesToAdd))
 	for i, file := range filesToAdd {
 		fileNames[i] = file.name
@@ -201,8 +194,6 @@ func TestIsSilentOnSuccess(t *testing.T) {
 func TestFailsForNonExistentFiles(t *testing.T) {
 	tmpDir, stdout, stderr := commandtest.SetupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)
-
-	commandtest.SetupRepo(t, tmpDir)
 
 	code := Add(tmpDir, []string{"no-such-file"}, stdout, stderr)
 	if code != 128 {
@@ -229,7 +220,6 @@ func TestFailsForUnreadableFiles(t *testing.T) {
 		{name: "secret.txt", content: ""},
 	}
 
-	commandtest.SetupRepo(t, tmpDir)
 	fileNames := make([]string, len(filesToAdd))
 	for i, file := range filesToAdd {
 		fileNames[i] = file.name
@@ -259,7 +249,6 @@ func TestFailsIfIndexIsLocked(t *testing.T) {
 		{name: ".git/index.lock", content: ""},
 	}
 
-	commandtest.SetupRepo(t, tmpDir)
 	fileNames := make([]string, len(filesToAdd))
 	for i, file := range filesToAdd {
 		fileNames[i] = file.name

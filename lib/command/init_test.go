@@ -1,14 +1,19 @@
 package command
 
 import (
-	"building-git/lib/command/commandtest"
+	"bytes"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
 func TestInit(t *testing.T) {
-	tmpDir, stdout, stderr := commandtest.SetupTestEnvironment(t)
+	tmpDir, err := ioutil.TempDir("", "jit")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdout, stderr := new(bytes.Buffer), new(bytes.Buffer)
 	defer os.RemoveAll(tmpDir)
 
 	Init([]string{tmpDir}, stdout, stderr)

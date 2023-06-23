@@ -50,7 +50,6 @@ func TestStatusListFilesAsUntrackedIfTheyAreNotInTheIndex(t *testing.T) {
 	tmpDir, stdout, stderr := commandtest.SetupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)
 
-	commandtest.SetupRepo(t, tmpDir)
 	commandtest.WriteFile(t, tmpDir, "committed.txt", "")
 
 	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
@@ -100,7 +99,6 @@ func TestStatusListUntrackedFilesInsideTrackedDirectories(t *testing.T) {
 	tmpDir, stdout, stderr := commandtest.SetupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)
 
-	commandtest.SetupRepo(t, tmpDir)
 	commandtest.WriteFile(t, tmpDir, "a/b/inner.txt", "")
 	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
 	commit(t, tmpDir, "commit message")
@@ -166,7 +164,7 @@ func TestStatusListUntrackedDirectoriesIndirectlyContainFiles(t *testing.T) {
 func TestStatusIndexWorkspaceChanges(t *testing.T) {
 	setup := func() (tmpDir string, stdout, stderr *bytes.Buffer) {
 		tmpDir, stdout, stderr = commandtest.SetupTestEnvironment(t)
-		commandtest.SetupRepo(t, tmpDir)
+
 		filesToAdd := []*filesToAdd{
 			{name: "1.txt", content: "one"},
 			{name: "a/2.txt", content: "two"},
@@ -248,6 +246,23 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 
 		expected := ` M a/2.txt
 `
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("prints nothing if a file is touched", func(t *testing.T) {
+		tmpDir, stdout, stderr := setup()
+		defer os.RemoveAll(tmpDir)
+		commandtest.Touch(t, tmpDir, "1.txt")
+
+		statusCmd, err := NewStatus(tmpDir, stdout, stderr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		statusCmd.Run()
+
+		expected := ``
 		if got := stdout.String(); got != expected {
 			t.Errorf("want %q, but got %q", expected, got)
 		}
