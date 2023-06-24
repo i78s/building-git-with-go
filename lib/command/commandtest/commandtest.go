@@ -110,3 +110,13 @@ func Touch(t *testing.T, path, name string) {
 		t.Fatalf("Failed to touch file: %s", err)
 	}
 }
+
+func Delete(t *testing.T, path, name string) {
+	t.Helper()
+
+	filePath := filepath.Join(path, name)
+	err := os.RemoveAll(filePath)
+	if err != nil {
+		t.Fatalf("Failed to delete file or directory: %s", err)
+	}
+}

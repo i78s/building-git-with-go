@@ -10,11 +10,19 @@ import (
 	"sort"
 )
 
+type changeType int
+
+const (
+	deleted changeType = iota
+	modified
+)
+
 type Status struct {
 	rootPath  string
 	repo      *lib.Repository
 	stats     map[string]fs.FileInfo
 	changed   map[string]struct{}
+	changes   map[string]map[changeType]struct{}
 	untracked map[string]struct{}
 	stdout    io.Writer
 	stderr    io.Writer
@@ -32,6 +40,7 @@ func NewStatus(dir string, stdout, stderr io.Writer) (*Status, error) {
 		repo:      repo,
 		stats:     map[string]fs.FileInfo{},
 		changed:   map[string]struct{}{},
+		changes:   map[string]map[changeType]struct{}{},
 		untracked: map[string]struct{}{},
 		stdout:    stdout,
 		stderr:    stderr,
@@ -48,14 +57,20 @@ func (s *Status) Run() int {
 
 	s.detectWorkspaceChanges()
 	s.repo.Index.WriteUpdates()
+	s.printResults()
 
+	return 0
+}
+
+func (s *Status) printResults() {
 	changed := []string{}
 	for filename := range s.changed {
 		changed = append(changed, filename)
 	}
 	sort.Strings(changed)
 	for _, filename := range changed {
-		fmt.Fprintf(s.stdout, " M %s\n", filename)
+		status := s.statusFor(filename)
+		fmt.Fprintf(s.stdout, "%s %s\n", status, filename)
 	}
 
 	untracked := []string{}
@@ -66,8 +81,26 @@ func (s *Status) Run() int {
 	for _, filename := range untracked {
 		fmt.Fprintf(s.stdout, "?? %s\n", filename)
 	}
+}
 
-	return 0
+func (s *Status) statusFor(path string) (status string) {
+	changes := s.changes[path]
+
+	if _, exists := changes[deleted]; exists {
+		status = " D"
+	}
+	if _, exists := changes[modified]; exists {
+		status = " M"
+	}
+	return
+}
+
+func (s *Status) recordChange(path string, ctype changeType) {
+	s.changed[path] = struct{}{}
+	if s.changes[path] == nil {
+		s.changes[path] = map[changeType]struct{}{}
+	}
+	s.changes[path][ctype] = struct{}{}
 }
 
 func (s *Status) scanWorkspace(prefix string) error {
@@ -139,7 +172,7 @@ func (s *Status) detectWorkspaceChanges() {
 func (s *Status) checkIndexEntry(entry database.EntryObject) {
 	if stat, exists := s.stats[entry.Key()]; exists {
 		if !entry.IsStatMatch(stat) {
-			s.changed[entry.Key()] = struct{}{}
+			s.recordChange(entry.Key(), modified)
 			return
 		}
 		if entry.IsTimesMatch(stat) {
@@ -154,6 +187,8 @@ func (s *Status) checkIndexEntry(entry database.EntryObject) {
 			s.repo.Index.UpdateEntryStat(entry, stat)
 			return
 		}
-		s.changed[entry.Key()] = struct{}{}
+		s.recordChange(entry.Key(), modified)
+	} else {
+		s.recordChange(entry.Key(), deleted)
 	}
 }

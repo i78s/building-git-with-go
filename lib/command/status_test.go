@@ -267,4 +267,41 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 			t.Errorf("want %q, but got %q", expected, got)
 		}
 	})
+
+	t.Run("reports deleted files", func(t *testing.T) {
+		tmpDir, stdout, stderr := setup()
+		defer os.RemoveAll(tmpDir)
+		commandtest.Delete(t, tmpDir, "a/2.txt")
+
+		statusCmd, err := NewStatus(tmpDir, stdout, stderr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		statusCmd.Run()
+
+		expected := ` D a/2.txt
+`
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("reports files in deleted directories", func(t *testing.T) {
+		tmpDir, stdout, stderr := setup()
+		defer os.RemoveAll(tmpDir)
+		commandtest.Delete(t, tmpDir, "a")
+
+		statusCmd, err := NewStatus(tmpDir, stdout, stderr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		statusCmd.Run()
+
+		expected := ` D a/2.txt
+ D a/b/3.txt
+`
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
 }
