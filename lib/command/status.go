@@ -183,7 +183,7 @@ func (s *Status) checkIndexEntry(entry database.EntryObject) {
 		blob := database.NewBlob(data)
 		oid, _ := s.repo.Database.HashObject(blob)
 
-		if entry.GetOid() == oid {
+		if entry.Oid() == oid {
 			s.repo.Index.UpdateEntryStat(entry, stat)
 			return
 		}

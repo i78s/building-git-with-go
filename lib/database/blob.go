@@ -11,6 +11,10 @@ func NewBlob(data string) *Blob {
 	}
 }
 
+func ParseBlob(data string) GitObject {
+	return NewBlob(data)
+}
+
 func (b *Blob) Type() string {
 	return "blob"
 }
@@ -19,7 +23,7 @@ func (b *Blob) String() string {
 	return b.Data
 }
 
-func (b *Blob) GetOid() string {
+func (b *Blob) Oid() string {
 	return b.oid
 }
 

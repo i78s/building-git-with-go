@@ -1,11 +1,15 @@
 package database
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"io/fs"
 	"sort"
+	"strconv"
+	"strings"
 )
 
 const TREE_MODE = 0o40000
@@ -16,12 +20,12 @@ type Tree struct {
 }
 
 type TreeObject interface {
-	GetOid() string
+	Oid() string
 	Mode() int
 }
 
 type EntryObject interface {
-	GetOid() string
+	Oid() string
 	Key() string
 	Mode() int
 	ParentDirectories() []string
@@ -31,14 +35,50 @@ type EntryObject interface {
 	IsTimesMatch(stat fs.FileInfo) bool
 }
 
-func NewTree() *Tree {
+func NewTree(entries map[string]TreeObject) *Tree {
 	return &Tree{
-		entries: make(map[string]TreeObject),
+		entries: entries,
 	}
 }
 
+func ParseTree(reader *bufio.Reader) (*Tree, error) {
+	entries := make(map[string]TreeObject)
+
+	for {
+		modeStr, err := reader.ReadString(' ')
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+
+		mode, err := strconv.ParseInt(strings.TrimSpace(modeStr), 8, 32)
+		if err != nil {
+			return nil, err
+		}
+
+		name, err := reader.ReadString('\x00')
+		if err != nil {
+			return nil, err
+		}
+		name = strings.TrimSuffix(name, "\x00")
+
+		oidBytes := make([]byte, 20)
+		if _, err = io.ReadFull(reader, oidBytes); err != nil {
+			return nil, err
+		}
+
+		oid := hex.EncodeToString(oidBytes)
+		entries[name] = NewEntry(
+			oid, int(mode),
+		)
+	}
+	return NewTree(entries), nil
+}
+
 func BuildTree(entries []EntryObject) *Tree {
-	root := NewTree()
+	root := NewTree(make(map[string]TreeObject))
 	for _, e := range entries {
 		root.addEntry(e.ParentDirectories(), e)
 	}
@@ -52,7 +92,7 @@ func (t *Tree) addEntry(parents []string, e TreeObject) {
 	} else {
 		subtree, exists := t.entries[parents[0]]
 		if !exists {
-			subtree = NewTree()
+			subtree = NewTree(make(map[string]TreeObject))
 			t.entries[parents[0]] = subtree
 		}
 		subtree.(*Tree).addEntry(parents[1:], e)
@@ -86,7 +126,7 @@ func (t *Tree) String() string {
 
 	for _, name := range keys {
 		entry := t.entries[name]
-		entryOidBytes, _ := hex.DecodeString(entry.GetOid())
+		entryOidBytes, _ := hex.DecodeString(entry.Oid())
 
 		entryString := fmt.Sprintf("%o %s", entry.Mode(), name)
 		buf.WriteString(entryString)
@@ -96,7 +136,7 @@ func (t *Tree) String() string {
 	return buf.String()
 }
 
-func (t *Tree) GetOid() string {
+func (t *Tree) Oid() string {
 	return t.oid
 }
 

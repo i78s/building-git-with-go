@@ -1,4 +1,4 @@
-package database
+package index
 
 import (
 	"crypto/rand"

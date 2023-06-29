@@ -1,6 +1,7 @@
-package database
+package index
 
 import (
+	"building-git/lib/database"
 	"encoding/binary"
 	"fmt"
 	"hash"
@@ -21,7 +22,7 @@ type Index struct {
 	entries  map[string]*Entry
 	keys     []string
 	parents  map[string]map[string]struct{}
-	lockfile *Lockfile
+	lockfile *database.Lockfile
 	digest   hash.Hash
 	changed  bool
 }
@@ -32,7 +33,7 @@ func NewIndex(pathname string) *Index {
 		entries:  make(map[string]*Entry),
 		keys:     make([]string, 0),
 		parents:  make(map[string]map[string]struct{}),
-		lockfile: NewLockfile(pathname),
+		lockfile: database.NewLockfile(pathname),
 	}
 }
 
@@ -95,8 +96,8 @@ func (i *Index) Add(pathname, oid string, stat fs.FileInfo) {
 	i.changed = true
 }
 
-func (i *Index) EachEntry() []EntryObject {
-	entries := []EntryObject{}
+func (i *Index) EachEntry() []database.EntryObject {
+	entries := []database.EntryObject{}
 	for _, key := range i.keys {
 		entries = append(entries, i.entries[key])
 	}
@@ -109,7 +110,7 @@ func (i *Index) IsTracked(path string) bool {
 	return existsInEntries || existsInParents
 }
 
-func (i *Index) UpdateEntryStat(entry EntryObject, stat fs.FileInfo) {
+func (i *Index) UpdateEntryStat(entry database.EntryObject, stat fs.FileInfo) {
 	entry.UpdateStat(stat)
 	i.changed = true
 }

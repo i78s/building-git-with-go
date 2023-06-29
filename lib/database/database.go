@@ -1,10 +1,13 @@
 package database
 
 import (
+	"bufio"
 	"bytes"
 	"compress/zlib"
 	"crypto/sha1"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -13,10 +16,11 @@ import (
 
 type Database struct {
 	pathname string
+	objects  map[string]GitObject
 }
 
 type GitObject interface {
-	GetOid() string
+	Oid() string
 	SetOid(string)
 	Type() string
 	String() string
@@ -25,6 +29,7 @@ type GitObject interface {
 func NewDatabase(pathname string) *Database {
 	return &Database{
 		pathname: pathname,
+		objects:  map[string]GitObject{},
 	}
 }
 
@@ -36,8 +41,21 @@ func (d *Database) Store(object GitObject) error {
 	}
 
 	object.SetOid(oid)
-	d.writeObject(object.GetOid(), cont)
+	d.writeObject(object.Oid(), cont)
 	return nil
+}
+
+func (d *Database) Load(oid string) (GitObject, error) {
+	if obj, exists := d.objects[oid]; exists {
+		return obj, nil
+	}
+	obj, err := d.readObject(oid)
+	if err != nil {
+		return nil, err
+	}
+	d.objects[oid] = obj
+
+	return obj, nil
 }
 
 func (d *Database) HashObject(object GitObject) (string, error) {
@@ -61,8 +79,12 @@ func (d *Database) hashContent(content []byte) (string, error) {
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
+func (d *Database) objectPath(oid string) string {
+	return filepath.Join(d.pathname, oid[:2], oid[2:])
+}
+
 func (d *Database) writeObject(oid string, content []byte) error {
-	objectPath := filepath.Join(d.pathname, oid[:2], oid[2:])
+	objectPath := d.objectPath(oid)
 	dirname := filepath.Dir(objectPath)
 	tempPath := filepath.Join(dirname, generateTempName())
 
@@ -101,6 +123,54 @@ func (d *Database) writeObject(oid string, content []byte) error {
 		return err
 	}
 	return nil
+}
+
+func (d *Database) readObject(oid string) (GitObject, error) {
+	data, err := ioutil.ReadFile(d.objectPath(oid))
+	if err != nil {
+		return nil, err
+	}
+
+	reader := bytes.NewReader(data)
+	zr, err := zlib.NewReader(reader)
+	if err != nil {
+		return nil, err
+	}
+	defer zr.Close()
+
+	scanner := bufio.NewScanner(zr)
+	scanner.Split(bufio.ScanWords)
+
+	var objectType string
+	// var objectSize string
+	for scanner.Scan() {
+		objectType = scanner.Text()
+		break
+	}
+
+	// skip until null character
+	reader.Seek(1, io.SeekCurrent)
+	for scanner.Scan() {
+		// objectSize = scanner.Text()
+		scanner.Text()
+		break
+	}
+
+	var object GitObject
+	switch objectType {
+	case "blob":
+		rest, _ := io.ReadAll(reader)
+		object = ParseBlob(string(rest))
+	case "tree":
+		object, _ = ParseTree(bufio.NewReader(reader))
+	case "commit":
+		object, _ = ParseCommit(bufio.NewReader(reader))
+	default:
+		return nil, fmt.Errorf("unrecognized object type: %s", objectType)
+	}
+	object.SetOid(oid)
+
+	return object, nil
 }
 
 const TEMP_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"

@@ -50,6 +50,6 @@ func (e *Entry) Basename() string {
 	return filepath.Base(e.Name)
 }
 
-func (e *Entry) GetOid() string {
+func (e *Entry) Oid() string {
 	return e.oid
 }

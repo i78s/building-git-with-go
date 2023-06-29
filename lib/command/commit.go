@@ -50,16 +50,16 @@ func Commit(dir string, args []string, stdin io.Reader, stdout, stderr io.Writer
 	reader := bufio.NewReader(stdin)
 	message, _ := reader.ReadString('\n')
 
-	commit := database.NewCommit(parent, root.GetOid(), author, message)
+	commit := database.NewCommit(parent, root.Oid(), author.String(), message)
 	repo.Database.Store(commit)
-	repo.Refs.UpdateHead(commit.GetOid())
+	repo.Refs.UpdateHead(commit.Oid())
 
 	messageLines := strings.Split(message, "\n")
 	isRoot := ""
 	if root == nil {
 		isRoot = "[(root-commit)]"
 	}
-	fmt.Fprintf(stdout, "%s%s %s\n", isRoot, commit.GetOid(), messageLines[0])
+	fmt.Fprintf(stdout, "%s%s %s\n", isRoot, commit.Oid(), messageLines[0])
 
 	return 0
 }

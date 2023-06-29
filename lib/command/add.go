@@ -56,7 +56,7 @@ func Add(dir string, args []string, stdout, stderr io.Writer) int {
 		}
 		blob := database.NewBlob(data)
 		repo.Database.Store(blob)
-		repo.Index.Add(pathname, blob.GetOid(), stat)
+		repo.Index.Add(pathname, blob.Oid(), stat)
 	}
 	repo.Index.WriteUpdates()
 	return 0
