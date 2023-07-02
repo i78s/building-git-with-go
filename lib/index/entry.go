@@ -104,7 +104,7 @@ func (e *Entry) ParentDirectories() []string {
 		if path == "." || path == string(filepath.Separator) {
 			break
 		}
-		dirs = append(dirs, path)
+		dirs = append([]string{path}, dirs...)
 	}
 	return dirs
 }

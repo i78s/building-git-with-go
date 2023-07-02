@@ -15,6 +15,7 @@ type changeType int
 const (
 	deleted changeType = iota
 	modified
+	added
 )
 
 type Status struct {
@@ -24,6 +25,7 @@ type Status struct {
 	changed   map[string]struct{}
 	changes   map[string]map[changeType]struct{}
 	untracked map[string]struct{}
+	headTree  map[string]*database.Entry
 	stdout    io.Writer
 	stderr    io.Writer
 }
@@ -42,6 +44,7 @@ func NewStatus(dir string, stdout, stderr io.Writer) (*Status, error) {
 		changed:   map[string]struct{}{},
 		changes:   map[string]map[changeType]struct{}{},
 		untracked: map[string]struct{}{},
+		headTree:  make(map[string]*database.Entry),
 		stdout:    stdout,
 		stderr:    stderr,
 	}, nil
@@ -55,7 +58,9 @@ func (s *Status) Run() int {
 		return 128
 	}
 
-	s.detectWorkspaceChanges()
+	s.loadHeadTree()
+	s.checkIndexEntries()
+
 	s.repo.Index.WriteUpdates()
 	s.printResults()
 
@@ -83,16 +88,22 @@ func (s *Status) printResults() {
 	}
 }
 
-func (s *Status) statusFor(path string) (status string) {
+func (s *Status) statusFor(path string) string {
 	changes := s.changes[path]
 
+	left := " "
+	if _, exists := changes[added]; exists {
+		left = "A"
+	}
+
+	right := " "
 	if _, exists := changes[deleted]; exists {
-		status = " D"
+		right = "D"
 	}
 	if _, exists := changes[modified]; exists {
-		status = " M"
+		right = "M"
 	}
-	return
+	return left + right
 }
 
 func (s *Status) recordChange(path string, ctype changeType) {
@@ -118,14 +129,12 @@ func (s *Status) scanWorkspace(prefix string) error {
 				s.scanWorkspace(path)
 			}
 			continue
+		} else if s.isTrackableFile(path, stat) {
+			if stat.IsDir() {
+				path += string(filepath.Separator)
+			}
+			s.untracked[path] = struct{}{}
 		}
-		if !s.isTrackableFile(path, stat) {
-			continue
-		}
-		if stat.IsDir() {
-			path += string(filepath.Separator)
-		}
-		s.untracked[path] = struct{}{}
 	}
 	return nil
 }
@@ -163,32 +172,92 @@ func (st *Status) isTrackableFile(path string, stat fs.FileInfo) bool {
 	return false
 }
 
-func (s *Status) detectWorkspaceChanges() {
+func (s *Status) loadHeadTree() error {
+	s.headTree = make(map[string]*database.Entry)
+
+	headOid, err := s.repo.Refs.ReadHead()
+	if err != nil {
+		return err
+	}
+	if headOid == "" {
+		return nil
+	}
+	commitObj, _ := s.repo.Database.Load(headOid)
+
+	commit, ok := commitObj.(*database.Commit)
+	if !ok {
+		return fmt.Errorf("Failed to cast to Commit")
+	}
+
+	s.readTree(commit.Tree(), "")
+	return nil
+}
+
+func (s *Status) readTree(treeOid, pathname string) error {
+	treeObj, _ := s.repo.Database.Load(treeOid)
+	tree, ok := treeObj.(*database.Tree)
+	if !ok {
+		return fmt.Errorf("Failed to cast to Tree")
+	}
+
+	for name, e := range tree.Entries {
+		path := filepath.Join(pathname, name)
+		entry, ok := e.(*database.Entry)
+		if !ok {
+			return fmt.Errorf("Failed to cast to Entry")
+		}
+		if entry.IsTree() {
+			err := s.readTree(entry.Oid(), name)
+			if err != nil {
+				return err
+			}
+		} else {
+			s.headTree[path] = entry
+		}
+	}
+
+	return nil
+}
+
+func (s *Status) checkIndexEntries() {
 	for _, entry := range s.repo.Index.EachEntry() {
-		s.checkIndexEntry(entry)
+		s.checkIndexAgainstWorkspace(entry)
+		s.checkIndexAgainstHeadTree(entry)
 	}
 }
 
-func (s *Status) checkIndexEntry(entry database.EntryObject) {
-	if stat, exists := s.stats[entry.Key()]; exists {
-		if !entry.IsStatMatch(stat) {
-			s.recordChange(entry.Key(), modified)
-			return
-		}
-		if entry.IsTimesMatch(stat) {
-			return
-		}
+func (s *Status) checkIndexAgainstWorkspace(entry database.EntryObject) {
+	stat, exists := s.stats[entry.Key()]
 
-		data, _ := s.repo.Workspace.ReadFile(entry.Key())
-		blob := database.NewBlob(data)
-		oid, _ := s.repo.Database.HashObject(blob)
-
-		if entry.Oid() == oid {
-			s.repo.Index.UpdateEntryStat(entry, stat)
-			return
-		}
-		s.recordChange(entry.Key(), modified)
-	} else {
+	if !exists {
 		s.recordChange(entry.Key(), deleted)
+		return
 	}
+
+	if !entry.IsStatMatch(stat) {
+		s.recordChange(entry.Key(), modified)
+		return
+	}
+	if entry.IsTimesMatch(stat) {
+		return
+	}
+
+	data, _ := s.repo.Workspace.ReadFile(entry.Key())
+	blob := database.NewBlob(data)
+	oid, _ := s.repo.Database.HashObject(blob)
+
+	if entry.Oid() == oid {
+		s.repo.Index.UpdateEntryStat(entry, stat)
+		return
+	}
+	s.recordChange(entry.Key(), modified)
+}
+
+func (s *Status) checkIndexAgainstHeadTree(entry database.EntryObject) {
+	item := s.headTree[entry.Key()]
+
+	if item != nil {
+		return
+	}
+	s.recordChange(entry.Key(), added)
 }

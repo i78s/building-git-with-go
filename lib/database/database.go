@@ -6,11 +6,11 @@ import (
 	"compress/zlib"
 	"crypto/sha1"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -138,36 +138,32 @@ func (d *Database) readObject(oid string) (GitObject, error) {
 	}
 	defer zr.Close()
 
-	scanner := bufio.NewScanner(zr)
-	scanner.Split(bufio.ScanWords)
-
-	var objectType string
-	// var objectSize string
-	for scanner.Scan() {
-		objectType = scanner.Text()
-		break
+	bufReader := bufio.NewReader(zr)
+	line, err := bufReader.ReadString(' ')
+	if err != nil {
+		return nil, err
 	}
 
-	// skip until null character
-	reader.Seek(1, io.SeekCurrent)
-	for scanner.Scan() {
-		// objectSize = scanner.Text()
-		scanner.Text()
-		break
-	}
+	objectType := strings.TrimSpace(string(line))
+	size, err := bufReader.ReadString(0)
+	size = strings.TrimRight(size, "\x00")
 
 	var object GitObject
 	switch objectType {
 	case "blob":
-		rest, _ := io.ReadAll(reader)
-		object = ParseBlob(string(rest))
+		object = ParseBlob(bufReader)
 	case "tree":
-		object, _ = ParseTree(bufio.NewReader(reader))
+		object, err = ParseTree(bufReader)
 	case "commit":
-		object, _ = ParseCommit(bufio.NewReader(reader))
+		object, err = ParseCommit(bufReader)
 	default:
 		return nil, fmt.Errorf("unrecognized object type: %s", objectType)
 	}
+
+	if err != nil {
+		return nil, err
+	}
+
 	object.SetOid(oid)
 
 	return object, nil

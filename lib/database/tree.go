@@ -16,7 +16,7 @@ const TREE_MODE = 0o40000
 
 type Tree struct {
 	oid     string
-	entries map[string]TreeObject
+	Entries map[string]TreeObject
 }
 
 type TreeObject interface {
@@ -37,7 +37,7 @@ type EntryObject interface {
 
 func NewTree(entries map[string]TreeObject) *Tree {
 	return &Tree{
-		entries: entries,
+		Entries: entries,
 	}
 }
 
@@ -88,19 +88,19 @@ func BuildTree(entries []EntryObject) *Tree {
 
 func (t *Tree) addEntry(parents []string, e TreeObject) {
 	if len(parents) == 0 {
-		t.entries[e.(EntryObject).Basename()] = e
+		t.Entries[e.(EntryObject).Basename()] = e
 	} else {
-		subtree, exists := t.entries[parents[0]]
+		subtree, exists := t.Entries[parents[0]]
 		if !exists {
 			subtree = NewTree(make(map[string]TreeObject))
-			t.entries[parents[0]] = subtree
+			t.Entries[parents[0]] = subtree
 		}
 		subtree.(*Tree).addEntry(parents[1:], e)
 	}
 }
 
 func (t *Tree) Traverse(fn func(TreeObject)) {
-	for _, entry := range t.entries {
+	for _, entry := range t.Entries {
 		if tree, ok := entry.(*Tree); ok {
 			tree.Traverse(fn)
 		}
@@ -118,14 +118,14 @@ func (t *Tree) Type() string {
 
 func (t *Tree) String() string {
 	var buf bytes.Buffer
-	keys := make([]string, 0, len(t.entries))
-	for k := range t.entries {
+	keys := make([]string, 0, len(t.Entries))
+	for k := range t.Entries {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 
 	for _, name := range keys {
-		entry := t.entries[name]
+		entry := t.Entries[name]
 		entryOidBytes, _ := hex.DecodeString(entry.Oid())
 
 		entryString := fmt.Sprintf("%o %s", entry.Mode(), name)

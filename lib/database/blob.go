@@ -1,5 +1,10 @@
 package database
 
+import (
+	"bufio"
+	"io"
+)
+
 type Blob struct {
 	oid  string
 	Data string
@@ -11,8 +16,9 @@ func NewBlob(data string) *Blob {
 	}
 }
 
-func ParseBlob(data string) GitObject {
-	return NewBlob(data)
+func ParseBlob(reader *bufio.Reader) *Blob {
+	data, _ := io.ReadAll(reader)
+	return NewBlob(string(data))
 }
 
 func (b *Blob) Type() string {

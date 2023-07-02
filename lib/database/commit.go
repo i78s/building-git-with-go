@@ -2,6 +2,7 @@ package database
 
 import (
 	"bufio"
+	"io"
 	"strings"
 )
 
@@ -22,31 +23,39 @@ func NewCommit(parent, tree string, author string, message string) *Commit {
 	}
 }
 
-func ParseCommit(reader *bufio.Reader) (GitObject, error) {
+func ParseCommit(reader *bufio.Reader) (*Commit, error) {
 	headers := make(map[string]string)
+	message := ""
 
 	for {
-		line, _, err := reader.ReadLine()
+		line, err := reader.ReadString('\n')
+		line = strings.TrimSpace(string(line))
 		if err != nil {
+			if err == io.EOF {
+				break
+			}
 			return nil, err
 		}
 
-		strLine := string(line)
-		if strLine == "" {
+		if line == "" {
+			messageBytes, err := reader.ReadBytes('\x00')
+			if err != nil && err != io.EOF {
+				return nil, err
+			}
+			message = string(messageBytes)
 			break
 		}
 
-		parts := strings.SplitN(strLine, " ", 2)
+		parts := strings.SplitN(line, " ", 2)
+
 		headers[parts[0]] = parts[1]
 	}
-
-	rest, _ := reader.ReadString('\n')
 
 	return NewCommit(
 		headers["parent"],
 		headers["tree"],
 		headers["author"],
-		rest), nil
+		message), nil
 }
 
 func (c *Commit) Type() string {
@@ -77,4 +86,8 @@ func (c *Commit) Oid() string {
 
 func (c *Commit) SetOid(oid string) {
 	c.oid = oid
+}
+
+func (c *Commit) Tree() string {
+	return c.tree
 }

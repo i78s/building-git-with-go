@@ -20,6 +20,29 @@ func commit(t *testing.T, dir string, message string) {
 	Commit(dir, []string{}, stdin, new(bytes.Buffer), new(bytes.Buffer))
 }
 
+func TestStatusListFilesAsUntrackedIfTheyAreNotInTheIndex(t *testing.T) {
+	tmpDir, stdout, stderr := commandtest.SetupTestEnvironment(t)
+	defer os.RemoveAll(tmpDir)
+
+	commandtest.WriteFile(t, tmpDir, "committed.txt", "")
+
+	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
+	commit(t, tmpDir, "commit message")
+
+	commandtest.WriteFile(t, tmpDir, "file.txt", "")
+	statusCmd, err := NewStatus(tmpDir, stdout, stderr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	statusCmd.Run()
+
+	expected := `?? file.txt
+`
+	if got := stdout.String(); got != expected {
+		t.Errorf("want %q, but got %q", expected, got)
+	}
+}
+
 func TestStatusListUntrackedFilesInNameOrder(t *testing.T) {
 	tmpDir, stdout, stderr := commandtest.SetupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)
@@ -40,29 +63,6 @@ func TestStatusListUntrackedFilesInNameOrder(t *testing.T) {
 
 	expected := `?? another.txt
 ?? file.txt
-`
-	if got := stdout.String(); got != expected {
-		t.Errorf("want %q, but got %q", expected, got)
-	}
-}
-
-func TestStatusListFilesAsUntrackedIfTheyAreNotInTheIndex(t *testing.T) {
-	tmpDir, stdout, stderr := commandtest.SetupTestEnvironment(t)
-	defer os.RemoveAll(tmpDir)
-
-	commandtest.WriteFile(t, tmpDir, "committed.txt", "")
-
-	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-	commit(t, tmpDir, "commit message")
-
-	commandtest.WriteFile(t, tmpDir, "file.txt", "")
-	statusCmd, err := NewStatus(tmpDir, stdout, stderr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	statusCmd.Run()
-
-	expected := `?? file.txt
 `
 	if got := stdout.String(); got != expected {
 		t.Errorf("want %q, but got %q", expected, got)
@@ -299,6 +299,64 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 
 		expected := ` D a/2.txt
  D a/b/3.txt
+`
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+}
+
+func TestStatusHeadIndexChanges(t *testing.T) {
+	setup := func() (tmpDir string, stdout, stderr *bytes.Buffer) {
+		tmpDir, stdout, stderr = commandtest.SetupTestEnvironment(t)
+
+		filesToAdd := []*filesToAdd{
+			{name: "1.txt", content: "one"},
+			{name: "a/2.txt", content: "two"},
+			{name: "a/b/3.txt", content: "three"},
+		}
+		for _, file := range filesToAdd {
+			commandtest.WriteFile(t, tmpDir, file.name, file.content)
+		}
+
+		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
+		commit(t, tmpDir, "commit message")
+
+		return
+	}
+
+	t.Run("reports a file added to a tracked directory", func(t *testing.T) {
+		tmpDir, stdout, stderr := setup()
+		defer os.RemoveAll(tmpDir)
+		commandtest.WriteFile(t, tmpDir, "a/4.txt", "four")
+		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
+
+		statusCmd, err := NewStatus(tmpDir, stdout, stderr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		statusCmd.Run()
+
+		expected := `A  a/4.txt
+`
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("reports a file added to an untracked directory", func(t *testing.T) {
+		tmpDir, stdout, stderr := setup()
+		defer os.RemoveAll(tmpDir)
+		commandtest.WriteFile(t, tmpDir, "d/e/5.txt", "five")
+		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
+
+		statusCmd, err := NewStatus(tmpDir, stdout, stderr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		statusCmd.Run()
+
+		expected := `A  d/e/5.txt
 `
 		if got := stdout.String(); got != expected {
 			t.Errorf("want %q, but got %q", expected, got)

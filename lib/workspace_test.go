@@ -54,3 +54,63 @@ func TestListFiles(t *testing.T) {
 		t.Errorf("ListFiles() = %v, want %v", files, expected)
 	}
 }
+
+func TestListDir(t *testing.T) {
+	// Setup a temporary workspace
+	tmpDir, err := ioutil.TempDir("", "workspace")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir) // clean up
+
+	// Create some files and directories in the temporary workspace
+	structure := []string{
+		"file1.txt",
+		"dir1/file2.txt",
+		"dir1/dir2/file3.txt",
+		".git/config",
+	}
+	for _, path := range structure {
+		fullPath := filepath.Join(tmpDir, path)
+		err := os.MkdirAll(filepath.Dir(fullPath), 0755)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = os.Create(fullPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Initialize the Workspace struct
+	w := &Workspace{pathname: tmpDir}
+
+	// Call the method we're testing
+	stats, err := w.ListDir("")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check the results
+	expected := []string{
+		"file1.txt",
+		"dir1",
+	}
+	for _, path := range expected {
+		if _, exists := stats[path]; !exists {
+			t.Errorf("Expected %s to be listed, but it wasn't", path)
+		}
+	}
+	for path := range stats {
+		found := false
+		for _, expectedPath := range expected {
+			if path == expectedPath {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Did not expect %s to be listed, but it was", path)
+		}
+	}
+}
