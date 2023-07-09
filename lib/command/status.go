@@ -13,9 +13,10 @@ import (
 type changeType int
 
 const (
-	deleted changeType = iota
-	modified
-	added
+	workspaceDeleted changeType = iota
+	workspaceModified
+	indexAdded
+	indexModified
 )
 
 type Status struct {
@@ -92,15 +93,18 @@ func (s *Status) statusFor(path string) string {
 	changes := s.changes[path]
 
 	left := " "
-	if _, exists := changes[added]; exists {
+	if _, exists := changes[indexAdded]; exists {
 		left = "A"
+	}
+	if _, exists := changes[indexModified]; exists {
+		left = "M"
 	}
 
 	right := " "
-	if _, exists := changes[deleted]; exists {
+	if _, exists := changes[workspaceDeleted]; exists {
 		right = "D"
 	}
-	if _, exists := changes[modified]; exists {
+	if _, exists := changes[workspaceModified]; exists {
 		right = "M"
 	}
 	return left + right
@@ -230,12 +234,12 @@ func (s *Status) checkIndexAgainstWorkspace(entry database.EntryObject) {
 	stat, exists := s.stats[entry.Key()]
 
 	if !exists {
-		s.recordChange(entry.Key(), deleted)
+		s.recordChange(entry.Key(), workspaceDeleted)
 		return
 	}
 
 	if !entry.IsStatMatch(stat) {
-		s.recordChange(entry.Key(), modified)
+		s.recordChange(entry.Key(), workspaceModified)
 		return
 	}
 	if entry.IsTimesMatch(stat) {
@@ -250,14 +254,17 @@ func (s *Status) checkIndexAgainstWorkspace(entry database.EntryObject) {
 		s.repo.Index.UpdateEntryStat(entry, stat)
 		return
 	}
-	s.recordChange(entry.Key(), modified)
+	s.recordChange(entry.Key(), workspaceModified)
 }
 
 func (s *Status) checkIndexAgainstHeadTree(entry database.EntryObject) {
 	item := s.headTree[entry.Key()]
 
 	if item != nil {
+		if entry.Mode() != item.Mode() || entry.Oid() != item.Oid() {
+			s.recordChange(entry.Key(), indexModified)
+		}
 		return
 	}
-	s.recordChange(entry.Key(), added)
+	s.recordChange(entry.Key(), indexAdded)
 }

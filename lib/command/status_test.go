@@ -362,4 +362,42 @@ func TestStatusHeadIndexChanges(t *testing.T) {
 			t.Errorf("want %q, but got %q", expected, got)
 		}
 	})
+
+	t.Run("reports modified modes", func(t *testing.T) {
+		tmpDir, stdout, stderr := setup()
+		defer os.RemoveAll(tmpDir)
+		commandtest.MakeExecutable(t, tmpDir, "1.txt")
+		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
+
+		statusCmd, err := NewStatus(tmpDir, stdout, stderr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		statusCmd.Run()
+
+		expected := `M  1.txt
+`
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("reports modified contents", func(t *testing.T) {
+		tmpDir, stdout, stderr := setup()
+		defer os.RemoveAll(tmpDir)
+		commandtest.WriteFile(t, tmpDir, "a/b/3.txt", "changed")
+		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
+
+		statusCmd, err := NewStatus(tmpDir, stdout, stderr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		statusCmd.Run()
+
+		expected := `M  a/b/3.txt
+`
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
 }
