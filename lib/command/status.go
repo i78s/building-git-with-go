@@ -13,23 +13,28 @@ import (
 type changeType int
 
 const (
-	workspaceDeleted changeType = iota
-	workspaceModified
-	indexAdded
-	indexModified
-	indexDeleted
+	added changeType = iota
+	deleted
+	modified
 )
 
+var SHORT_STATUS = map[changeType]string{
+	added:    "A",
+	deleted:  "D",
+	modified: "M",
+}
+
 type Status struct {
-	rootPath  string
-	repo      *lib.Repository
-	stats     map[string]fs.FileInfo
-	changed   map[string]struct{}
-	changes   map[string]map[changeType]struct{}
-	untracked map[string]struct{}
-	headTree  map[string]*database.Entry
-	stdout    io.Writer
-	stderr    io.Writer
+	rootPath         string
+	repo             *lib.Repository
+	stats            map[string]fs.FileInfo
+	changed          map[string]struct{}
+	indexChanges     map[string]changeType
+	workspaceChanges map[string]changeType
+	untracked        map[string]struct{}
+	headTree         map[string]*database.Entry
+	stdout           io.Writer
+	stderr           io.Writer
 }
 
 func NewStatus(dir string, stdout, stderr io.Writer) (*Status, error) {
@@ -40,15 +45,16 @@ func NewStatus(dir string, stdout, stderr io.Writer) (*Status, error) {
 	repo := lib.NewRepository(rootPath)
 
 	return &Status{
-		rootPath:  rootPath,
-		repo:      repo,
-		stats:     map[string]fs.FileInfo{},
-		changed:   map[string]struct{}{},
-		changes:   map[string]map[changeType]struct{}{},
-		untracked: map[string]struct{}{},
-		headTree:  make(map[string]*database.Entry),
-		stdout:    stdout,
-		stderr:    stderr,
+		rootPath:         rootPath,
+		repo:             repo,
+		stats:            map[string]fs.FileInfo{},
+		changed:          map[string]struct{}{},
+		indexChanges:     map[string]changeType{},
+		workspaceChanges: map[string]changeType{},
+		untracked:        map[string]struct{}{},
+		headTree:         make(map[string]*database.Entry),
+		stdout:           stdout,
+		stderr:           stderr,
 	}, nil
 }
 
@@ -91,35 +97,26 @@ func (s *Status) printResults() {
 }
 
 func (s *Status) statusFor(path string) string {
-	changes := s.changes[path]
-
 	left := " "
-	if _, exists := changes[indexAdded]; exists {
-		left = "A"
-	}
-	if _, exists := changes[indexModified]; exists {
-		left = "M"
-	}
-	if _, exists := changes[indexDeleted]; exists {
-		left = "D"
+	if ctype, exists := s.indexChanges[path]; exists {
+		if status, exists := SHORT_STATUS[ctype]; exists {
+			left = status
+		}
 	}
 
 	right := " "
-	if _, exists := changes[workspaceDeleted]; exists {
-		right = "D"
+	if ctype, exists := s.workspaceChanges[path]; exists {
+		if status, exists := SHORT_STATUS[ctype]; exists {
+			right = status
+		}
 	}
-	if _, exists := changes[workspaceModified]; exists {
-		right = "M"
-	}
+
 	return left + right
 }
 
-func (s *Status) recordChange(path string, ctype changeType) {
+func (s *Status) recordChange(path string, set map[string]changeType, ctype changeType) {
 	s.changed[path] = struct{}{}
-	if s.changes[path] == nil {
-		s.changes[path] = map[changeType]struct{}{}
-	}
-	s.changes[path][ctype] = struct{}{}
+	set[path] = ctype
 }
 
 func (s *Status) scanWorkspace(prefix string) error {
@@ -238,12 +235,12 @@ func (s *Status) checkIndexAgainstWorkspace(entry database.EntryObject) {
 	stat, exists := s.stats[entry.Key()]
 
 	if !exists {
-		s.recordChange(entry.Key(), workspaceDeleted)
+		s.recordChange(entry.Key(), s.workspaceChanges, deleted)
 		return
 	}
 
 	if !entry.IsStatMatch(stat) {
-		s.recordChange(entry.Key(), workspaceModified)
+		s.recordChange(entry.Key(), s.workspaceChanges, modified)
 		return
 	}
 	if entry.IsTimesMatch(stat) {
@@ -258,7 +255,7 @@ func (s *Status) checkIndexAgainstWorkspace(entry database.EntryObject) {
 		s.repo.Index.UpdateEntryStat(entry, stat)
 		return
 	}
-	s.recordChange(entry.Key(), workspaceModified)
+	s.recordChange(entry.Key(), s.workspaceChanges, modified)
 }
 
 func (s *Status) checkIndexAgainstHeadTree(entry database.EntryObject) {
@@ -266,11 +263,11 @@ func (s *Status) checkIndexAgainstHeadTree(entry database.EntryObject) {
 
 	if item != nil {
 		if entry.Mode() != item.Mode() || entry.Oid() != item.Oid() {
-			s.recordChange(entry.Key(), indexModified)
+			s.recordChange(entry.Key(), s.indexChanges, modified)
 		}
 		return
 	}
-	s.recordChange(entry.Key(), indexAdded)
+	s.recordChange(entry.Key(), s.indexChanges, added)
 }
 
 func (s *Status) collectDeletedHeadFiles() {
@@ -278,6 +275,6 @@ func (s *Status) collectDeletedHeadFiles() {
 		if s.repo.Index.IsTrackedFile(path) {
 			continue
 		}
-		s.recordChange(path, indexDeleted)
+		s.recordChange(path, s.indexChanges, deleted)
 	}
 }
