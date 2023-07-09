@@ -104,10 +104,14 @@ func (i *Index) EachEntry() []database.EntryObject {
 	return entries
 }
 
-func (i *Index) IsTracked(path string) bool {
+func (i *Index) IsTrackedFile(path string) bool {
 	_, existsInEntries := i.entries[path]
+	return existsInEntries
+}
+
+func (i *Index) IsTracked(path string) bool {
 	_, existsInParents := i.parents[path]
-	return existsInEntries || existsInParents
+	return i.IsTrackedFile(path) || existsInParents
 }
 
 func (i *Index) UpdateEntryStat(entry database.EntryObject, stat fs.FileInfo) {

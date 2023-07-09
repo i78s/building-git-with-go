@@ -17,6 +17,7 @@ const (
 	workspaceModified
 	indexAdded
 	indexModified
+	indexDeleted
 )
 
 type Status struct {
@@ -58,9 +59,9 @@ func (s *Status) Run() int {
 		fmt.Fprintf(s.stderr, "fatal: %v", err)
 		return 128
 	}
-
 	s.loadHeadTree()
 	s.checkIndexEntries()
+	s.collectDeletedHeadFiles()
 
 	s.repo.Index.WriteUpdates()
 	s.printResults()
@@ -98,6 +99,9 @@ func (s *Status) statusFor(path string) string {
 	}
 	if _, exists := changes[indexModified]; exists {
 		left = "M"
+	}
+	if _, exists := changes[indexDeleted]; exists {
+		left = "D"
 	}
 
 	right := " "
@@ -267,4 +271,13 @@ func (s *Status) checkIndexAgainstHeadTree(entry database.EntryObject) {
 		return
 	}
 	s.recordChange(entry.Key(), indexAdded)
+}
+
+func (s *Status) collectDeletedHeadFiles() {
+	for path := range s.headTree {
+		if s.repo.Index.IsTrackedFile(path) {
+			continue
+		}
+		s.recordChange(path, indexDeleted)
+	}
 }
