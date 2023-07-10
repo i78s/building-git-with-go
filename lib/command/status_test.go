@@ -20,6 +20,21 @@ func commit(t *testing.T, dir string, message string) {
 	Commit(dir, []string{}, stdin, new(bytes.Buffer), new(bytes.Buffer))
 }
 
+func assertStatus(t *testing.T, tmpDir string, stdout *bytes.Buffer, stderr *bytes.Buffer, expected string) {
+	args := StatusOption{
+		Porcelain: true,
+	}
+	statusCmd, err := NewStatus(tmpDir, args, stdout, stderr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	statusCmd.Run()
+
+	if got := stdout.String(); got != expected {
+		t.Errorf("want %q, but got %q", expected, got)
+	}
+}
+
 func TestStatusListFilesAsUntrackedIfTheyAreNotInTheIndex(t *testing.T) {
 	tmpDir, stdout, stderr := commandtest.SetupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)
@@ -30,17 +45,10 @@ func TestStatusListFilesAsUntrackedIfTheyAreNotInTheIndex(t *testing.T) {
 	commit(t, tmpDir, "commit message")
 
 	commandtest.WriteFile(t, tmpDir, "file.txt", "")
-	statusCmd, err := NewStatus(tmpDir, stdout, stderr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	statusCmd.Run()
 
 	expected := `?? file.txt
 `
-	if got := stdout.String(); got != expected {
-		t.Errorf("want %q, but got %q", expected, got)
-	}
+	assertStatus(t, tmpDir, stdout, stderr, expected)
 }
 
 func TestStatusListUntrackedFilesInNameOrder(t *testing.T) {
@@ -55,18 +63,10 @@ func TestStatusListUntrackedFilesInNameOrder(t *testing.T) {
 		commandtest.WriteFile(t, tmpDir, file.name, file.content)
 	}
 
-	statusCmd, err := NewStatus(tmpDir, stdout, stderr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	statusCmd.Run()
-
 	expected := `?? another.txt
 ?? file.txt
 `
-	if got := stdout.String(); got != expected {
-		t.Errorf("want %q, but got %q", expected, got)
-	}
+	assertStatus(t, tmpDir, stdout, stderr, expected)
 }
 
 func TestStatusListUntrackedDirectoriesNotTheirContents(t *testing.T) {
@@ -81,18 +81,10 @@ func TestStatusListUntrackedDirectoriesNotTheirContents(t *testing.T) {
 		commandtest.WriteFile(t, tmpDir, file.name, file.content)
 	}
 
-	statusCmd, err := NewStatus(tmpDir, stdout, stderr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	statusCmd.Run()
-
 	expected := `?? dir/
 ?? file.txt
 `
-	if got := stdout.String(); got != expected {
-		t.Errorf("want %q, but got %q", expected, got)
-	}
+	assertStatus(t, tmpDir, stdout, stderr, expected)
 }
 
 func TestStatusListUntrackedFilesInsideTrackedDirectories(t *testing.T) {
@@ -110,18 +102,11 @@ func TestStatusListUntrackedFilesInsideTrackedDirectories(t *testing.T) {
 	for _, file := range filesToAdd {
 		commandtest.WriteFile(t, tmpDir, file.name, file.content)
 	}
-	statusCmd, err := NewStatus(tmpDir, stdout, stderr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	statusCmd.Run()
 
 	expected := `?? a/b/c/
 ?? a/outer.txt
 `
-	if got := stdout.String(); got != expected {
-		t.Errorf("want %q, but got %q", expected, got)
-	}
+	assertStatus(t, tmpDir, stdout, stderr, expected)
 }
 
 func TestStatusDoesNotListEmptyUntrackedDirectories(t *testing.T) {
@@ -130,16 +115,8 @@ func TestStatusDoesNotListEmptyUntrackedDirectories(t *testing.T) {
 
 	commandtest.Mkdir(t, tmpDir, "outer")
 
-	statusCmd, err := NewStatus(tmpDir, stdout, stderr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	statusCmd.Run()
-
 	expected := ``
-	if got := stdout.String(); got != expected {
-		t.Errorf("want %q, but got %q", expected, got)
-	}
+	assertStatus(t, tmpDir, stdout, stderr, expected)
 }
 
 func TestStatusListUntrackedDirectoriesIndirectlyContainFiles(t *testing.T) {
@@ -148,17 +125,9 @@ func TestStatusListUntrackedDirectoriesIndirectlyContainFiles(t *testing.T) {
 
 	commandtest.WriteFile(t, tmpDir, "outer/inner/file.txt", "")
 
-	statusCmd, err := NewStatus(tmpDir, stdout, stderr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	statusCmd.Run()
-
 	expected := `?? outer/
 `
-	if got := stdout.String(); got != expected {
-		t.Errorf("want %q, but got %q", expected, got)
-	}
+	assertStatus(t, tmpDir, stdout, stderr, expected)
 }
 
 func TestStatusIndexWorkspaceChanges(t *testing.T) {
@@ -183,16 +152,9 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 	t.Run("prints nothing when no files are changed", func(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
-		statusCmd, err := NewStatus(tmpDir, stdout, stderr)
-		if err != nil {
-			t.Fatal(err)
-		}
-		statusCmd.Run()
 
 		expected := ``
-		if got := stdout.String(); got != expected {
-			t.Errorf("want %q, but got %q", expected, got)
-		}
+		assertStatus(t, tmpDir, stdout, stderr, expected)
 	})
 
 	t.Run("reports files with modified contents", func(t *testing.T) {
@@ -201,18 +163,10 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 		commandtest.WriteFile(t, tmpDir, "1.txt", "changed")
 		commandtest.WriteFile(t, tmpDir, "a/2.txt", "modified")
 
-		statusCmd, err := NewStatus(tmpDir, stdout, stderr)
-		if err != nil {
-			t.Fatal(err)
-		}
-		statusCmd.Run()
-
 		expected := ` M 1.txt
  M a/2.txt
 `
-		if got := stdout.String(); got != expected {
-			t.Errorf("want %q, but got %q", expected, got)
-		}
+		assertStatus(t, tmpDir, stdout, stderr, expected)
 	})
 
 	t.Run("reports modified files with unchanged size", func(t *testing.T) {
@@ -220,17 +174,9 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 		defer os.RemoveAll(tmpDir)
 		commandtest.WriteFile(t, tmpDir, "a/b/3.txt", "hello")
 
-		statusCmd, err := NewStatus(tmpDir, stdout, stderr)
-		if err != nil {
-			t.Fatal(err)
-		}
-		statusCmd.Run()
-
 		expected := ` M a/b/3.txt
 `
-		if got := stdout.String(); got != expected {
-			t.Errorf("want %q, but got %q", expected, got)
-		}
+		assertStatus(t, tmpDir, stdout, stderr, expected)
 	})
 
 	t.Run("reports files with changed modes", func(t *testing.T) {
@@ -238,17 +184,9 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 		defer os.RemoveAll(tmpDir)
 		commandtest.MakeExecutable(t, tmpDir, "a/2.txt")
 
-		statusCmd, err := NewStatus(tmpDir, stdout, stderr)
-		if err != nil {
-			t.Fatal(err)
-		}
-		statusCmd.Run()
-
 		expected := ` M a/2.txt
 `
-		if got := stdout.String(); got != expected {
-			t.Errorf("want %q, but got %q", expected, got)
-		}
+		assertStatus(t, tmpDir, stdout, stderr, expected)
 	})
 
 	t.Run("prints nothing if a file is touched", func(t *testing.T) {
@@ -256,16 +194,8 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 		defer os.RemoveAll(tmpDir)
 		commandtest.Touch(t, tmpDir, "1.txt")
 
-		statusCmd, err := NewStatus(tmpDir, stdout, stderr)
-		if err != nil {
-			t.Fatal(err)
-		}
-		statusCmd.Run()
-
 		expected := ``
-		if got := stdout.String(); got != expected {
-			t.Errorf("want %q, but got %q", expected, got)
-		}
+		assertStatus(t, tmpDir, stdout, stderr, expected)
 	})
 
 	t.Run("reports deleted files", func(t *testing.T) {
@@ -273,17 +203,9 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 		defer os.RemoveAll(tmpDir)
 		commandtest.Delete(t, tmpDir, "a/2.txt")
 
-		statusCmd, err := NewStatus(tmpDir, stdout, stderr)
-		if err != nil {
-			t.Fatal(err)
-		}
-		statusCmd.Run()
-
 		expected := ` D a/2.txt
 `
-		if got := stdout.String(); got != expected {
-			t.Errorf("want %q, but got %q", expected, got)
-		}
+		assertStatus(t, tmpDir, stdout, stderr, expected)
 	})
 
 	t.Run("reports files in deleted directories", func(t *testing.T) {
@@ -291,18 +213,10 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 		defer os.RemoveAll(tmpDir)
 		commandtest.Delete(t, tmpDir, "a")
 
-		statusCmd, err := NewStatus(tmpDir, stdout, stderr)
-		if err != nil {
-			t.Fatal(err)
-		}
-		statusCmd.Run()
-
 		expected := ` D a/2.txt
  D a/b/3.txt
 `
-		if got := stdout.String(); got != expected {
-			t.Errorf("want %q, but got %q", expected, got)
-		}
+		assertStatus(t, tmpDir, stdout, stderr, expected)
 	})
 }
 
@@ -331,17 +245,9 @@ func TestStatusHeadIndexChanges(t *testing.T) {
 		commandtest.WriteFile(t, tmpDir, "a/4.txt", "four")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
 
-		statusCmd, err := NewStatus(tmpDir, stdout, stderr)
-		if err != nil {
-			t.Fatal(err)
-		}
-		statusCmd.Run()
-
 		expected := `A  a/4.txt
 `
-		if got := stdout.String(); got != expected {
-			t.Errorf("want %q, but got %q", expected, got)
-		}
+		assertStatus(t, tmpDir, stdout, stderr, expected)
 	})
 
 	t.Run("reports a file added to an untracked directory", func(t *testing.T) {
@@ -350,17 +256,9 @@ func TestStatusHeadIndexChanges(t *testing.T) {
 		commandtest.WriteFile(t, tmpDir, "d/e/5.txt", "five")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
 
-		statusCmd, err := NewStatus(tmpDir, stdout, stderr)
-		if err != nil {
-			t.Fatal(err)
-		}
-		statusCmd.Run()
-
 		expected := `A  d/e/5.txt
 `
-		if got := stdout.String(); got != expected {
-			t.Errorf("want %q, but got %q", expected, got)
-		}
+		assertStatus(t, tmpDir, stdout, stderr, expected)
 	})
 
 	t.Run("reports modified modes", func(t *testing.T) {
@@ -369,17 +267,9 @@ func TestStatusHeadIndexChanges(t *testing.T) {
 		commandtest.MakeExecutable(t, tmpDir, "1.txt")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
 
-		statusCmd, err := NewStatus(tmpDir, stdout, stderr)
-		if err != nil {
-			t.Fatal(err)
-		}
-		statusCmd.Run()
-
 		expected := `M  1.txt
 `
-		if got := stdout.String(); got != expected {
-			t.Errorf("want %q, but got %q", expected, got)
-		}
+		assertStatus(t, tmpDir, stdout, stderr, expected)
 	})
 
 	t.Run("reports modified contents", func(t *testing.T) {
@@ -388,17 +278,9 @@ func TestStatusHeadIndexChanges(t *testing.T) {
 		commandtest.WriteFile(t, tmpDir, "a/b/3.txt", "changed")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
 
-		statusCmd, err := NewStatus(tmpDir, stdout, stderr)
-		if err != nil {
-			t.Fatal(err)
-		}
-		statusCmd.Run()
-
 		expected := `M  a/b/3.txt
 `
-		if got := stdout.String(); got != expected {
-			t.Errorf("want %q, but got %q", expected, got)
-		}
+		assertStatus(t, tmpDir, stdout, stderr, expected)
 	})
 
 	t.Run("reports deleted files", func(t *testing.T) {
@@ -408,17 +290,9 @@ func TestStatusHeadIndexChanges(t *testing.T) {
 		commandtest.Delete(t, tmpDir, ".git/index")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
 
-		statusCmd, err := NewStatus(tmpDir, stdout, stderr)
-		if err != nil {
-			t.Fatal(err)
-		}
-		statusCmd.Run()
-
 		expected := `D  1.txt
 `
-		if got := stdout.String(); got != expected {
-			t.Errorf("want %q, but got %q", expected, got)
-		}
+		assertStatus(t, tmpDir, stdout, stderr, expected)
 	})
 
 	t.Run("reports all deleted files inside directories", func(t *testing.T) {
@@ -428,17 +302,9 @@ func TestStatusHeadIndexChanges(t *testing.T) {
 		commandtest.Delete(t, tmpDir, ".git/index")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
 
-		statusCmd, err := NewStatus(tmpDir, stdout, stderr)
-		if err != nil {
-			t.Fatal(err)
-		}
-		statusCmd.Run()
-
 		expected := `D  a/2.txt
 D  a/b/3.txt
 `
-		if got := stdout.String(); got != expected {
-			t.Errorf("want %q, but got %q", expected, got)
-		}
+		assertStatus(t, tmpDir, stdout, stderr, expected)
 	})
 }

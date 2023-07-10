@@ -24,8 +24,21 @@ var SHORT_STATUS = map[changeType]string{
 	modified: "M",
 }
 
+var LONG_STATUS = map[changeType]string{
+	added:    "new file:   ",
+	deleted:  "deleted:    ",
+	modified: "modified:   ",
+}
+
+const LABEL_WIDTH = 12
+
+type StatusOption struct {
+	Porcelain bool
+}
+
 type Status struct {
 	rootPath         string
+	args             StatusOption
 	repo             *lib.Repository
 	stats            map[string]fs.FileInfo
 	changed          map[string]struct{}
@@ -37,7 +50,7 @@ type Status struct {
 	stderr           io.Writer
 }
 
-func NewStatus(dir string, stdout, stderr io.Writer) (*Status, error) {
+func NewStatus(dir string, args StatusOption, stdout, stderr io.Writer) (*Status, error) {
 	rootPath, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, err
@@ -46,6 +59,7 @@ func NewStatus(dir string, stdout, stderr io.Writer) (*Status, error) {
 
 	return &Status{
 		rootPath:         rootPath,
+		args:             args,
 		repo:             repo,
 		stats:            map[string]fs.FileInfo{},
 		changed:          map[string]struct{}{},
@@ -76,6 +90,67 @@ func (s *Status) Run() int {
 }
 
 func (s *Status) printResults() {
+	if s.args.Porcelain {
+		s.printPorcelainFormat()
+		return
+	}
+	s.printLongFormat()
+}
+
+func (s *Status) printLongFormat() {
+	s.printChanges("Changes to be committed", s.indexChanges)
+	s.printChanges("Changes not staged for commit", s.workspaceChanges)
+	s.printUntrackedChanges("Untracked files", s.untracked)
+
+	s.printCommitStatus()
+}
+
+func (s *Status) printChanges(message string, changeset map[string]changeType) {
+	if len(changeset) == 0 {
+		return
+	}
+
+	fmt.Fprintln(s.stdout, message)
+	fmt.Fprintln(s.stdout)
+
+	for path, change := range changeset {
+		status := LONG_STATUS[change]
+		fmt.Fprintf(s.stdout, "\t%s%s\n", status, path)
+	}
+
+	fmt.Fprintln(s.stdout)
+}
+
+func (s *Status) printUntrackedChanges(message string, changeset map[string]struct{}) {
+	if len(changeset) == 0 {
+		return
+	}
+
+	fmt.Fprintln(s.stdout, message)
+	fmt.Fprintln(s.stdout)
+
+	for path := range changeset {
+		fmt.Fprintf(s.stdout, "\t%s\n", path)
+	}
+
+	fmt.Fprintln(s.stdout)
+}
+
+func (s *Status) printCommitStatus() {
+	if len(s.indexChanges) > 0 {
+		return
+	}
+
+	if len(s.workspaceChanges) > 0 {
+		fmt.Fprintln(s.stdout, "no changes added to commit")
+	} else if len(s.untracked) > 0 {
+		fmt.Fprintln(s.stdout, "nothing added to commit but untracked files present")
+	} else {
+		fmt.Fprintln(s.stdout, "nothing to commit, working tree clean")
+	}
+}
+
+func (s *Status) printPorcelainFormat() {
 	changed := []string{}
 	for filename := range s.changed {
 		changed = append(changed, filename)

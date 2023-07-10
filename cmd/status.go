@@ -8,12 +8,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var porcelain bool
+
 var statusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "git status",
 	Long:  ``,
 	Args:  cobra.MinimumNArgs(0),
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(cmd *cobra.Command, _args []string) {
 		stdout := cmd.OutOrStdout()
 		stderr := cmd.ErrOrStderr()
 		dir, err := os.Getwd()
@@ -21,12 +23,19 @@ var statusCmd = &cobra.Command{
 			fmt.Fprintln(stderr, err)
 			os.Exit(1)
 		}
-		statusCmd, _ := command.NewStatus(dir, stdout, stderr)
+
+		porcelain, _ := cmd.Flags().GetBool("porcelain")
+		args := command.StatusOption{
+			Porcelain: porcelain,
+		}
+
+		statusCmd, _ := command.NewStatus(dir, args, stdout, stderr)
 		code := statusCmd.Run()
 		os.Exit(code)
 	},
 }
 
 func init() {
+	statusCmd.Flags().BoolVar(&porcelain, "porcelain", false, "use porcelain format")
 	rootCmd.AddCommand(statusCmd)
 }
