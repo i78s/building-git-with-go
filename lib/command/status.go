@@ -7,6 +7,8 @@ import (
 	"io"
 	"io/fs"
 	"path/filepath"
+
+	"github.com/fatih/color"
 )
 
 type changeType int
@@ -101,14 +103,14 @@ func (s *Status) printResults() {
 }
 
 func (s *Status) printLongFormat() {
-	s.printChanges("Changes to be committed", *s.indexChanges)
-	s.printChanges("Changes not staged for commit", *s.workspaceChanges)
-	s.printUntrackedChanges("Untracked files", *s.untracked)
+	s.printChanges("Changes to be committed", *s.indexChanges, color.New(color.FgGreen))
+	s.printChanges("Changes not staged for commit", *s.workspaceChanges, color.New(color.FgRed))
+	s.printUntrackedChanges("Untracked files", *s.untracked, color.New(color.FgRed))
 
 	s.printCommitStatus()
 }
 
-func (s *Status) printChanges(message string, changeset lib.SortedMap[changeType]) {
+func (s *Status) printChanges(message string, changeset lib.SortedMap[changeType], color *color.Color) {
 	if changeset.Len() == 0 {
 		return
 	}
@@ -118,13 +120,13 @@ func (s *Status) printChanges(message string, changeset lib.SortedMap[changeType
 
 	changeset.Iterate(func(path string, change changeType) {
 		status := LONG_STATUS[change]
-		fmt.Fprintf(s.stdout, "\t%s%s\n", status, path)
+		color.Fprintf(s.stdout, "\t%s%s\n", status, path)
 	})
 
 	fmt.Fprintln(s.stdout)
 }
 
-func (s *Status) printUntrackedChanges(message string, changeset lib.SortedMap[struct{}]) {
+func (s *Status) printUntrackedChanges(message string, changeset lib.SortedMap[struct{}], color *color.Color) {
 	if changeset.Len() == 0 {
 		return
 	}
@@ -133,7 +135,7 @@ func (s *Status) printUntrackedChanges(message string, changeset lib.SortedMap[s
 	fmt.Fprintln(s.stdout)
 
 	changeset.Iterate(func(path string, _ struct{}) {
-		fmt.Fprintf(s.stdout, "\t%s\n", path)
+		color.Fprintf(s.stdout, "\t%s\n", path)
 	})
 
 	fmt.Fprintln(s.stdout)
