@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/fs"
 	"path/filepath"
-	"sort"
 )
 
 type changeType int
@@ -41,10 +40,10 @@ type Status struct {
 	args             StatusOption
 	repo             *lib.Repository
 	stats            map[string]fs.FileInfo
-	changed          map[string]struct{}
-	indexChanges     map[string]changeType
-	workspaceChanges map[string]changeType
-	untracked        map[string]struct{}
+	changed          *lib.SortedMap[struct{}]
+	indexChanges     *lib.SortedMap[changeType]
+	workspaceChanges *lib.SortedMap[changeType]
+	untracked        *lib.SortedMap[struct{}]
 	headTree         map[string]*database.Entry
 	stdout           io.Writer
 	stderr           io.Writer
@@ -62,10 +61,10 @@ func NewStatus(dir string, args StatusOption, stdout, stderr io.Writer) (*Status
 		args:             args,
 		repo:             repo,
 		stats:            map[string]fs.FileInfo{},
-		changed:          map[string]struct{}{},
-		indexChanges:     map[string]changeType{},
-		workspaceChanges: map[string]changeType{},
-		untracked:        map[string]struct{}{},
+		changed:          lib.NewSortedMap[struct{}](),
+		indexChanges:     lib.NewSortedMap[changeType](),
+		workspaceChanges: lib.NewSortedMap[changeType](),
+		untracked:        lib.NewSortedMap[struct{}](),
 		headTree:         make(map[string]*database.Entry),
 		stdout:           stdout,
 		stderr:           stderr,
@@ -92,58 +91,62 @@ func (s *Status) Run() int {
 func (s *Status) printResults() {
 	if s.args.Porcelain {
 		s.printPorcelainFormat()
+
+		s.indexChanges.Iterate(func(path string, change changeType) {
+			fmt.Println(path, change)
+		})
 		return
 	}
 	s.printLongFormat()
 }
 
 func (s *Status) printLongFormat() {
-	s.printChanges("Changes to be committed", s.indexChanges)
-	s.printChanges("Changes not staged for commit", s.workspaceChanges)
-	s.printUntrackedChanges("Untracked files", s.untracked)
+	s.printChanges("Changes to be committed", *s.indexChanges)
+	s.printChanges("Changes not staged for commit", *s.workspaceChanges)
+	s.printUntrackedChanges("Untracked files", *s.untracked)
 
 	s.printCommitStatus()
 }
 
-func (s *Status) printChanges(message string, changeset map[string]changeType) {
-	if len(changeset) == 0 {
+func (s *Status) printChanges(message string, changeset lib.SortedMap[changeType]) {
+	if changeset.Len() == 0 {
 		return
 	}
 
 	fmt.Fprintln(s.stdout, message)
 	fmt.Fprintln(s.stdout)
 
-	for path, change := range changeset {
+	changeset.Iterate(func(path string, change changeType) {
 		status := LONG_STATUS[change]
 		fmt.Fprintf(s.stdout, "\t%s%s\n", status, path)
-	}
+	})
 
 	fmt.Fprintln(s.stdout)
 }
 
-func (s *Status) printUntrackedChanges(message string, changeset map[string]struct{}) {
-	if len(changeset) == 0 {
+func (s *Status) printUntrackedChanges(message string, changeset lib.SortedMap[struct{}]) {
+	if changeset.Len() == 0 {
 		return
 	}
 
 	fmt.Fprintln(s.stdout, message)
 	fmt.Fprintln(s.stdout)
 
-	for path := range changeset {
+	changeset.Iterate(func(path string, _ struct{}) {
 		fmt.Fprintf(s.stdout, "\t%s\n", path)
-	}
+	})
 
 	fmt.Fprintln(s.stdout)
 }
 
 func (s *Status) printCommitStatus() {
-	if len(s.indexChanges) > 0 {
+	if s.indexChanges.Len() > 0 {
 		return
 	}
 
-	if len(s.workspaceChanges) > 0 {
+	if s.workspaceChanges.Len() > 0 {
 		fmt.Fprintln(s.stdout, "no changes added to commit")
-	} else if len(s.untracked) > 0 {
+	} else if s.untracked.Len() > 0 {
 		fmt.Fprintln(s.stdout, "nothing added to commit but untracked files present")
 	} else {
 		fmt.Fprintln(s.stdout, "nothing to commit, working tree clean")
@@ -151,36 +154,26 @@ func (s *Status) printCommitStatus() {
 }
 
 func (s *Status) printPorcelainFormat() {
-	changed := []string{}
-	for filename := range s.changed {
-		changed = append(changed, filename)
-	}
-	sort.Strings(changed)
-	for _, filename := range changed {
+	s.changed.Iterate(func(filename string, _ struct{}) {
 		status := s.statusFor(filename)
 		fmt.Fprintf(s.stdout, "%s %s\n", status, filename)
-	}
+	})
 
-	untracked := []string{}
-	for filename := range s.untracked {
-		untracked = append(untracked, filename)
-	}
-	sort.Strings(untracked)
-	for _, filename := range untracked {
+	s.untracked.Iterate(func(filename string, _ struct{}) {
 		fmt.Fprintf(s.stdout, "?? %s\n", filename)
-	}
+	})
 }
 
 func (s *Status) statusFor(path string) string {
 	left := " "
-	if ctype, exists := s.indexChanges[path]; exists {
+	if ctype, exists := s.indexChanges.Get(path); exists {
 		if status, exists := SHORT_STATUS[ctype]; exists {
 			left = status
 		}
 	}
 
 	right := " "
-	if ctype, exists := s.workspaceChanges[path]; exists {
+	if ctype, exists := s.workspaceChanges.Get(path); exists {
 		if status, exists := SHORT_STATUS[ctype]; exists {
 			right = status
 		}
@@ -189,9 +182,9 @@ func (s *Status) statusFor(path string) string {
 	return left + right
 }
 
-func (s *Status) recordChange(path string, set map[string]changeType, ctype changeType) {
-	s.changed[path] = struct{}{}
-	set[path] = ctype
+func (s *Status) recordChange(path string, smap *lib.SortedMap[changeType], ctype changeType) {
+	s.changed.Set(path, struct{}{})
+	smap.Set(path, ctype)
 }
 
 func (s *Status) scanWorkspace(prefix string) error {
@@ -213,7 +206,7 @@ func (s *Status) scanWorkspace(prefix string) error {
 			if stat.IsDir() {
 				path += string(filepath.Separator)
 			}
-			s.untracked[path] = struct{}{}
+			s.untracked.Set(path, struct{}{})
 		}
 	}
 	return nil
