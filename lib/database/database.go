@@ -62,6 +62,10 @@ func (d *Database) HashObject(object GitObject) (string, error) {
 	return d.hashContent(d.serializeObject(object))
 }
 
+func (d *Database) ShortOid(oid string) string {
+	return oid[:7]
+}
+
 func (d *Database) serializeObject(object GitObject) []byte {
 	data := []byte(object.String())
 	var buf bytes.Buffer

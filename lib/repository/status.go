@@ -18,7 +18,7 @@ const (
 
 type Status struct {
 	repo             *Repository
-	stats            map[string]fs.FileInfo
+	Stats            map[string]fs.FileInfo
 	Changed          *lib.SortedMap[struct{}]
 	IndexChanges     *lib.SortedMap[ChangeType]
 	WorkspaceChanges *lib.SortedMap[ChangeType]
@@ -29,7 +29,7 @@ type Status struct {
 func NewStatus(repo *Repository) (*Status, error) {
 	s := &Status{
 		repo:             repo,
-		stats:            map[string]fs.FileInfo{},
+		Stats:            map[string]fs.FileInfo{},
 		Changed:          lib.NewSortedMap[struct{}](),
 		IndexChanges:     lib.NewSortedMap[ChangeType](),
 		WorkspaceChanges: lib.NewSortedMap[ChangeType](),
@@ -62,7 +62,7 @@ func (s *Status) scanWorkspace(prefix string) error {
 	for path, stat := range files {
 		if s.repo.Index.IsTracked(path) {
 			if stat.Mode().IsRegular() {
-				s.stats[path] = stat
+				s.Stats[path] = stat
 			}
 			if stat.IsDir() {
 				s.scanWorkspace(path)
@@ -166,7 +166,7 @@ func (s *Status) checkIndexEntries() {
 }
 
 func (s *Status) checkIndexAgainstWorkspace(entry database.EntryObject) {
-	stat, exists := s.stats[entry.Key()]
+	stat, exists := s.Stats[entry.Key()]
 
 	if !exists {
 		s.recordChange(entry.Key(), s.WorkspaceChanges, Deleted)

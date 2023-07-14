@@ -109,6 +109,10 @@ func (i *Index) IsTrackedFile(path string) bool {
 	return existsInEntries
 }
 
+func (i *Index) EntryForPath(path string) *Entry {
+	return i.entries[path]
+}
+
 func (i *Index) IsTracked(path string) bool {
 	_, existsInParents := i.parents[path]
 	return i.IsTrackedFile(path) || existsInParents
