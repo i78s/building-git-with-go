@@ -1,8 +1,8 @@
 package command
 
 import (
-	"building-git/lib"
 	"building-git/lib/command/commandtest"
+	"building-git/lib/repository"
 	"os"
 	"reflect"
 	"regexp"
@@ -21,7 +21,7 @@ type indexEntry struct {
 }
 
 func assertIndex(t *testing.T, tmpDir string, expected []*indexEntry) {
-	repo := lib.NewRepository(tmpDir)
+	repo := repository.NewRepository(tmpDir)
 	repo.Index.Load()
 	actual := []*indexEntry{}
 	for _, entry := range repo.Index.EachEntry() {

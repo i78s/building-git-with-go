@@ -2,8 +2,8 @@ package command
 
 import (
 	"bufio"
-	"building-git/lib"
 	"building-git/lib/database"
+	"building-git/lib/repository"
 	"fmt"
 	"io"
 	"log"
@@ -19,7 +19,7 @@ func Commit(dir string, args []string, stdin io.Reader, stdout, stderr io.Writer
 		fmt.Fprintf(stderr, "fatal: %v", err)
 		return 1
 	}
-	repo := lib.NewRepository(rootPath)
+	repo := repository.NewRepository(rootPath)
 
 	repo.Index.Load()
 

@@ -1,8 +1,8 @@
 package command
 
 import (
-	"building-git/lib"
 	"building-git/lib/database"
+	"building-git/lib/repository"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -14,7 +14,7 @@ func Add(dir string, args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "fatal: %v", err)
 		return 1
 	}
-	repo := lib.NewRepository(rootPath)
+	repo := repository.NewRepository(rootPath)
 
 	err = repo.Index.LoadForUpdate()
 	if err != nil {

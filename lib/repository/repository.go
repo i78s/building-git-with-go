@@ -1,6 +1,7 @@
-package lib
+package repository
 
 import (
+	"building-git/lib"
 	"building-git/lib/database"
 	"building-git/lib/index"
 	"path/filepath"
@@ -10,7 +11,7 @@ type Repository struct {
 	Database  *database.Database
 	Index     *index.Index
 	Refs      *database.Refs
-	Workspace *Workspace
+	Workspace *lib.Workspace
 }
 
 func NewRepository(rootPath string) *Repository {
@@ -19,6 +20,11 @@ func NewRepository(rootPath string) *Repository {
 		Database:  database.NewDatabase(filepath.Join(gitPath, "objects")),
 		Index:     index.NewIndex(filepath.Join(gitPath, "index")),
 		Refs:      database.NewRefs(gitPath),
-		Workspace: NewWorkspace(rootPath),
+		Workspace: lib.NewWorkspace(rootPath),
 	}
+}
+
+func (r *Repository) Status() (*Status, error) {
+	status, err := NewStatus(r)
+	return status, err
 }
