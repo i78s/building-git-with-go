@@ -52,68 +52,99 @@ func (d *Diff) Run() int {
 	d.status.WorkspaceChanges.Iterate(func(path string, state repository.ChangeType) {
 		switch state {
 		case repository.Modified:
-			d.diffFileModified(path)
+			d.printDiff(d.fromIndex(path), d.fromFile(path))
 			break
 		case repository.Deleted:
-			d.diffFileDeleted(path)
+			d.printDiff(d.fromIndex(path), d.fromNothing(path))
 			break
 		}
-
 	})
 
 	return 0
 }
 
-func (d *Diff) diffFileModified(path string) {
+func (d *Diff) fromIndex(path string) *Target {
 	entry := d.repo.Index.EntryForPath(path)
 	aOid := entry.Oid()
 	aMode := fmt.Sprintf("%o", entry.Mode())
-	aPath := filepath.Join("a", path)
 
+	return NewTarget(path, aOid, aMode)
+}
+
+func (d *Diff) fromFile(path string) *Target {
 	file, _ := d.repo.Workspace.ReadFile(path)
 	blob := database.NewBlob(file)
 	bOid, _ := d.repo.Database.HashObject(blob)
 
 	stat, _ := d.status.Stats[path]
 	bMode := fmt.Sprintf("%o", index.ModeForStat(stat))
-	bPath := filepath.Join("b", path)
 
-	fmt.Fprintf(d.stdout, "diff --git %s %s\n", aPath, bPath)
-
-	if aMode != bMode {
-		fmt.Fprintf(d.stdout, "old mode %s\n", aMode)
-		fmt.Fprintf(d.stdout, "new mode %s\n", bMode)
-	}
-
-	if aOid == bOid {
-		return
-	}
-
-	oidRange := fmt.Sprintf("index %s..%s", d.short(aOid), d.short(bOid))
-	if aMode == bMode {
-		oidRange += fmt.Sprintf(" %s", aMode)
-	}
-	fmt.Fprintf(d.stdout, "%s\n", oidRange)
-	fmt.Fprintf(d.stdout, "--- %s\n", aPath)
-	fmt.Fprintf(d.stdout, "+++ %s\n", bPath)
+	return NewTarget(path, bOid, bMode)
 }
 
-func (d *Diff) diffFileDeleted(path string) {
-	entry := d.repo.Index.EntryForPath(path)
-	aOid := entry.Oid()
-	aMode := fmt.Sprintf("%o", entry.Mode())
-	aPath := filepath.Join("a", path)
-
-	bOid := NULL_OID
-	bPath := filepath.Join("b", path)
-
-	fmt.Fprintf(d.stdout, "diff --git %s %s\n", aPath, bPath)
-	fmt.Fprintf(d.stdout, "deleted file mode %s\n", aMode)
-	fmt.Fprintf(d.stdout, "index %s..%s\n", d.short(aOid), d.short(bOid))
-	fmt.Fprintf(d.stdout, "--- %s\n", aPath)
-	fmt.Fprintf(d.stdout, "+++ %s\n", NULL_PATH)
+func (d *Diff) fromNothing(path string) *Target {
+	return NewTarget(path, NULL_OID, "")
 }
 
 func (d *Diff) short(oid string) string {
 	return d.repo.Database.ShortOid(oid)
+}
+
+func (d *Diff) printDiff(a, b *Target) {
+	if a.oid == b.oid && a.mode == b.mode {
+		return
+	}
+
+	a.path = filepath.Join("a", a.path)
+	b.path = filepath.Join("b", b.path)
+
+	fmt.Fprintf(d.stdout, "diff --git %s %s\n", a.path, b.path)
+	d.printMode(a, b)
+	d.printContent(a, b)
+}
+
+func (d *Diff) printMode(a, b *Target) {
+	if b.mode == "" {
+		fmt.Fprintf(d.stdout, "deleted file mode %s\n", a.mode)
+		return
+	}
+	if a.mode != b.mode {
+		fmt.Fprintf(d.stdout, "old mode %s\n", a.mode)
+		fmt.Fprintf(d.stdout, "new mode %s\n", b.mode)
+	}
+}
+
+func (d *Diff) printContent(a, b *Target) {
+	if a.oid == b.oid {
+		return
+	}
+
+	oidRange := fmt.Sprintf("index %s..%s", d.short(a.oid), d.short(b.oid))
+	if a.mode == b.mode {
+		oidRange += fmt.Sprintf(" %s", a.mode)
+	}
+	fmt.Fprintf(d.stdout, "%s\n", oidRange)
+	fmt.Fprintf(d.stdout, "--- %s\n", a.diffPath())
+	fmt.Fprintf(d.stdout, "+++ %s\n", b.diffPath())
+}
+
+type Target struct {
+	path string
+	oid  string
+	mode string
+}
+
+func NewTarget(path, oid, mode string) *Target {
+	return &Target{
+		path: path,
+		oid:  oid,
+		mode: mode,
+	}
+}
+
+func (t *Target) diffPath() string {
+	if t.mode == "" {
+		return NULL_PATH
+	}
+	return t.path
 }
