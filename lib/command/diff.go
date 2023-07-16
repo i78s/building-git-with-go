@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"strings"
 )
 
 const (
@@ -139,11 +138,11 @@ func (d *Diff) printDiff(a, b *Target) {
 	b.path = filepath.Join("b", b.path)
 
 	fmt.Fprintf(d.stdout, "diff --git %s %s\n", a.path, b.path)
-	d.printMode(a, b)
-	d.printContent(a, b)
+	d.printDiffMode(a, b)
+	d.printDiffContent(a, b)
 }
 
-func (d *Diff) printMode(a, b *Target) {
+func (d *Diff) printDiffMode(a, b *Target) {
 	if a.mode == "" {
 		fmt.Fprintf(d.stdout, "new file mode %s\n", b.mode)
 		return
@@ -158,7 +157,7 @@ func (d *Diff) printMode(a, b *Target) {
 	}
 }
 
-func (d *Diff) printContent(a, b *Target) {
+func (d *Diff) printDiffContent(a, b *Target) {
 	if a.oid == b.oid {
 		return
 	}
@@ -171,9 +170,16 @@ func (d *Diff) printContent(a, b *Target) {
 	fmt.Fprintf(d.stdout, "--- %s\n", a.diffPath())
 	fmt.Fprintf(d.stdout, "+++ %s\n", b.diffPath())
 
-	edits := diff.Diff(strings.Split(a.data, "\n"), strings.Split(b.data, "\n"))
-	for _, edit := range edits {
-		fmt.Fprintf(d.stdout, "%s\n", edit)
+	hunks := diff.DiffHunk(a.data, b.data)
+	for _, hunk := range hunks {
+		d.printDiffHunk(hunk)
+	}
+}
+
+func (d *Diff) printDiffHunk(hunk *diff.Hunk) {
+	fmt.Fprintf(d.stdout, "%s\n", hunk.Header())
+	for _, edit := range hunk.Edits {
+		fmt.Fprintf(d.stdout, "%s", edit)
 	}
 }
 

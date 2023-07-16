@@ -1,33 +1,24 @@
 package diff
 
 type Myers struct {
-	a []string
-	b []string
+	a []*Line
+	b []*Line
 }
 
-func Diff(a, b []string) []string {
-	m := &Myers{
-		a: a,
-		b: b,
-	}
-	return m.diff()
-}
-
-func (m *Myers) diff() []string {
-	diff := []string{}
+func (m *Myers) diff() []*Edit {
+	diff := []*Edit{}
 
 	m.backtrack(func(prev_x, prev_y, x, y int) {
 		if x == prev_x {
-			b_line := m.b[prev_y]
-			diff = append(diff, NewEdit(INS, b_line).String())
-			return
-		}
-
-		a_line := m.a[prev_x]
-		if y == prev_y {
-			diff = append(diff, NewEdit(DEL, a_line).String())
+			bLine := m.b[prev_y]
+			diff = append(diff, NewEdit(INS, nil, bLine))
+		} else if y == prev_y {
+			aLine := m.a[prev_x]
+			diff = append(diff, NewEdit(DEL, aLine, nil))
 		} else {
-			diff = append(diff, NewEdit(EQL, a_line).String())
+			aLine := m.a[prev_x]
+			bLine := m.b[prev_y]
+			diff = append(diff, NewEdit(EQL, aLine, bLine))
 		}
 	})
 
@@ -92,7 +83,7 @@ func (s *Myers) shortestEdit() [][]int {
 
 			y := x - k
 
-			for x < n && y < m && s.a[x] == s.b[y] {
+			for x < n && y < m && s.a[x].text == s.b[y].text {
 				x, y = x+1, y+1
 			}
 
