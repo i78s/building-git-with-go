@@ -2,11 +2,13 @@ package command
 
 import (
 	"building-git/lib/database"
+	"building-git/lib/diff"
 	"building-git/lib/index"
 	"building-git/lib/repository"
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 )
 
 const (
@@ -95,16 +97,18 @@ func (d *Diff) fromHead(path string) *Target {
 	entry := d.status.HeadTree[path]
 	aOid := entry.Oid()
 	aMode := fmt.Sprintf("%o", entry.Mode())
+	blob, _ := d.repo.Database.Load(aOid)
 
-	return NewTarget(path, aOid, aMode)
+	return NewTarget(path, aOid, aMode, blob.String())
 }
 
 func (d *Diff) fromIndex(path string) *Target {
 	entry := d.repo.Index.EntryForPath(path)
 	aOid := entry.Oid()
 	aMode := fmt.Sprintf("%o", entry.Mode())
+	blob, _ := d.repo.Database.Load(aOid)
 
-	return NewTarget(path, aOid, aMode)
+	return NewTarget(path, aOid, aMode, blob.String())
 }
 
 func (d *Diff) fromFile(path string) *Target {
@@ -115,11 +119,11 @@ func (d *Diff) fromFile(path string) *Target {
 	stat, _ := d.status.Stats[path]
 	bMode := fmt.Sprintf("%o", index.ModeForStat(stat))
 
-	return NewTarget(path, bOid, bMode)
+	return NewTarget(path, bOid, bMode, blob.String())
 }
 
 func (d *Diff) fromNothing(path string) *Target {
-	return NewTarget(path, NULL_OID, "")
+	return NewTarget(path, NULL_OID, "", "")
 }
 
 func (d *Diff) short(oid string) string {
@@ -166,19 +170,26 @@ func (d *Diff) printContent(a, b *Target) {
 	fmt.Fprintf(d.stdout, "%s\n", oidRange)
 	fmt.Fprintf(d.stdout, "--- %s\n", a.diffPath())
 	fmt.Fprintf(d.stdout, "+++ %s\n", b.diffPath())
+
+	edits := diff.Diff(strings.Split(a.data, "\n"), strings.Split(b.data, "\n"))
+	for _, edit := range edits {
+		fmt.Fprintf(d.stdout, "%s\n", edit)
+	}
 }
 
 type Target struct {
 	path string
 	oid  string
 	mode string
+	data string
 }
 
-func NewTarget(path, oid, mode string) *Target {
+func NewTarget(path, oid, mode, data string) *Target {
 	return &Target{
 		path: path,
 		oid:  oid,
 		mode: mode,
+		data: data,
 	}
 }
 

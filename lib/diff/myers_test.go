@@ -21,6 +21,11 @@ func TestDiff(t *testing.T) {
 			b:        strings.Split("CBABAC", ""),
 			expected: []string{"+C", "+B", " A", " B", "-B", "-B", " A", " C", "-A"},
 		},
+		{
+			a:        strings.Split("contents\n", "\n"),
+			b:        strings.Split("changed\n", "\n"),
+			expected: []string{"-contents", "+changed", " "},
+		},
 	}
 
 	for _, tc := range testCases {

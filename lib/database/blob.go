@@ -7,12 +7,12 @@ import (
 
 type Blob struct {
 	oid  string
-	Data string
+	data string
 }
 
 func NewBlob(data string) *Blob {
 	return &Blob{
-		Data: data,
+		data: data,
 	}
 }
 
@@ -26,7 +26,7 @@ func (b *Blob) Type() string {
 }
 
 func (b *Blob) String() string {
-	return b.Data
+	return b.data
 }
 
 func (b *Blob) Oid() string {

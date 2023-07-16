@@ -37,6 +37,9 @@ func TestDiffWithFileInTheIndex(t *testing.T) {
 index 12f00e9..5ea2ed4 100644
 --- a/file.txt
 +++ b/file.txt
+-contents
++changed
+ 
 `
 		assertDiff(t, tmpDir, DiffOption{}, stdout, stderr, expected)
 	})
@@ -65,6 +68,9 @@ new mode 100755
 index 12f00e9..5ea2ed4
 --- a/file.txt
 +++ b/file.txt
+-contents
++changed
+ 
 `
 		assertDiff(t, tmpDir, DiffOption{}, stdout, stderr, expected)
 	})
@@ -79,6 +85,8 @@ deleted file mode 100644
 index 12f00e9..0000000
 --- a/file.txt
 +++ /dev/null
+-contents
+ 
 `
 		assertDiff(t, tmpDir, DiffOption{}, stdout, stderr, expected)
 	})
@@ -105,6 +113,9 @@ func TestDiffWithHeadCommit(t *testing.T) {
 index 12f00e9..5ea2ed4 100644
 --- a/file.txt
 +++ b/file.txt
+-contents
++changed
+ 
 `
 
 		assertDiff(t, tmpDir, DiffOption{Cached: true}, stdout, stderr, expected)
@@ -137,6 +148,9 @@ new mode 100755
 index 12f00e9..5ea2ed4
 --- a/file.txt
 +++ b/file.txt
+-contents
++changed
+ 
 `
 
 		assertDiff(t, tmpDir, DiffOption{Cached: true}, stdout, stderr, expected)
@@ -154,6 +168,8 @@ deleted file mode 100644
 index 12f00e9..0000000
 --- a/file.txt
 +++ /dev/null
+-contents
+ 
 `
 
 		assertDiff(t, tmpDir, DiffOption{Cached: true}, stdout, stderr, expected)
@@ -170,6 +186,8 @@ new file mode 100644
 index 0000000..ce01362
 --- /dev/null
 +++ b/another.txt
++hello
+ 
 `
 
 		assertDiff(t, tmpDir, DiffOption{Cached: true}, stdout, stderr, expected)
