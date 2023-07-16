@@ -1,4 +1,4 @@
-package commandtest
+package command
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -20,6 +21,18 @@ func SetupTestEnvironment(t *testing.T) (string, *bytes.Buffer, *bytes.Buffer) {
 	setupRepo(t, tmpDir)
 
 	return tmpDir, outStream, errStream
+}
+
+func TestCommit(t *testing.T, dir string, message string) {
+	t.Helper()
+
+	os.Setenv("GIT_AUTHOR_NAME", "A. U. Thor")
+	os.Setenv("GIT_AUTHOR_EMAIL", "author@example.com")
+	defer os.Unsetenv("GIT_AUTHOR_NAME")
+	defer os.Unsetenv("GIT_AUTHOR_EMAIL")
+
+	stdin := strings.NewReader(message)
+	Commit(dir, []string{}, stdin, new(bytes.Buffer), new(bytes.Buffer))
 }
 
 func setupRepo(t *testing.T, path string) {

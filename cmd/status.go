@@ -29,8 +29,8 @@ var statusCmd = &cobra.Command{
 			Porcelain: porcelain,
 		}
 
-		statusCmd, _ := command.NewStatus(dir, args, stdout, stderr)
-		code := statusCmd.Run()
+		status, _ := command.NewStatus(dir, args, stdout, stderr)
+		code := status.Run()
 		os.Exit(code)
 	},
 }

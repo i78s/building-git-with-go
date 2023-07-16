@@ -23,7 +23,7 @@ type Status struct {
 	IndexChanges     *lib.SortedMap[ChangeType]
 	WorkspaceChanges *lib.SortedMap[ChangeType]
 	Untracked        *lib.SortedMap[struct{}]
-	headTree         map[string]*database.Entry
+	HeadTree         map[string]*database.Entry
 }
 
 func NewStatus(repo *Repository) (*Status, error) {
@@ -34,7 +34,7 @@ func NewStatus(repo *Repository) (*Status, error) {
 		IndexChanges:     lib.NewSortedMap[ChangeType](),
 		WorkspaceChanges: lib.NewSortedMap[ChangeType](),
 		Untracked:        lib.NewSortedMap[struct{}](),
-		headTree:         make(map[string]*database.Entry),
+		HeadTree:         make(map[string]*database.Entry),
 	}
 
 	err := s.scanWorkspace("")
@@ -112,7 +112,7 @@ func (st *Status) isTrackableFile(path string, stat fs.FileInfo) bool {
 }
 
 func (s *Status) loadHeadTree() error {
-	s.headTree = make(map[string]*database.Entry)
+	s.HeadTree = make(map[string]*database.Entry)
 
 	headOid, err := s.repo.Refs.ReadHead()
 	if err != nil {
@@ -151,7 +151,7 @@ func (s *Status) readTree(treeOid, pathname string) error {
 				return err
 			}
 		} else {
-			s.headTree[path] = entry
+			s.HeadTree[path] = entry
 		}
 	}
 
@@ -193,7 +193,7 @@ func (s *Status) checkIndexAgainstWorkspace(entry database.EntryObject) {
 }
 
 func (s *Status) checkIndexAgainstHeadTree(entry database.EntryObject) {
-	item := s.headTree[entry.Key()]
+	item := s.HeadTree[entry.Key()]
 
 	if item != nil {
 		if entry.Mode() != item.Mode() || entry.Oid() != item.Oid() {
@@ -205,7 +205,7 @@ func (s *Status) checkIndexAgainstHeadTree(entry database.EntryObject) {
 }
 
 func (s *Status) collectDeletedHeadFiles() {
-	for path := range s.headTree {
+	for path := range s.HeadTree {
 		if s.repo.Index.IsTrackedFile(path) {
 			continue
 		}

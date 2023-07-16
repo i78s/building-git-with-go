@@ -16,14 +16,18 @@ const (
 
 type Diff struct {
 	rootPath string
-	args     StatusOption
+	args     DiffOption
 	repo     *repository.Repository
 	status   *repository.Status
 	stdout   io.Writer
 	stderr   io.Writer
 }
 
-func NewDiff(dir string, args StatusOption, stdout, stderr io.Writer) (*Diff, error) {
+type DiffOption struct {
+	Cached bool
+}
+
+func NewDiff(dir string, args DiffOption, stdout, stderr io.Writer) (*Diff, error) {
 	rootPath, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, err
@@ -40,7 +44,7 @@ func NewDiff(dir string, args StatusOption, stdout, stderr io.Writer) (*Diff, er
 }
 
 func (d *Diff) Run() int {
-	d.repo.Index.LoadForUpdate()
+	d.repo.Index.Load()
 
 	status, err := d.repo.Status()
 	d.status = status
@@ -49,6 +53,32 @@ func (d *Diff) Run() int {
 		return 128
 	}
 
+	if d.args.Cached {
+		d.diffHeadIndex()
+	} else {
+		d.diffIndexWorkspace()
+	}
+
+	return 0
+}
+
+func (d *Diff) diffHeadIndex() {
+	d.status.IndexChanges.Iterate(func(path string, state repository.ChangeType) {
+		switch state {
+		case repository.Added:
+			d.printDiff(d.fromNothing(path), d.fromIndex(path))
+			break
+		case repository.Modified:
+			d.printDiff(d.fromHead(path), d.fromIndex(path))
+			break
+		case repository.Deleted:
+			d.printDiff(d.fromHead(path), d.fromNothing(path))
+			break
+		}
+	})
+}
+
+func (d *Diff) diffIndexWorkspace() {
 	d.status.WorkspaceChanges.Iterate(func(path string, state repository.ChangeType) {
 		switch state {
 		case repository.Modified:
@@ -59,8 +89,14 @@ func (d *Diff) Run() int {
 			break
 		}
 	})
+}
 
-	return 0
+func (d *Diff) fromHead(path string) *Target {
+	entry := d.status.HeadTree[path]
+	aOid := entry.Oid()
+	aMode := fmt.Sprintf("%o", entry.Mode())
+
+	return NewTarget(path, aOid, aMode)
 }
 
 func (d *Diff) fromIndex(path string) *Target {
@@ -104,6 +140,10 @@ func (d *Diff) printDiff(a, b *Target) {
 }
 
 func (d *Diff) printMode(a, b *Target) {
+	if a.mode == "" {
+		fmt.Fprintf(d.stdout, "new file mode %s\n", b.mode)
+		return
+	}
 	if b.mode == "" {
 		fmt.Fprintf(d.stdout, "deleted file mode %s\n", a.mode)
 		return
