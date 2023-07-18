@@ -8,6 +8,10 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
+	"unicode"
+
+	"github.com/fatih/color"
 )
 
 const (
@@ -144,16 +148,16 @@ func (d *Diff) printDiff(a, b *Target) {
 
 func (d *Diff) printDiffMode(a, b *Target) {
 	if a.mode == "" {
-		fmt.Fprintf(d.stdout, "new file mode %s\n", b.mode)
+		color.New(color.Bold).Fprintf(d.stdout, "new file mode %s\n", b.mode)
 		return
 	}
 	if b.mode == "" {
-		fmt.Fprintf(d.stdout, "deleted file mode %s\n", a.mode)
+		color.New(color.Bold).Fprintf(d.stdout, "deleted file mode %s\n", a.mode)
 		return
 	}
 	if a.mode != b.mode {
-		fmt.Fprintf(d.stdout, "old mode %s\n", a.mode)
-		fmt.Fprintf(d.stdout, "new mode %s\n", b.mode)
+		color.New(color.Bold).Fprintf(d.stdout, "old mode %s\n", a.mode)
+		color.New(color.Bold).Fprintf(d.stdout, "new mode %s\n", b.mode)
 	}
 }
 
@@ -177,9 +181,22 @@ func (d *Diff) printDiffContent(a, b *Target) {
 }
 
 func (d *Diff) printDiffHunk(hunk *diff.Hunk) {
-	fmt.Fprintf(d.stdout, "%s\n", hunk.Header())
+	color.New(color.FgCyan).Fprintf(d.stdout, "%s\n", hunk.Header())
+
 	for _, edit := range hunk.Edits {
-		fmt.Fprintf(d.stdout, "%s", edit)
+		text := strings.TrimRightFunc(edit.String(), unicode.IsSpace)
+
+		switch edit.Type {
+		case diff.EQL:
+			fmt.Fprintf(d.stdout, "%s\n", text)
+			break
+		case diff.INS:
+			color.New(color.FgGreen).Fprintf(d.stdout, "%s\n", text)
+			break
+		case diff.DEL:
+			color.New(color.FgRed).Fprintf(d.stdout, "%s\n", text)
+			break
+		}
 	}
 }
 

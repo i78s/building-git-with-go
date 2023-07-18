@@ -49,14 +49,14 @@ const (
 )
 
 type Edit struct {
-	etype EditType
+	Type  EditType
 	aLine *Line
 	bLine *Line
 }
 
 func NewEdit(etype EditType, aLine, bLine *Line) *Edit {
 	return &Edit{
-		etype: etype,
+		Type:  etype,
 		aLine: aLine,
 		bLine: bLine,
 	}
@@ -73,5 +73,5 @@ func (e Edit) String() string {
 	if line == nil {
 		line = e.bLine
 	}
-	return symbols[EditType(e.etype)] + line.text
+	return symbols[EditType(e.Type)] + line.text
 }

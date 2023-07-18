@@ -23,7 +23,7 @@ func HunkFilter(edits []*Edit) []*Hunk {
 	offset := 0
 
 	for {
-		for offset < len(edits) && edits[offset].etype == EQL {
+		for offset < len(edits) && edits[offset].Type == EQL {
 			offset++
 		}
 		if offset >= len(edits) {
@@ -66,7 +66,7 @@ func HunkBuild(hunk *Hunk, edits []*Edit, offset int) int {
 			continue
 		}
 
-		switch edits[idx].etype {
+		switch edits[idx].Type {
 		case INS, DEL:
 			counter = 2*HUNK_CONTEXT + 1
 		default:
