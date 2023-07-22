@@ -6,8 +6,16 @@ import (
 	"testing"
 )
 
-func assertDiff(t *testing.T, tmpDir string, args DiffOption, stdout *bytes.Buffer, stderr *bytes.Buffer, expected string) {
-	cmd, err := NewDiff(tmpDir, args, stdout, stderr)
+func assertDiff(
+	t *testing.T,
+	tmpDir string,
+	args []string,
+	options DiffOption,
+	stdout *bytes.Buffer,
+	stderr *bytes.Buffer,
+	expected string,
+) {
+	cmd, err := NewDiff(tmpDir, args, options, stdout, stderr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +49,7 @@ index 12f00e9..5ea2ed4 100644
 -contents
 +changed
 `
-		assertDiff(t, tmpDir, DiffOption{}, stdout, stderr, expected)
+		assertDiff(t, tmpDir, []string{}, DiffOption{}, stdout, stderr, expected)
 	})
 
 	t.Run("diffs a file with changed mode", func(t *testing.T) {
@@ -53,7 +61,7 @@ index 12f00e9..5ea2ed4 100644
 old mode 100644
 new mode 100755
 `
-		assertDiff(t, tmpDir, DiffOption{}, stdout, stderr, expected)
+		assertDiff(t, tmpDir, []string{}, DiffOption{}, stdout, stderr, expected)
 	})
 
 	t.Run("diffs a file with changed mode and contents", func(t *testing.T) {
@@ -72,7 +80,7 @@ index 12f00e9..5ea2ed4
 -contents
 +changed
 `
-		assertDiff(t, tmpDir, DiffOption{}, stdout, stderr, expected)
+		assertDiff(t, tmpDir, []string{}, DiffOption{}, stdout, stderr, expected)
 	})
 
 	t.Run("diffs a deleted file", func(t *testing.T) {
@@ -88,7 +96,7 @@ index 12f00e9..0000000
 @@ -1,1 +0,0 @@
 -contents
 `
-		assertDiff(t, tmpDir, DiffOption{}, stdout, stderr, expected)
+		assertDiff(t, tmpDir, []string{}, DiffOption{}, stdout, stderr, expected)
 	})
 }
 
@@ -118,7 +126,7 @@ index 12f00e9..5ea2ed4 100644
 +changed
 `
 
-		assertDiff(t, tmpDir, DiffOption{Cached: true}, stdout, stderr, expected)
+		assertDiff(t, tmpDir, []string{}, DiffOption{Cached: true}, stdout, stderr, expected)
 	})
 
 	t.Run("diffs a file with changed mode", func(t *testing.T) {
@@ -132,7 +140,7 @@ old mode 100644
 new mode 100755
 `
 
-		assertDiff(t, tmpDir, DiffOption{Cached: true}, stdout, stderr, expected)
+		assertDiff(t, tmpDir, []string{}, DiffOption{Cached: true}, stdout, stderr, expected)
 	})
 
 	t.Run("diffs a file with changed mode and contents", func(t *testing.T) {
@@ -153,7 +161,7 @@ index 12f00e9..5ea2ed4
 +changed
 `
 
-		assertDiff(t, tmpDir, DiffOption{Cached: true}, stdout, stderr, expected)
+		assertDiff(t, tmpDir, []string{}, DiffOption{Cached: true}, stdout, stderr, expected)
 	})
 
 	t.Run("diffs a deleted file", func(t *testing.T) {
@@ -172,7 +180,7 @@ index 12f00e9..0000000
 -contents
 `
 
-		assertDiff(t, tmpDir, DiffOption{Cached: true}, stdout, stderr, expected)
+		assertDiff(t, tmpDir, []string{}, DiffOption{Cached: true}, stdout, stderr, expected)
 	})
 
 	t.Run("diffs an added file", func(t *testing.T) {
@@ -190,6 +198,6 @@ index 0000000..ce01362
 +hello
 `
 
-		assertDiff(t, tmpDir, DiffOption{Cached: true}, stdout, stderr, expected)
+		assertDiff(t, tmpDir, []string{}, DiffOption{Cached: true}, stdout, stderr, expected)
 	})
 }

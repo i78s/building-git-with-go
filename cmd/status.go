@@ -15,7 +15,7 @@ var statusCmd = &cobra.Command{
 	Short: "git status",
 	Long:  ``,
 	Args:  cobra.MinimumNArgs(0),
-	Run: func(cmd *cobra.Command, _args []string) {
+	Run: func(cmd *cobra.Command, args []string) {
 		stdout := cmd.OutOrStdout()
 		stderr := cmd.ErrOrStderr()
 		dir, err := os.Getwd()
@@ -25,11 +25,11 @@ var statusCmd = &cobra.Command{
 		}
 
 		porcelain, _ := cmd.Flags().GetBool("porcelain")
-		args := command.StatusOption{
+		options := command.StatusOption{
 			Porcelain: porcelain,
 		}
 
-		status, _ := command.NewStatus(dir, args, stdout, stderr)
+		status, _ := command.NewStatus(dir, args, options, stdout, stderr)
 		code := status.Run()
 		os.Exit(code)
 	},

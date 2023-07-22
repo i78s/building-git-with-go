@@ -30,14 +30,15 @@ type StatusOption struct {
 
 type Status struct {
 	rootPath string
-	args     StatusOption
+	args     []string
+	options  StatusOption
 	repo     *repository.Repository
 	status   *repository.Status
 	stdout   io.Writer
 	stderr   io.Writer
 }
 
-func NewStatus(dir string, args StatusOption, stdout, stderr io.Writer) (*Status, error) {
+func NewStatus(dir string, args []string, options StatusOption, stdout, stderr io.Writer) (*Status, error) {
 	rootPath, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, err
@@ -47,6 +48,7 @@ func NewStatus(dir string, args StatusOption, stdout, stderr io.Writer) (*Status
 	return &Status{
 		rootPath: rootPath,
 		args:     args,
+		options:  options,
 		repo:     repo,
 		stdout:   stdout,
 		stderr:   stderr,
@@ -70,7 +72,7 @@ func (s *Status) Run() int {
 }
 
 func (s *Status) printResults() {
-	if s.args.Porcelain {
+	if s.options.Porcelain {
 		s.printPorcelainFormat()
 
 		s.status.IndexChanges.Iterate(func(path string, change repository.ChangeType) {

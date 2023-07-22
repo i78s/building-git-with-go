@@ -10,7 +10,7 @@ import (
 type Repository struct {
 	Database  *database.Database
 	Index     *index.Index
-	Refs      *database.Refs
+	Refs      *lib.Refs
 	Workspace *lib.Workspace
 }
 
@@ -19,7 +19,7 @@ func NewRepository(rootPath string) *Repository {
 	return &Repository{
 		Database:  database.NewDatabase(filepath.Join(gitPath, "objects")),
 		Index:     index.NewIndex(filepath.Join(gitPath, "index")),
-		Refs:      database.NewRefs(gitPath),
+		Refs:      lib.NewRefs(gitPath),
 		Workspace: lib.NewWorkspace(rootPath),
 	}
 }

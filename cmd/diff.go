@@ -15,7 +15,7 @@ var diffCmd = &cobra.Command{
 	Short: "git diff",
 	Long:  ``,
 	Args:  cobra.MinimumNArgs(0),
-	Run: func(cmd *cobra.Command, _args []string) {
+	Run: func(cmd *cobra.Command, args []string) {
 		stdout := cmd.OutOrStdout()
 		stderr := cmd.ErrOrStderr()
 		dir, err := os.Getwd()
@@ -25,11 +25,11 @@ var diffCmd = &cobra.Command{
 		}
 
 		cached, _ := cmd.Flags().GetBool("cached")
-		args := command.DiffOption{
+		options := command.DiffOption{
 			Cached: cached,
 		}
 
-		diff, _ := command.NewDiff(dir, args, stdout, stderr)
+		diff, _ := command.NewDiff(dir, args, options, stdout, stderr)
 		code := diff.Run()
 		os.Exit(code)
 	},

@@ -1,4 +1,4 @@
-package database
+package lib
 
 type LockDeniedError struct {
 	Message string

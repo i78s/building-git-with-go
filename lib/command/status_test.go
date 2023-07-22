@@ -7,10 +7,11 @@ import (
 )
 
 func assertStatus(t *testing.T, tmpDir string, stdout *bytes.Buffer, stderr *bytes.Buffer, expected string) {
-	args := StatusOption{
+	args := []string{}
+	options := StatusOption{
 		Porcelain: true,
 	}
-	statusCmd, err := NewStatus(tmpDir, args, stdout, stderr)
+	statusCmd, err := NewStatus(tmpDir, args, options, stdout, stderr)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -21,7 +21,8 @@ const (
 
 type Diff struct {
 	rootPath string
-	args     DiffOption
+	args     []string
+	options  DiffOption
 	repo     *repository.Repository
 	status   *repository.Status
 	stdout   io.Writer
@@ -32,7 +33,7 @@ type DiffOption struct {
 	Cached bool
 }
 
-func NewDiff(dir string, args DiffOption, stdout, stderr io.Writer) (*Diff, error) {
+func NewDiff(dir string, args []string, options DiffOption, stdout, stderr io.Writer) (*Diff, error) {
 	rootPath, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, err
@@ -42,6 +43,7 @@ func NewDiff(dir string, args DiffOption, stdout, stderr io.Writer) (*Diff, erro
 	return &Diff{
 		rootPath: rootPath,
 		args:     args,
+		options:  options,
 		repo:     repo,
 		stdout:   stdout,
 		stderr:   stderr,
@@ -58,7 +60,7 @@ func (d *Diff) Run() int {
 		return 128
 	}
 
-	if d.args.Cached {
+	if d.options.Cached {
 		d.diffHeadIndex()
 	} else {
 		d.diffIndexWorkspace()
