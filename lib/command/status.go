@@ -1,8 +1,8 @@
 package command
 
 import (
-	"building-git/lib"
 	"building-git/lib/repository"
+	"building-git/lib/sortedmap"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -91,7 +91,7 @@ func (s *Status) printLongFormat() {
 	s.printCommitStatus()
 }
 
-func (s *Status) printChanges(message string, changeset lib.SortedMap[repository.ChangeType], color *color.Color) {
+func (s *Status) printChanges(message string, changeset sortedmap.SortedMap[repository.ChangeType], color *color.Color) {
 	if changeset.Len() == 0 {
 		return
 	}
@@ -107,7 +107,7 @@ func (s *Status) printChanges(message string, changeset lib.SortedMap[repository
 	fmt.Fprintln(s.stdout)
 }
 
-func (s *Status) printUntrackedChanges(message string, changeset lib.SortedMap[struct{}], color *color.Color) {
+func (s *Status) printUntrackedChanges(message string, changeset sortedmap.SortedMap[struct{}], color *color.Color) {
 	if changeset.Len() == 0 {
 		return
 	}

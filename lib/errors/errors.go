@@ -1,4 +1,4 @@
-package lib
+package errors
 
 type LockDeniedError struct {
 	Message string

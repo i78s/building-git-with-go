@@ -1,8 +1,8 @@
 package index
 
 import (
-	"building-git/lib"
 	"building-git/lib/database"
+	"building-git/lib/lockfile"
 	"encoding/binary"
 	"fmt"
 	"hash"
@@ -23,7 +23,7 @@ type Index struct {
 	entries  map[string]*Entry
 	keys     []string
 	parents  map[string]map[string]struct{}
-	lockfile *lib.Lockfile
+	lockfile *lockfile.Lockfile
 	digest   hash.Hash
 	changed  bool
 }
@@ -34,7 +34,7 @@ func NewIndex(pathname string) *Index {
 		entries:  make(map[string]*Entry),
 		keys:     make([]string, 0),
 		parents:  make(map[string]map[string]struct{}),
-		lockfile: lib.NewLockfile(pathname),
+		lockfile: lockfile.NewLockfile(pathname),
 	}
 }
 

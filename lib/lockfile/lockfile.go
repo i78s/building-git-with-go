@@ -1,6 +1,9 @@
-package lib
+package lockfile
 
-import "os"
+import (
+	"building-git/lib/errors"
+	"os"
+)
 
 type Lockfile struct {
 	filePath string
@@ -20,13 +23,13 @@ func (lf *Lockfile) HoldForUpdate() error {
 		lock, err := os.OpenFile(lf.lockPath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666)
 		if err != nil {
 			if os.IsExist(err) {
-				return &LockDeniedError{err.Error()}
+				return &errors.LockDeniedError{Message: err.Error()}
 			}
 			if os.IsNotExist(err) {
-				return &MissingParentError{err.Error()}
+				return &errors.MissingParentError{Message: err.Error()}
 			}
 			if os.IsPermission(err) {
-				return &NoPermissionError{err.Error()}
+				return &errors.NoPermissionError{Message: err.Error()}
 			}
 			return err
 		}
@@ -72,7 +75,7 @@ func (lf *Lockfile) Rollback() error {
 
 func (lf *Lockfile) raiseOnStaleLock() error {
 	if lf.Lock == nil {
-		return &StaleLockError{"Not holding lock on file: " + lf.lockPath}
+		return &errors.StaleLockError{Message: "Not holding lock on file: " + lf.lockPath}
 	}
 	return nil
 }

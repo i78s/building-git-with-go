@@ -91,3 +91,7 @@ func (c *Commit) SetOid(oid string) {
 func (c *Commit) Tree() string {
 	return c.tree
 }
+
+func (c *Commit) Parent() string {
+	return c.parent
+}

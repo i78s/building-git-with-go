@@ -2,6 +2,7 @@ package command
 
 import (
 	"building-git/lib/repository"
+
 	"fmt"
 	"io"
 	"path/filepath"
@@ -50,5 +51,19 @@ func (b *Branch) Run() int {
 
 func (b *Branch) createBranch() error {
 	branchName := b.args[0]
-	return b.repo.Refs.CreateBranch(branchName)
+	startOid := ""
+	var err error
+	if len(b.args) > 1 {
+		startPoint := b.args[1]
+		revision := repository.NewRevision(b.repo, startPoint)
+		startOid, err = revision.Resolve()
+	} else {
+		startOid, err = b.repo.Refs.ReadHead()
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return b.repo.Refs.CreateBranch(branchName, startOid)
 }

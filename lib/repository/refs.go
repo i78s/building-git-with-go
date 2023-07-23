@@ -1,7 +1,9 @@
-package lib
+package repository
 
 import (
-	"building-git/lib/revision"
+	"building-git/lib/errors"
+	"building-git/lib/lockfile"
+
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -51,9 +53,9 @@ func (r *Refs) ReadRef(name string) (string, error) {
 	return r.readRefFile(path)
 }
 
-func (r *Refs) CreateBranch(branchName string) error {
+func (r *Refs) CreateBranch(branchName, startOid string) error {
 	path := filepath.Join(r.headsPath, branchName)
-	if !revision.IsValidRef(branchName) {
+	if !IsValidRef(branchName) {
 		return &InvalidBranchError{
 			msg: fmt.Sprintf("'%s' is not a valid branch name.", branchName),
 		}
@@ -65,11 +67,7 @@ func (r *Refs) CreateBranch(branchName string) error {
 		}
 	}
 
-	head, err := r.ReadHead()
-	if err != nil {
-		return err
-	}
-	return r.updateRefFile(path, head)
+	return r.updateRefFile(path, startOid)
 }
 
 func (r *Refs) pathForName(name string) (string, error) {
@@ -101,12 +99,12 @@ func (r *Refs) readRefFile(path string) (string, error) {
 }
 
 func (r *Refs) updateRefFile(path, oid string) error {
-	lockfile := NewLockfile(path)
+	lockfile := lockfile.NewLockfile(path)
 
 	for {
 		err := lockfile.HoldForUpdate()
 		if err != nil {
-			if _, ok := err.(*MissingParentError); ok {
+			if _, ok := err.(*errors.MissingParentError); ok {
 				err := os.MkdirAll(filepath.Dir(path), 0755)
 				if err != nil {
 					return err

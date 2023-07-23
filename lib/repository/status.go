@@ -1,8 +1,8 @@
 package repository
 
 import (
-	"building-git/lib"
 	"building-git/lib/database"
+	"building-git/lib/sortedmap"
 	"fmt"
 	"io/fs"
 	"path/filepath"
@@ -19,10 +19,10 @@ const (
 type Status struct {
 	repo             *Repository
 	Stats            map[string]fs.FileInfo
-	Changed          *lib.SortedMap[struct{}]
-	IndexChanges     *lib.SortedMap[ChangeType]
-	WorkspaceChanges *lib.SortedMap[ChangeType]
-	Untracked        *lib.SortedMap[struct{}]
+	Changed          *sortedmap.SortedMap[struct{}]
+	IndexChanges     *sortedmap.SortedMap[ChangeType]
+	WorkspaceChanges *sortedmap.SortedMap[ChangeType]
+	Untracked        *sortedmap.SortedMap[struct{}]
 	HeadTree         map[string]*database.Entry
 }
 
@@ -30,10 +30,10 @@ func NewStatus(repo *Repository) (*Status, error) {
 	s := &Status{
 		repo:             repo,
 		Stats:            map[string]fs.FileInfo{},
-		Changed:          lib.NewSortedMap[struct{}](),
-		IndexChanges:     lib.NewSortedMap[ChangeType](),
-		WorkspaceChanges: lib.NewSortedMap[ChangeType](),
-		Untracked:        lib.NewSortedMap[struct{}](),
+		Changed:          sortedmap.NewSortedMap[struct{}](),
+		IndexChanges:     sortedmap.NewSortedMap[ChangeType](),
+		WorkspaceChanges: sortedmap.NewSortedMap[ChangeType](),
+		Untracked:        sortedmap.NewSortedMap[struct{}](),
 		HeadTree:         make(map[string]*database.Entry),
 	}
 
@@ -48,7 +48,7 @@ func NewStatus(repo *Repository) (*Status, error) {
 	return s, nil
 }
 
-func (s *Status) recordChange(path string, smap *lib.SortedMap[ChangeType], ctype ChangeType) {
+func (s *Status) recordChange(path string, smap *sortedmap.SortedMap[ChangeType], ctype ChangeType) {
 	s.Changed.Set(path, struct{}{})
 	smap.Set(path, ctype)
 }
