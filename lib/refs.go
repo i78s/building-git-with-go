@@ -1,15 +1,13 @@
 package lib
 
 import (
+	"building-git/lib/revision"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 )
-
-var INVALID_NAME = regexp.MustCompile(`^\.|\/\.|\.\.|^\/|\/$|\.lock$|@\{|[\x00-\x20*:?\[\\^~\x7f]`)
 
 const HEAD = "HEAD"
 
@@ -55,8 +53,7 @@ func (r *Refs) ReadRef(name string) (string, error) {
 
 func (r *Refs) CreateBranch(branchName string) error {
 	path := filepath.Join(r.headsPath, branchName)
-
-	if INVALID_NAME.MatchString(branchName) {
+	if !revision.IsValidRef(branchName) {
 		return &InvalidBranchError{
 			msg: fmt.Sprintf("'%s' is not a valid branch name.", branchName),
 		}
