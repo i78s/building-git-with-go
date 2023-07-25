@@ -66,6 +66,27 @@ func (d *Database) ShortOid(oid string) string {
 	return oid[:7]
 }
 
+func (d *Database) PrefixMatch(name string) ([]string, error) {
+	dirname := filepath.Dir(d.objectPath(name))
+	files, err := ioutil.ReadDir(dirname)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []string{}, nil
+		}
+		return nil, err
+	}
+
+	var oids []string
+	for _, file := range files {
+		oid := filepath.Base(dirname) + file.Name()
+		if strings.HasPrefix(oid, name) {
+			oids = append(oids, oid)
+		}
+	}
+
+	return oids, nil
+}
+
 func (d *Database) serializeObject(object GitObject) []byte {
 	data := []byte(object.String())
 	var buf bytes.Buffer

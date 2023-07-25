@@ -42,7 +42,6 @@ func (b *Branch) Run() int {
 	err := b.createBranch()
 
 	if err != nil {
-		fmt.Fprintf(b.stderr, "fatal: %v", err)
 		return 128
 	}
 
@@ -52,18 +51,36 @@ func (b *Branch) Run() int {
 func (b *Branch) createBranch() error {
 	branchName := b.args[0]
 	startOid := ""
+	var revision *repository.Revision
 	var err error
 	if len(b.args) > 1 {
 		startPoint := b.args[1]
-		revision := repository.NewRevision(b.repo, startPoint)
-		startOid, err = revision.Resolve()
+		revision = repository.NewRevision(b.repo, startPoint)
+		startOid, err = revision.Resolve(repository.COMMIT)
 	} else {
 		startOid, err = b.repo.Refs.ReadHead()
 	}
 
 	if err != nil {
+		if _, ok := err.(*repository.InvalidObjectError); ok {
+			for _, he := range revision.Errors {
+				fmt.Fprintf(b.stderr, "error: %v\n", he.Message)
+				for _, line := range he.Hint {
+					fmt.Fprintf(b.stderr, "hint: %v\n", line)
+				}
+			}
+		}
+		fmt.Fprintf(b.stderr, "fatal: %v", err)
 		return err
 	}
 
-	return b.repo.Refs.CreateBranch(branchName, startOid)
+	err = b.repo.Refs.CreateBranch(branchName, startOid)
+	if err != nil {
+		if _, ok := err.(*repository.InvalidBranchError); ok {
+			fmt.Fprintf(b.stderr, "fatal: %v", err)
+		}
+		return err
+	}
+
+	return nil
 }

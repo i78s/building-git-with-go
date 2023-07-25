@@ -1,6 +1,7 @@
 package command
 
 import (
+	"building-git/lib/repository"
 	"bytes"
 	"fmt"
 	"io/ioutil"
@@ -52,6 +53,16 @@ func setupRepo(t *testing.T, path string) {
 			fmt.Fprintf(os.Stderr, "fatal: %s\n", err.Error())
 		}
 	}
+}
+
+func Repo(t *testing.T, path string) *repository.Repository {
+	t.Helper()
+	rootPath, err := filepath.Abs(path)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
+
+	return repository.NewRepository(rootPath)
 }
 
 func WriteFile(t *testing.T, path, name, content string) {

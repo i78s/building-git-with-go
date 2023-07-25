@@ -10,11 +10,11 @@ type Commit struct {
 	parent  string
 	oid     string
 	tree    string
-	author  string
+	author  *Author
 	message string
 }
 
-func NewCommit(parent, tree string, author string, message string) *Commit {
+func NewCommit(parent, tree string, author *Author, message string) *Commit {
 	return &Commit{
 		parent:  parent,
 		tree:    tree,
@@ -51,11 +51,20 @@ func ParseCommit(reader *bufio.Reader) (*Commit, error) {
 		headers[parts[0]] = parts[1]
 	}
 
+	author, err := ParseAuthor(headers["author"])
+	if err != nil {
+		return nil, err
+	}
+
 	return NewCommit(
 		headers["parent"],
 		headers["tree"],
-		headers["author"],
+		author,
 		message), nil
+}
+
+func (c *Commit) TitleLine() string {
+	return strings.Split(c.message, "\n")[0]
 }
 
 func (c *Commit) Type() string {
@@ -71,8 +80,8 @@ func (c Commit) String() string {
 		lines = append(lines, "parent "+c.parent)
 	}
 	lines = append(lines,
-		"author "+c.author,
-		"committer "+c.author,
+		"author "+c.author.String(),
+		"committer "+c.author.String(),
 		"",
 		c.message,
 	)
@@ -94,4 +103,8 @@ func (c *Commit) Tree() string {
 
 func (c *Commit) Parent() string {
 	return c.parent
+}
+
+func (c *Commit) Author() *Author {
+	return c.author
 }

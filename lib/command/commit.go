@@ -50,7 +50,7 @@ func Commit(dir string, args []string, stdin io.Reader, stdout, stderr io.Writer
 	reader := bufio.NewReader(stdin)
 	message, _ := reader.ReadString('\n')
 
-	commit := database.NewCommit(parent, root.Oid(), author.String(), message)
+	commit := database.NewCommit(parent, root.Oid(), author, message)
 	repo.Database.Store(commit)
 	repo.Refs.UpdateHead(commit.Oid())
 

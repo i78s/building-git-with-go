@@ -2,7 +2,12 @@ package database
 
 import (
 	"fmt"
+	"strings"
 	"time"
+)
+
+const (
+	timeFormat = "%s %z"
 )
 
 type Author struct {
@@ -19,7 +24,25 @@ func NewAuthor(name, email string, time time.Time) *Author {
 	}
 }
 
-func (a Author) String() string {
-	timestamp := fmt.Sprintf("%d %s", a.time.Unix(), a.time.Format("-0700"))
-	return fmt.Sprintf("%s <%s> %s", a.name, a.email, timestamp)
+func ParseAuthor(s string) (*Author, error) {
+	parts := strings.Split(s, "<")
+	name := strings.TrimSpace(parts[0])
+
+	parts = strings.Split(parts[1], ">")
+	email := strings.TrimSpace(parts[0])
+
+	t, err := time.Parse(timeFormat, strings.TrimSpace(parts[1]))
+	if err != nil {
+		return nil, err
+	}
+
+	return &Author{name, email, t}, nil
+}
+
+func (a *Author) ShortDate() string {
+	return a.time.Format("2006-01-02")
+}
+
+func (a *Author) String() string {
+	return fmt.Sprintf("%s <%s> %s", a.name, a.email, a.time.Format(timeFormat))
 }

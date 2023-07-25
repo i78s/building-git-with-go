@@ -1,8 +1,10 @@
 package repository
 
 import (
+	"building-git/lib/database"
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 )
 
@@ -13,6 +15,7 @@ var (
 	REF_ALIASES  = map[string]string{
 		"@": "HEAD",
 	}
+	COMMIT = "commit"
 )
 
 type InvalidObjectError struct {
@@ -21,6 +24,11 @@ type InvalidObjectError struct {
 
 func (e *InvalidObjectError) Error() string {
 	return fmt.Sprintf("Not a valid object name: '%s'.", e.expr)
+}
+
+type HintedError struct {
+	Message string
+	Hint    []string
 }
 
 type Context interface {
@@ -33,9 +41,10 @@ type ParsedRevision interface {
 }
 
 type Revision struct {
-	repo  *Repository
-	expr  string
-	query ParsedRevision
+	repo   *Repository
+	expr   string
+	query  ParsedRevision
+	Errors []HintedError
 }
 
 func IsValidRef(revision string) bool {
@@ -44,46 +53,111 @@ func IsValidRef(revision string) bool {
 
 func NewRevision(repo *Repository, expr string) *Revision {
 	return &Revision{
-		repo:  repo,
-		expr:  expr,
-		query: parse(expr),
+		repo:   repo,
+		expr:   expr,
+		query:  parse(expr),
+		Errors: []HintedError{},
 	}
 }
 
-func (r *Revision) Resolve() (string, error) {
-	err := &InvalidObjectError{r.expr}
+func (r *Revision) Resolve(otype string) (string, error) {
+	invalidObjErr := &InvalidObjectError{r.expr}
 	if r.query == nil {
-		return "", err
+		return "", invalidObjErr
 	}
 
 	oid, _ := r.query.resolve(r)
+	if otype != "" {
+		if _, err := r.loadTypedObject(oid, otype); err != nil {
+			oid = ""
+		}
+	}
+
 	if oid != "" {
 		return oid, nil
 	}
-	return "", err
+	return "", invalidObjErr
 }
 
 func (r *Revision) readRef(name string) (string, error) {
-	return r.repo.Refs.ReadRef(name)
-}
+	oid, _ := r.repo.Refs.ReadRef(name)
+	if oid != "" {
+		return oid, nil
+	}
 
-type CommitObject interface {
-	Parent() string
+	candidates, err := r.repo.Database.PrefixMatch(name)
+	if err != nil {
+		return "", err
+	}
+	if len(candidates) == 1 {
+		return candidates[0], nil
+	}
+	if len(candidates) > 1 {
+		r.logAmbiguousSha1(name, candidates)
+	}
+	return "", nil
 }
 
 func (r *Revision) commitParent(oid string) (string, error) {
 	if oid == "" {
 		return "", nil
 	}
-	commit, err := r.repo.Database.Load(oid)
+	commit, err := r.loadTypedObject(oid, COMMIT)
 	if err != nil {
 		return "", err
 	}
 
-	if c, ok := commit.(CommitObject); ok {
+	if c, ok := commit.(*database.Commit); ok {
 		return c.Parent(), nil
 	}
 	return "", nil
+}
+
+func (r *Revision) loadTypedObject(oid, otype string) (database.GitObject, error) {
+	if oid == "" {
+		return nil, fmt.Errorf("oid is empty")
+	}
+
+	obj, err := r.repo.Database.Load(oid)
+
+	if err != nil {
+		return nil, err
+	}
+	if obj.Type() == COMMIT {
+		return obj, nil
+	}
+
+	message := fmt.Sprintf("object %s is a %s, not a %s", oid, obj.Type(), otype)
+	r.Errors = append(r.Errors, HintedError{message, []string{}})
+
+	return nil, fmt.Errorf(message)
+}
+
+func (r *Revision) logAmbiguousSha1(name string, candidates []string) error {
+	sort.Strings(candidates)
+
+	var objects []string
+	for _, oid := range candidates {
+		object, err := r.repo.Database.Load(oid)
+		if err != nil {
+			return err
+		}
+
+		short := r.repo.Database.ShortOid(object.Oid())
+		info := fmt.Sprintf("  %s %s", short, object.Type())
+
+		if commit, ok := object.(*database.Commit); ok {
+			info = fmt.Sprintf("%s %s - %s", info, commit.Author().ShortDate(), commit.TitleLine())
+		}
+
+		objects = append(objects, info)
+	}
+
+	message := fmt.Sprintf("short SHA1 %s is ambiguous", name)
+	hint := append([]string{"The candidates are:"}, objects...)
+	r.Errors = append(r.Errors, HintedError{message, hint})
+
+	return nil
 }
 
 func parse(revision string) ParsedRevision {
