@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -93,7 +94,7 @@ func (t *Tree) addEntry(parents []string, e TreeObject) {
 		subtree, exists := t.Entries[parents[0]]
 		if !exists {
 			subtree = NewTree(make(map[string]TreeObject))
-			t.Entries[parents[0]] = subtree
+			t.Entries[filepath.Base(parents[0])] = subtree
 		}
 		subtree.(*Tree).addEntry(parents[1:], e)
 	}

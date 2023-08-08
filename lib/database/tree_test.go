@@ -2,40 +2,45 @@ package database
 
 import (
 	"io/fs"
+	"path/filepath"
 	"testing"
 )
 
-// Mock implementation of EntryObject for testing
 type MockEntryObject struct {
-	oid        string
-	key        string
-	mode       int
-	parentDirs []string
-	basename   string
+	oid  string
+	path string
+	mode int
 }
 
-func (m *MockEntryObject) Oid() string                        { return m.oid }
-func (m *MockEntryObject) Key() string                        { return m.key }
-func (m *MockEntryObject) Mode() int                          { return m.mode }
-func (m *MockEntryObject) ParentDirectories() []string        { return m.parentDirs }
-func (m *MockEntryObject) Basename() string                   { return m.basename }
+func (m *MockEntryObject) Oid() string { return m.oid }
+func (m *MockEntryObject) Key() string { return m.path }
+func (m *MockEntryObject) Mode() int   { return m.mode }
+func (m *MockEntryObject) ParentDirectories() []string {
+	var dirs []string
+	path := m.path
+	for {
+		path = filepath.Dir(path)
+		if path == "." || path == string(filepath.Separator) {
+			break
+		}
+		dirs = append([]string{path}, dirs...)
+	}
+	return dirs
+}
+func (m *MockEntryObject) Basename() string                   { return filepath.Base(m.path) }
 func (m *MockEntryObject) IsStatMatch(stat fs.FileInfo) bool  { return false }
 func (m *MockEntryObject) UpdateStat(stat fs.FileInfo)        {}
 func (m *MockEntryObject) IsTimesMatch(stat fs.FileInfo) bool { return false }
 
 func TestBuildTree(t *testing.T) {
-	// Create mock entries
-
 	entries := []EntryObject{
-		&MockEntryObject{oid: "1", parentDirs: []string{}, basename: "1.txt"},
-		&MockEntryObject{oid: "2", parentDirs: []string{"a"}, basename: "2.txt"},
-		&MockEntryObject{oid: "3", parentDirs: []string{"a", "b"}, basename: "3.txt"},
+		&MockEntryObject{oid: "1", path: "1.txt"},
+		&MockEntryObject{oid: "2", path: "a/2.txt"},
+		&MockEntryObject{oid: "3", path: "a/b/3.txt"},
 	}
 
-	// Build the tree
 	tree := BuildTree(entries)
 
-	// Verify the structure of the tree
 	if _, ok := tree.Entries["1.txt"]; !ok {
 		t.Errorf("Expected to find '1.txt' in tree entries")
 	}

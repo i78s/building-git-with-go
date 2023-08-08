@@ -146,7 +146,7 @@ func (s *Status) readTree(treeOid, pathname string) error {
 			return fmt.Errorf("Failed to cast to Entry")
 		}
 		if entry.IsTree() {
-			err := s.readTree(entry.Oid(), name)
+			err := s.readTree(entry.Oid(), path)
 			if err != nil {
 				return err
 			}

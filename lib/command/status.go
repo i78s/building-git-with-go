@@ -74,10 +74,6 @@ func (s *Status) Run() int {
 func (s *Status) printResults() {
 	if s.options.Porcelain {
 		s.printPorcelainFormat()
-
-		s.status.IndexChanges.Iterate(func(path string, change repository.ChangeType) {
-			fmt.Println(path, change)
-		})
 		return
 	}
 	s.printLongFormat()

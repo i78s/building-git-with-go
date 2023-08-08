@@ -87,6 +87,12 @@ func (d *Database) PrefixMatch(name string) ([]string, error) {
 	return oids, nil
 }
 
+func (d *Database) TreeDiff(a, b string) map[string][2]TreeObject {
+	diff := NewTreeDiff(d)
+	diff.compareOids(a, b, "")
+	return diff.changes
+}
+
 func (d *Database) serializeObject(object GitObject) []byte {
 	data := []byte(object.String())
 	var buf bytes.Buffer
