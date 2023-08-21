@@ -28,3 +28,7 @@ func (r *Repository) Status() (*Status, error) {
 	status, err := NewStatus(r)
 	return status, err
 }
+
+func (r *Repository) Migration(treeDiff map[string][2]database.TreeObject) *Migration {
+	return NewMigration(r, treeDiff)
+}
