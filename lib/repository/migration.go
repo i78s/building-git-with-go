@@ -43,6 +43,7 @@ func NewMigration(repository *Repository, treeDiff map[string][2]database.TreeOb
 func (m *Migration) ApplyChanges() {
 	m.planChanges()
 	m.updateWorkspace()
+	m.updateIndex()
 }
 
 func (m *Migration) BlobData(oid string) (string, error) {
@@ -58,6 +59,21 @@ func (m *Migration) planChanges() {
 
 func (m *Migration) updateWorkspace() {
 	m.repo.Workspace.ApplyMigration(m)
+}
+
+func (m *Migration) updateIndex() {
+	for _, p := range m.Changes[delete] {
+		m.repo.Index.Remove(p.path)
+	}
+
+	for _, p := range m.Changes[create] {
+		stat, _ := m.repo.Workspace.StatFile(p.path)
+		m.repo.Index.Add(p.path, p.item.Oid(), stat)
+	}
+	for _, p := range m.Changes[update] {
+		stat, _ := m.repo.Workspace.StatFile(p.path)
+		m.repo.Index.Add(p.path, p.item.Oid(), stat)
+	}
 }
 
 func (m *Migration) recordChange(path string, oldItem, newItem database.TreeObject) {

@@ -42,6 +42,8 @@ func (c *CheckOut) Run() int {
 	revision := repository.NewRevision(c.repo, target)
 	targetOid, err := revision.Resolve(repository.COMMIT)
 
+	c.repo.Index.LoadForUpdate()
+
 	if err != nil {
 		c.handleInvalidObject(revision, err)
 		return 1
@@ -50,6 +52,9 @@ func (c *CheckOut) Run() int {
 	treeDiff := c.repo.Database.TreeDiff(currentOid, targetOid)
 	migration := c.repo.Migration(treeDiff)
 	migration.ApplyChanges()
+
+	c.repo.Index.WriteUpdates()
+	c.repo.Refs.UpdateHead(targetOid)
 
 	return 0
 }

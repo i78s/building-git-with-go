@@ -68,37 +68,40 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 	}
 
 	t.Run("updates a changed file", func(t *testing.T) {
-		tmpDir, _, _, commitAndCheckout := setup()
+		tmpDir, stdout, stderr, commitAndCheckout := setup()
 		defer os.RemoveAll(tmpDir)
 
 		WriteFile(t, tmpDir, "1.txt", "changed")
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
+		assertStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("removes a file", func(t *testing.T) {
-		tmpDir, _, _, commitAndCheckout := setup()
+		tmpDir, stdout, stderr, commitAndCheckout := setup()
 		defer os.RemoveAll(tmpDir)
 
 		WriteFile(t, tmpDir, "94.txt", "94")
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
+		assertStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("removes a file from an existing directory", func(t *testing.T) {
-		tmpDir, _, _, commitAndCheckout := setup()
+		tmpDir, stdout, stderr, commitAndCheckout := setup()
 		defer os.RemoveAll(tmpDir)
 
 		WriteFile(t, tmpDir, "outer/94.txt", "94")
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
+		assertStatus(t, tmpDir, stdout, stderr, "")
 	})
 
-	t.Run("removes a file from an new directory", func(t *testing.T) {
-		tmpDir, _, _, commitAndCheckout := setup()
+	t.Run("removes a file from a new directory", func(t *testing.T) {
+		tmpDir, stdout, stderr, commitAndCheckout := setup()
 		defer os.RemoveAll(tmpDir)
 
 		WriteFile(t, tmpDir, "new/94.txt", "94")
@@ -106,10 +109,11 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 
 		assertWorkspace(t, tmpDir, baseFiles)
 		assertNoent(t, tmpDir, "new")
+		assertStatus(t, tmpDir, stdout, stderr, "")
 	})
 
-	t.Run("removes a file from an new nested directory", func(t *testing.T) {
-		tmpDir, _, _, commitAndCheckout := setup()
+	t.Run("removes a file from a new nested directory", func(t *testing.T) {
+		tmpDir, stdout, stderr, commitAndCheckout := setup()
 		defer os.RemoveAll(tmpDir)
 
 		WriteFile(t, tmpDir, "new/inner/94.txt", "94")
@@ -117,50 +121,55 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 
 		assertWorkspace(t, tmpDir, baseFiles)
 		assertNoent(t, tmpDir, "new")
+		assertStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("removes a file from a non-empty directory", func(t *testing.T) {
-		tmpDir, _, _, commitAndCheckout := setup()
+		tmpDir, stdout, stderr, commitAndCheckout := setup()
 		defer os.RemoveAll(tmpDir)
 
 		WriteFile(t, tmpDir, "outer/94.txt", "94")
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
+		assertStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("add a file", func(t *testing.T) {
-		tmpDir, _, _, commitAndCheckout := setup()
+		tmpDir, stdout, stderr, commitAndCheckout := setup()
 		defer os.RemoveAll(tmpDir)
 
 		Delete(t, tmpDir, "1.txt")
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
+		assertStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("add a file to a directory", func(t *testing.T) {
-		tmpDir, _, _, commitAndCheckout := setup()
+		tmpDir, stdout, stderr, commitAndCheckout := setup()
 		defer os.RemoveAll(tmpDir)
 
 		Delete(t, tmpDir, "outer/2.txt")
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
+		assertStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("add a directory", func(t *testing.T) {
-		tmpDir, _, _, commitAndCheckout := setup()
+		tmpDir, stdout, stderr, commitAndCheckout := setup()
 		defer os.RemoveAll(tmpDir)
 
 		Delete(t, tmpDir, "outer")
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
+		assertStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("replaces a file with a directory", func(t *testing.T) {
-		tmpDir, _, _, commitAndCheckout := setup()
+		tmpDir, stdout, stderr, commitAndCheckout := setup()
 		defer os.RemoveAll(tmpDir)
 
 		Delete(t, tmpDir, "outer/inner")
@@ -168,10 +177,11 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
+		assertStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("replaces a directory with a file", func(t *testing.T) {
-		tmpDir, _, _, commitAndCheckout := setup()
+		tmpDir, stdout, stderr, commitAndCheckout := setup()
 		defer os.RemoveAll(tmpDir)
 
 		Delete(t, tmpDir, "outer/2.txt")
@@ -179,5 +189,6 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
+		assertStatus(t, tmpDir, stdout, stderr, "")
 	})
 }

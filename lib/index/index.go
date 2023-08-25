@@ -97,6 +97,12 @@ func (i *Index) Add(pathname, oid string, stat fs.FileInfo) {
 	i.changed = true
 }
 
+func (i *Index) Remove(pathname string) {
+	i.removeEntry(pathname)
+	i.removeChildren(pathname)
+	i.changed = true
+}
+
 func (i *Index) EachEntry() []database.EntryObject {
 	entries := []database.EntryObject{}
 	for _, key := range i.keys {
