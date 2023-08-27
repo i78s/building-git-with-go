@@ -175,3 +175,7 @@ func (e *Entry) String() string {
 
 	return string(data)
 }
+
+func (e *Entry) IsNil() bool {
+	return e == nil
+}

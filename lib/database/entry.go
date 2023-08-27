@@ -23,3 +23,7 @@ func (e *Entry) Oid() string {
 func (e *Entry) IsTree() bool {
 	return e.mode == TREE_MODE
 }
+
+func (e *Entry) IsNil() bool {
+	return e == nil
+}

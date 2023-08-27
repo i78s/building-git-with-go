@@ -23,6 +23,7 @@ type Tree struct {
 type TreeObject interface {
 	Oid() string
 	Mode() int
+	IsNil() bool
 }
 
 type EntryObject interface {
@@ -34,6 +35,7 @@ type EntryObject interface {
 	IsStatMatch(stat fs.FileInfo) bool
 	UpdateStat(stat fs.FileInfo)
 	IsTimesMatch(stat fs.FileInfo) bool
+	IsNil() bool
 }
 
 func NewTree(entries map[string]TreeObject) *Tree {
@@ -91,7 +93,7 @@ func (t *Tree) addEntry(parents []string, e TreeObject) {
 	if len(parents) == 0 {
 		t.Entries[e.(EntryObject).Basename()] = e
 	} else {
-		subtree, exists := t.Entries[parents[0]]
+		subtree, exists := t.Entries[filepath.Base(parents[0])]
 		if !exists {
 			subtree = NewTree(make(map[string]TreeObject))
 			t.Entries[filepath.Base(parents[0])] = subtree
@@ -143,4 +145,8 @@ func (t *Tree) Oid() string {
 
 func (t *Tree) SetOid(oid string) {
 	t.oid = oid
+}
+
+func (t *Tree) IsNil() bool {
+	return t == nil
 }

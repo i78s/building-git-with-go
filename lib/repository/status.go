@@ -14,11 +14,14 @@ const (
 	Added ChangeType = iota
 	Deleted
 	Modified
+	Unmodified
+	Untracked
 )
 
 type Status struct {
 	repo             *Repository
 	Stats            map[string]fs.FileInfo
+	inspector        *Inspector
 	Changed          *sortedmap.SortedMap[struct{}]
 	IndexChanges     *sortedmap.SortedMap[ChangeType]
 	WorkspaceChanges *sortedmap.SortedMap[ChangeType]
@@ -30,6 +33,7 @@ func NewStatus(repo *Repository) (*Status, error) {
 	s := &Status{
 		repo:             repo,
 		Stats:            map[string]fs.FileInfo{},
+		inspector:        NewInspector(repo),
 		Changed:          sortedmap.NewSortedMap[struct{}](),
 		IndexChanges:     sortedmap.NewSortedMap[ChangeType](),
 		WorkspaceChanges: sortedmap.NewSortedMap[ChangeType](),
@@ -68,7 +72,7 @@ func (s *Status) scanWorkspace(prefix string) error {
 				s.scanWorkspace(path)
 			}
 			continue
-		} else if s.isTrackableFile(path, stat) {
+		} else if s.inspector.isTrackableFile(path, stat) {
 			if stat.IsDir() {
 				path += string(filepath.Separator)
 			}
@@ -76,39 +80,6 @@ func (s *Status) scanWorkspace(prefix string) error {
 		}
 	}
 	return nil
-}
-
-func (st *Status) isTrackableFile(path string, stat fs.FileInfo) bool {
-	if stat.Mode().IsRegular() {
-		return !st.repo.Index.IsTracked(path)
-	}
-	if !stat.IsDir() {
-		return false
-	}
-
-	items, _ := st.repo.Workspace.ListDir(path)
-	files := map[string]fs.FileInfo{}
-	dirs := map[string]fs.FileInfo{}
-	for p, s := range items {
-		if s.Mode().IsRegular() {
-			files[p] = s
-		}
-		if s.IsDir() {
-			dirs[p] = s
-		}
-	}
-
-	for p, s := range files {
-		if st.isTrackableFile(p, s) {
-			return true
-		}
-	}
-	for p, s := range dirs {
-		if st.isTrackableFile(p, s) {
-			return true
-		}
-	}
-	return false
 }
 
 func (s *Status) loadHeadTree() error {
@@ -125,7 +96,7 @@ func (s *Status) loadHeadTree() error {
 
 	commit, ok := commitObj.(*database.Commit)
 	if !ok {
-		return fmt.Errorf("Failed to cast to Commit")
+		return fmt.Errorf("failed to cast to commit")
 	}
 
 	s.readTree(commit.Tree(), "")
@@ -136,14 +107,14 @@ func (s *Status) readTree(treeOid, pathname string) error {
 	treeObj, _ := s.repo.Database.Load(treeOid)
 	tree, ok := treeObj.(*database.Tree)
 	if !ok {
-		return fmt.Errorf("Failed to cast to Tree")
+		return fmt.Errorf("failed to cast to tree")
 	}
 
 	for name, e := range tree.Entries {
 		path := filepath.Join(pathname, name)
 		entry, ok := e.(*database.Entry)
 		if !ok {
-			return fmt.Errorf("Failed to cast to Entry")
+			return fmt.Errorf("failed to cast to entry")
 		}
 		if entry.IsTree() {
 			err := s.readTree(entry.Oid(), path)
@@ -166,42 +137,24 @@ func (s *Status) checkIndexEntries() {
 }
 
 func (s *Status) checkIndexAgainstWorkspace(entry database.EntryObject) {
-	stat, exists := s.Stats[entry.Key()]
+	stat := s.Stats[entry.Key()]
+	status := s.inspector.compareIndexToWorkspace(entry, stat)
 
-	if !exists {
-		s.recordChange(entry.Key(), s.WorkspaceChanges, Deleted)
+	if status != Unmodified {
+		s.recordChange(entry.Key(), s.WorkspaceChanges, status)
 		return
 	}
-
-	if !entry.IsStatMatch(stat) {
-		s.recordChange(entry.Key(), s.WorkspaceChanges, Modified)
-		return
-	}
-	if entry.IsTimesMatch(stat) {
-		return
-	}
-
-	data, _ := s.repo.Workspace.ReadFile(entry.Key())
-	blob := database.NewBlob(data)
-	oid, _ := s.repo.Database.HashObject(blob)
-
-	if entry.Oid() == oid {
-		s.repo.Index.UpdateEntryStat(entry, stat)
-		return
-	}
-	s.recordChange(entry.Key(), s.WorkspaceChanges, Modified)
+	s.repo.Index.UpdateEntryStat(entry, stat)
 }
 
 func (s *Status) checkIndexAgainstHeadTree(entry database.EntryObject) {
 	item := s.HeadTree[entry.Key()]
+	status := s.inspector.compareTreeToIndex(item, entry)
 
-	if item != nil {
-		if entry.Mode() != item.Mode() || entry.Oid() != item.Oid() {
-			s.recordChange(entry.Key(), s.IndexChanges, Modified)
-		}
+	if status == Unmodified {
 		return
 	}
-	s.recordChange(entry.Key(), s.IndexChanges, Added)
+	s.recordChange(entry.Key(), s.IndexChanges, status)
 }
 
 func (s *Status) collectDeletedHeadFiles() {

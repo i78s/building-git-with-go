@@ -51,12 +51,25 @@ func (c *CheckOut) Run() int {
 
 	treeDiff := c.repo.Database.TreeDiff(currentOid, targetOid)
 	migration := c.repo.Migration(treeDiff)
-	migration.ApplyChanges()
+	err = migration.ApplyChanges()
+	if err != nil {
+		c.handleMigrationConflict(migration)
+		return 1
+	}
 
 	c.repo.Index.WriteUpdates()
 	c.repo.Refs.UpdateHead(targetOid)
 
 	return 0
+}
+
+func (c *CheckOut) handleMigrationConflict(migration *repository.Migration) {
+	c.repo.Index.ReleaseLock()
+
+	for _, msg := range migration.Errors {
+		fmt.Fprintf(c.stderr, "error: %v\n", msg)
+	}
+	fmt.Fprintf(c.stderr, "Aborting")
 }
 
 func (c *CheckOut) handleInvalidObject(revision *repository.Revision, err error) {

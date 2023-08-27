@@ -140,6 +140,13 @@ func (ws *Workspace) ApplyMigration(migration *Migration) error {
 
 func (ws *Workspace) removeDirectory(dirname string) error {
 	path := filepath.Join(ws.pathname, dirname)
+	stat, err := os.Stat(path)
+	if err != nil {
+		return nil
+	}
+	if !stat.IsDir() {
+		return nil
+	}
 	if err := os.Remove(path); err != nil {
 		if pathErr, ok := err.(*os.PathError); ok {
 			if pathErr.Err == syscall.ENOENT || pathErr.Err == syscall.ENOTDIR || pathErr.Err == syscall.ENOTEMPTY {
@@ -153,19 +160,17 @@ func (ws *Workspace) removeDirectory(dirname string) error {
 
 func (ws *Workspace) makeDirectory(dirname string) error {
 	path := filepath.Join(ws.pathname, dirname)
-	stat, err := ws.StatFile(dirname)
+	stat, _ := ws.StatFile(dirname)
 
-	if err == nil && !stat.IsDir() {
+	if stat != nil && stat.Mode().IsRegular() {
 		err := os.Remove(path)
 		if err != nil {
 			return err
 		}
 	}
-	if os.IsNotExist(err) {
-		err := os.Mkdir(path, 0755)
-		if err != nil {
-			return err
-		}
+
+	if stat == nil || !stat.Mode().IsDir() {
+		return os.Mkdir(path, 0755)
 	}
 	return nil
 }

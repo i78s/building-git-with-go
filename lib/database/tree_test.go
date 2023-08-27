@@ -31,6 +31,7 @@ func (m *MockEntryObject) Basename() string                   { return filepath.
 func (m *MockEntryObject) IsStatMatch(stat fs.FileInfo) bool  { return false }
 func (m *MockEntryObject) UpdateStat(stat fs.FileInfo)        {}
 func (m *MockEntryObject) IsTimesMatch(stat fs.FileInfo) bool { return false }
+func (m *MockEntryObject) IsNil() bool                        { return m == nil }
 
 func TestBuildTree(t *testing.T) {
 	entries := []EntryObject{

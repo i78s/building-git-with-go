@@ -92,12 +92,14 @@ func (t *TreeDiff) detectAdditions(a, b map[string]TreeObject, prefix string) {
 	for name, entry := range b {
 		path := filepath.Join(prefix, name)
 		_, ok := a[name]
-		if !ok {
-			if entry.(*Entry).IsTree() {
-				t.compareOids("", entry.Oid(), path)
-			} else {
-				t.changes[path] = [2]TreeObject{nil, entry}
-			}
+		if ok {
+			continue
+		}
+
+		if entry.(*Entry).IsTree() {
+			t.compareOids("", entry.Oid(), path)
+		} else {
+			t.changes[path] = [2]TreeObject{nil, entry}
 		}
 	}
 }
