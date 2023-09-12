@@ -28,9 +28,9 @@ func assertDiff(
 
 func TestDiffWithFileInTheIndex(t *testing.T) {
 	setup := func() (tmpDir string, stdout, stderr *bytes.Buffer) {
-		tmpDir, stdout, stderr = SetupTestEnvironment(t)
+		tmpDir, stdout, stderr = setupTestEnvironment(t)
 
-		WriteFile(t, tmpDir, "file.txt", "contents\n")
+		writeFile(t, tmpDir, "file.txt", "contents\n")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
 
 		return
@@ -39,7 +39,7 @@ func TestDiffWithFileInTheIndex(t *testing.T) {
 	t.Run("diffs a file with modified contents", func(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
-		WriteFile(t, tmpDir, "file.txt", "changed\n")
+		writeFile(t, tmpDir, "file.txt", "changed\n")
 
 		expected := `diff --git a/file.txt b/file.txt
 index 12f00e9..5ea2ed4 100644
@@ -55,7 +55,7 @@ index 12f00e9..5ea2ed4 100644
 	t.Run("diffs a file with changed mode", func(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
-		MakeExecutable(t, tmpDir, "file.txt")
+		makeExecutable(t, tmpDir, "file.txt")
 
 		expected := `diff --git a/file.txt b/file.txt
 old mode 100644
@@ -67,8 +67,8 @@ new mode 100755
 	t.Run("diffs a file with changed mode and contents", func(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
-		MakeExecutable(t, tmpDir, "file.txt")
-		WriteFile(t, tmpDir, "file.txt", "changed\n")
+		makeExecutable(t, tmpDir, "file.txt")
+		writeFile(t, tmpDir, "file.txt", "changed\n")
 
 		expected := `diff --git a/file.txt b/file.txt
 old mode 100644
@@ -86,7 +86,7 @@ index 12f00e9..5ea2ed4
 	t.Run("diffs a deleted file", func(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
-		Delete(t, tmpDir, "file.txt")
+		delete(t, tmpDir, "file.txt")
 
 		expected := `diff --git a/file.txt b/file.txt
 deleted file mode 100644
@@ -102,11 +102,11 @@ index 12f00e9..0000000
 
 func TestDiffWithHeadCommit(t *testing.T) {
 	setup := func() (tmpDir string, stdout, stderr *bytes.Buffer) {
-		tmpDir, stdout, stderr = SetupTestEnvironment(t)
+		tmpDir, stdout, stderr = setupTestEnvironment(t)
 
-		WriteFile(t, tmpDir, "file.txt", "contents\n")
+		writeFile(t, tmpDir, "file.txt", "contents\n")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-		TestCommit(t, tmpDir, "first commit")
+		commit(t, tmpDir, "first commit")
 
 		return
 	}
@@ -114,7 +114,7 @@ func TestDiffWithHeadCommit(t *testing.T) {
 	t.Run("diffs a file with modified contents", func(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
-		WriteFile(t, tmpDir, "file.txt", "changed\n")
+		writeFile(t, tmpDir, "file.txt", "changed\n")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
 
 		expected := `diff --git a/file.txt b/file.txt
@@ -132,7 +132,7 @@ index 12f00e9..5ea2ed4 100644
 	t.Run("diffs a file with changed mode", func(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
-		MakeExecutable(t, tmpDir, "file.txt")
+		makeExecutable(t, tmpDir, "file.txt")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
 
 		expected := `diff --git a/file.txt b/file.txt
@@ -146,8 +146,8 @@ new mode 100755
 	t.Run("diffs a file with changed mode and contents", func(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
-		MakeExecutable(t, tmpDir, "file.txt")
-		WriteFile(t, tmpDir, "file.txt", "changed\n")
+		makeExecutable(t, tmpDir, "file.txt")
+		writeFile(t, tmpDir, "file.txt", "changed\n")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
 
 		expected := `diff --git a/file.txt b/file.txt
@@ -167,8 +167,8 @@ index 12f00e9..5ea2ed4
 	t.Run("diffs a deleted file", func(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
-		Delete(t, tmpDir, "file.txt")
-		Delete(t, tmpDir, ".git/index")
+		delete(t, tmpDir, "file.txt")
+		delete(t, tmpDir, ".git/index")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
 
 		expected := `diff --git a/file.txt b/file.txt
@@ -186,7 +186,7 @@ index 12f00e9..0000000
 	t.Run("diffs an added file", func(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
-		WriteFile(t, tmpDir, "another.txt", "hello\n")
+		writeFile(t, tmpDir, "another.txt", "hello\n")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
 
 		expected := `diff --git a/another.txt b/another.txt

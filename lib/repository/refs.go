@@ -3,15 +3,17 @@ package repository
 import (
 	"building-git/lib/errors"
 	"building-git/lib/lockfile"
+	"regexp"
+	"strings"
 
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 const HEAD = "HEAD"
+
+var symRefRegexp = regexp.MustCompile(`^ref: (.+)$`)
 
 type InvalidBranchError struct {
 	msg string
@@ -21,6 +23,13 @@ func (e *InvalidBranchError) Error() string {
 	return fmt.Sprintf("%s", e.msg)
 }
 
+type SymRef struct {
+	Path string
+}
+
+type Ref struct {
+	Oid string
+}
 type Refs struct {
 	pathname  string
 	refsPath  string
@@ -37,11 +46,42 @@ func NewRefs(pathname string) *Refs {
 }
 
 func (r *Refs) ReadHead() (string, error) {
-	return r.readRefFile(filepath.Join(r.pathname, "HEAD"))
+	return r.readSymRef(filepath.Join(r.pathname, HEAD))
 }
 
 func (r *Refs) UpdateHead(oid string) error {
-	return r.updateRefFile(filepath.Join(r.pathname, "HEAD"), oid)
+	return r.updateRefFile(filepath.Join(r.pathname, HEAD), oid)
+}
+
+func (r *Refs) SetHead(revision, oid string) error {
+	head := filepath.Join(r.pathname, HEAD)
+	path := filepath.Join(r.headsPath, revision)
+
+	if fileInfo, err := os.Stat(path); err == nil && fileInfo.Mode().IsRegular() {
+		relative, err := relativePathFrom(r.pathname, path)
+		if err != nil {
+			return err
+		}
+		return r.updateRefFile(head, fmt.Sprintf("ref: %s", relative))
+	}
+	return r.updateRefFile(head, oid)
+}
+
+func relativePathFrom(base, target string) (string, error) {
+	absBase, err := filepath.Abs(base)
+	if err != nil {
+		return "", err
+	}
+	absTarget, err := filepath.Abs(target)
+	if err != nil {
+		return "", err
+	}
+
+	rel, err := filepath.Rel(absBase, absTarget)
+	if err != nil {
+		return "", err
+	}
+	return rel, nil
 }
 
 func (r *Refs) ReadRef(name string) (string, error) {
@@ -50,7 +90,7 @@ func (r *Refs) ReadRef(name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return r.readRefFile(path)
+	return r.readSymRef(path)
 }
 
 func (r *Refs) CreateBranch(branchName, startOid string) error {
@@ -70,6 +110,23 @@ func (r *Refs) CreateBranch(branchName, startOid string) error {
 	return r.updateRefFile(path, startOid)
 }
 
+func (r *Refs) CurrentRef(source string) (interface{}, error) {
+	if source == "" {
+		source = HEAD
+	}
+	ref, err := r.readOidOrSymRef(filepath.Join(r.pathname, source))
+	if err != nil {
+		return nil, err
+	}
+
+	switch v := ref.(type) {
+	case SymRef:
+		return r.CurrentRef(v.Path)
+	default:
+		return SymRef{Path: source}, nil
+	}
+}
+
 func (r *Refs) pathForName(name string) (string, error) {
 	prefixes := []string{r.pathname, r.refsPath, r.headsPath}
 
@@ -83,19 +140,36 @@ func (r *Refs) pathForName(name string) (string, error) {
 	return "", err
 }
 
-func (r *Refs) readRefFile(path string) (string, error) {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return "", nil
-	} else if err != nil {
-		return "", err
+func (r *Refs) readOidOrSymRef(path string) (interface{}, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
 	}
 
-	data, err := ioutil.ReadFile(path)
+	trimedData := strings.TrimSpace(string(data))
+	matches := symRefRegexp.FindStringSubmatch(trimedData)
+	if matches != nil {
+		return SymRef{Path: matches[1]}, nil
+	}
+	return Ref{Oid: trimedData}, nil
+}
+
+func (r *Refs) readSymRef(path string) (string, error) {
+	ref, err := r.readOidOrSymRef(path)
 	if err != nil {
 		return "", err
 	}
 
-	return strings.TrimSpace(string(data)), nil
+	switch v := ref.(type) {
+	case SymRef:
+		return r.readSymRef(filepath.Join(r.pathname, v.Path))
+	case Ref:
+		return v.Oid, nil
+	}
+	return "", fmt.Errorf("")
 }
 
 func (r *Refs) updateRefFile(path, oid string) error {

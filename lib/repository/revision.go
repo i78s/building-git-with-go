@@ -177,16 +177,16 @@ func parse(revision string) ParsedRevision {
 		if name == "" {
 			name = revision
 		}
-		return &Ref{name}
+		return &ref{name}
 	}
 	return nil
 }
 
-type Ref struct {
+type ref struct {
 	name string
 }
 
-func (r *Ref) resolve(context *Revision) (string, error) {
+func (r *ref) resolve(context *Revision) (string, error) {
 	return context.readRef(r.name)
 }
 

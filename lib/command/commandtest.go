@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func SetupTestEnvironment(t *testing.T) (string, *bytes.Buffer, *bytes.Buffer) {
+func setupTestEnvironment(t *testing.T) (string, *bytes.Buffer, *bytes.Buffer) {
 	tmpDir, err := ioutil.TempDir("", "jit")
 	if err != nil {
 		t.Fatal(err)
@@ -24,7 +24,7 @@ func SetupTestEnvironment(t *testing.T) (string, *bytes.Buffer, *bytes.Buffer) {
 	return tmpDir, outStream, errStream
 }
 
-func TestCommit(t *testing.T, dir string, message string) {
+func commit(t *testing.T, dir string, message string) {
 	t.Helper()
 
 	os.Setenv("GIT_AUTHOR_NAME", "A. U. Thor")
@@ -34,6 +34,11 @@ func TestCommit(t *testing.T, dir string, message string) {
 
 	stdin := strings.NewReader(message)
 	Commit(dir, []string{}, stdin, new(bytes.Buffer), new(bytes.Buffer))
+}
+
+func resolveRevision(t *testing.T, tmpDir, expression string) (string, error) {
+	t.Helper()
+	return repository.NewRevision(repo(t, tmpDir), expression).Resolve("")
 }
 
 func setupRepo(t *testing.T, path string) {
@@ -55,7 +60,7 @@ func setupRepo(t *testing.T, path string) {
 	}
 }
 
-func Repo(t *testing.T, path string) *repository.Repository {
+func repo(t *testing.T, path string) *repository.Repository {
 	t.Helper()
 	rootPath, err := filepath.Abs(path)
 	if err != nil {
@@ -65,7 +70,7 @@ func Repo(t *testing.T, path string) *repository.Repository {
 	return repository.NewRepository(rootPath)
 }
 
-func WriteFile(t *testing.T, path, name, content string) {
+func writeFile(t *testing.T, path, name, content string) {
 	t.Helper()
 
 	dir := filepath.Join(path, filepath.Dir(name))
@@ -87,7 +92,7 @@ func WriteFile(t *testing.T, path, name, content string) {
 	}
 }
 
-func MakeExecutable(t *testing.T, path, name string) {
+func makeExecutable(t *testing.T, path, name string) {
 	t.Helper()
 
 	err := os.Chmod(filepath.Join(path, name), 0755)
@@ -96,7 +101,7 @@ func MakeExecutable(t *testing.T, path, name string) {
 	}
 }
 
-func MakeUnreadable(t *testing.T, path, name string) {
+func makeUnreadable(t *testing.T, path, name string) {
 	t.Helper()
 
 	err := os.Chmod(filepath.Join(path, name), 0200)
@@ -105,7 +110,7 @@ func MakeUnreadable(t *testing.T, path, name string) {
 	}
 }
 
-func Mkdir(t *testing.T, path, name string) {
+func mkdir(t *testing.T, path, name string) {
 	t.Helper()
 
 	dir := filepath.Join(path, name)
@@ -115,7 +120,7 @@ func Mkdir(t *testing.T, path, name string) {
 	}
 }
 
-func Touch(t *testing.T, path, name string) {
+func touch(t *testing.T, path, name string) {
 	t.Helper()
 
 	filePath := filepath.Join(path, name)
@@ -135,7 +140,7 @@ func Touch(t *testing.T, path, name string) {
 	}
 }
 
-func Delete(t *testing.T, path, name string) {
+func delete(t *testing.T, path, name string) {
 	t.Helper()
 
 	filePath := filepath.Join(path, name)

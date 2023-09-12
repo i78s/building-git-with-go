@@ -33,7 +33,7 @@ func assertIndex(t *testing.T, tmpDir string, expected []*indexEntry) {
 }
 
 func TestAddRegularFileToIndex(t *testing.T) {
-	tmpDir, stdout, stderr := SetupTestEnvironment(t)
+	tmpDir, stdout, stderr := setupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)
 
 	filesToAdd := []*filesToAdd{
@@ -46,7 +46,7 @@ func TestAddRegularFileToIndex(t *testing.T) {
 	fileNames := make([]string, len(filesToAdd))
 	for i, file := range filesToAdd {
 		fileNames[i] = file.name
-		WriteFile(t, tmpDir, file.name, file.content)
+		writeFile(t, tmpDir, file.name, file.content)
 	}
 
 	Add(tmpDir, fileNames, stdout, stderr)
@@ -54,7 +54,7 @@ func TestAddRegularFileToIndex(t *testing.T) {
 }
 
 func TestAddExecutableFileToIndex(t *testing.T) {
-	tmpDir, stdout, stderr := SetupTestEnvironment(t)
+	tmpDir, stdout, stderr := setupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)
 
 	filesToAdd := []*filesToAdd{
@@ -67,8 +67,8 @@ func TestAddExecutableFileToIndex(t *testing.T) {
 	fileNames := make([]string, len(filesToAdd))
 	for i, file := range filesToAdd {
 		fileNames[i] = file.name
-		WriteFile(t, tmpDir, file.name, file.content)
-		MakeExecutable(t, tmpDir, file.name)
+		writeFile(t, tmpDir, file.name, file.content)
+		makeExecutable(t, tmpDir, file.name)
 	}
 
 	Add(tmpDir, fileNames, stdout, stderr)
@@ -76,7 +76,7 @@ func TestAddExecutableFileToIndex(t *testing.T) {
 }
 
 func TestAddMultipleFilesToIndex(t *testing.T) {
-	tmpDir, stdout, stderr := SetupTestEnvironment(t)
+	tmpDir, stdout, stderr := setupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)
 
 	filesToAdd := []*filesToAdd{
@@ -91,7 +91,7 @@ func TestAddMultipleFilesToIndex(t *testing.T) {
 	fileNames := make([]string, len(filesToAdd))
 	for i, file := range filesToAdd {
 		fileNames[i] = file.name
-		WriteFile(t, tmpDir, file.name, file.content)
+		writeFile(t, tmpDir, file.name, file.content)
 	}
 
 	Add(tmpDir, fileNames, stdout, stderr)
@@ -99,7 +99,7 @@ func TestAddMultipleFilesToIndex(t *testing.T) {
 }
 
 func TestIncrementallyAddFilesToIndex(t *testing.T) {
-	tmpDir, stdout, stderr := SetupTestEnvironment(t)
+	tmpDir, stdout, stderr := setupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)
 
 	filesToAdd := []*filesToAdd{
@@ -110,7 +110,7 @@ func TestIncrementallyAddFilesToIndex(t *testing.T) {
 	fileNames := make([]string, len(filesToAdd))
 	for i, file := range filesToAdd {
 		fileNames[i] = file.name
-		WriteFile(t, tmpDir, file.name, file.content)
+		writeFile(t, tmpDir, file.name, file.content)
 	}
 
 	Add(tmpDir, []string{fileNames[0]}, stdout, stderr)
@@ -125,7 +125,7 @@ func TestIncrementallyAddFilesToIndex(t *testing.T) {
 }
 
 func TestAddDirectoryToIndex(t *testing.T) {
-	tmpDir, stdout, stderr := SetupTestEnvironment(t)
+	tmpDir, stdout, stderr := setupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)
 
 	filesToAdd := []*filesToAdd{
@@ -135,7 +135,7 @@ func TestAddDirectoryToIndex(t *testing.T) {
 	fileNames := make([]string, len(filesToAdd))
 	for i, file := range filesToAdd {
 		fileNames[i] = file.name
-		WriteFile(t, tmpDir, file.name, file.content)
+		writeFile(t, tmpDir, file.name, file.content)
 	}
 
 	Add(tmpDir, []string{"a-dir"}, stdout, stderr)
@@ -145,7 +145,7 @@ func TestAddDirectoryToIndex(t *testing.T) {
 }
 
 func TestAddRepositoryRootToIndex(t *testing.T) {
-	tmpDir, stdout, stderr := SetupTestEnvironment(t)
+	tmpDir, stdout, stderr := setupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)
 
 	filesToAdd := []*filesToAdd{
@@ -155,7 +155,7 @@ func TestAddRepositoryRootToIndex(t *testing.T) {
 	fileNames := make([]string, len(filesToAdd))
 	for i, file := range filesToAdd {
 		fileNames[i] = file.name
-		WriteFile(t, tmpDir, file.name, file.content)
+		writeFile(t, tmpDir, file.name, file.content)
 	}
 
 	Add(tmpDir, []string{"."}, stdout, stderr)
@@ -165,7 +165,7 @@ func TestAddRepositoryRootToIndex(t *testing.T) {
 }
 
 func TestIsSilentOnSuccess(t *testing.T) {
-	tmpDir, stdout, stderr := SetupTestEnvironment(t)
+	tmpDir, stdout, stderr := setupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)
 
 	filesToAdd := []*filesToAdd{
@@ -175,7 +175,7 @@ func TestIsSilentOnSuccess(t *testing.T) {
 	fileNames := make([]string, len(filesToAdd))
 	for i, file := range filesToAdd {
 		fileNames[i] = file.name
-		WriteFile(t, tmpDir, file.name, file.content)
+		writeFile(t, tmpDir, file.name, file.content)
 	}
 
 	code := Add(tmpDir, []string{"hello.txt"}, stdout, stderr)
@@ -191,7 +191,7 @@ func TestIsSilentOnSuccess(t *testing.T) {
 }
 
 func TestFailsForNonExistentFiles(t *testing.T) {
-	tmpDir, stdout, stderr := SetupTestEnvironment(t)
+	tmpDir, stdout, stderr := setupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)
 
 	code := Add(tmpDir, []string{"no-such-file"}, stdout, stderr)
@@ -212,7 +212,7 @@ func TestFailsForNonExistentFiles(t *testing.T) {
 }
 
 func TestFailsForUnreadableFiles(t *testing.T) {
-	tmpDir, stdout, stderr := SetupTestEnvironment(t)
+	tmpDir, stdout, stderr := setupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)
 
 	filesToAdd := []*filesToAdd{
@@ -222,8 +222,8 @@ func TestFailsForUnreadableFiles(t *testing.T) {
 	fileNames := make([]string, len(filesToAdd))
 	for i, file := range filesToAdd {
 		fileNames[i] = file.name
-		WriteFile(t, tmpDir, file.name, file.content)
-		MakeUnreadable(t, tmpDir, file.name)
+		writeFile(t, tmpDir, file.name, file.content)
+		makeUnreadable(t, tmpDir, file.name)
 	}
 
 	code := Add(tmpDir, []string{"secret.txt"}, stdout, stderr)
@@ -240,7 +240,7 @@ func TestFailsForUnreadableFiles(t *testing.T) {
 }
 
 func TestFailsIfIndexIsLocked(t *testing.T) {
-	tmpDir, stdout, stderr := SetupTestEnvironment(t)
+	tmpDir, stdout, stderr := setupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)
 
 	filesToAdd := []*filesToAdd{
@@ -251,7 +251,7 @@ func TestFailsIfIndexIsLocked(t *testing.T) {
 	fileNames := make([]string, len(filesToAdd))
 	for i, file := range filesToAdd {
 		fileNames[i] = file.name
-		WriteFile(t, tmpDir, file.name, file.content)
+		writeFile(t, tmpDir, file.name, file.content)
 	}
 
 	code := Add(tmpDir, []string{"file.txt"}, stdout, stderr)

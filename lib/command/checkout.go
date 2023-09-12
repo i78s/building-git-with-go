@@ -58,7 +58,7 @@ func (c *CheckOut) Run() int {
 	}
 
 	c.repo.Index.WriteUpdates()
-	c.repo.Refs.UpdateHead(targetOid)
+	c.repo.Refs.SetHead(target, targetOid)
 
 	return 0
 }

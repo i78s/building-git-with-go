@@ -14,32 +14,32 @@ func assertParse(t *testing.T, expression string, tree ParsedRevision) {
 
 func TestParse(t *testing.T) {
 	t.Run("parses HEAD", func(t *testing.T) {
-		assertParse(t, "HEAD", &Ref{"HEAD"})
+		assertParse(t, "HEAD", &ref{"HEAD"})
 	})
 
 	t.Run("parses @", func(t *testing.T) {
-		assertParse(t, "@", &Ref{"HEAD"})
+		assertParse(t, "@", &ref{"HEAD"})
 	})
 
 	t.Run("parses a branch name", func(t *testing.T) {
-		assertParse(t, "master", &Ref{"master"})
+		assertParse(t, "master", &ref{"master"})
 	})
 
 	t.Run("parses an object ID", func(t *testing.T) {
-		assertParse(t, "3803cb6dc4ab0a852c6762394397dc44405b5ae4", &Ref{"3803cb6dc4ab0a852c6762394397dc44405b5ae4"})
+		assertParse(t, "3803cb6dc4ab0a852c6762394397dc44405b5ae4", &ref{"3803cb6dc4ab0a852c6762394397dc44405b5ae4"})
 	})
 
 	t.Run("parses a parent ref", func(t *testing.T) {
-		assertParse(t, "HEAD^", &Parent{&Ref{"HEAD"}})
+		assertParse(t, "HEAD^", &Parent{&ref{"HEAD"}})
 	})
 
 	t.Run("parses a chain of parent refs", func(t *testing.T) {
 		assertParse(t, "master^^^",
-			&Parent{&Parent{&Parent{&Ref{"master"}}}})
+			&Parent{&Parent{&Parent{&ref{"master"}}}})
 	})
 
 	t.Run("parses an ancestor ref", func(t *testing.T) {
-		assertParse(t, "@~3", &Ancestor{&Ref{"HEAD"}, 3})
+		assertParse(t, "@~3", &Ancestor{&ref{"HEAD"}, 3})
 	})
 
 	t.Run("parses a chain of parents and ancestors", func(t *testing.T) {
@@ -48,7 +48,7 @@ func TestParse(t *testing.T) {
 				&Parent{
 					&Parent{
 						&Ancestor{
-							&Ref{"HEAD"},
+							&ref{"HEAD"},
 							2,
 						},
 					},

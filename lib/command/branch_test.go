@@ -2,7 +2,6 @@ package command
 
 import (
 	"building-git/lib/database"
-	"building-git/lib/repository"
 	"bytes"
 	"fmt"
 	"os"
@@ -10,35 +9,15 @@ import (
 	"testing"
 )
 
-func branch(
-	t *testing.T,
-	tmpDir string,
-	args []string,
-	options BranchOption,
-	stdout *bytes.Buffer,
-	stderr *bytes.Buffer,
-) *Branch {
-	cmd, err := NewBranch(tmpDir, args, options, stdout, stderr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return cmd
-}
-
-func resolveRevision(t *testing.T, tmpDir, expression string) (string, error) {
-	t.Helper()
-	return repository.NewRevision(Repo(t, tmpDir), expression).Resolve("")
-}
-
 func TestBranchWithChainOfCommits(t *testing.T) {
 	setup := func() (tmpDir string, stdout, stderr *bytes.Buffer) {
-		tmpDir, stdout, stderr = SetupTestEnvironment(t)
+		tmpDir, stdout, stderr = setupTestEnvironment(t)
 
 		messages := []string{"first", "second", "third"}
 		for _, msg := range messages {
-			WriteFile(t, tmpDir, "file.txt", msg)
+			writeFile(t, tmpDir, "file.txt", msg)
 			Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-			TestCommit(t, tmpDir, msg)
+			commit(t, tmpDir, msg)
 		}
 
 		return
@@ -48,7 +27,7 @@ func TestBranchWithChainOfCommits(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
 
-		cmd := branch(t, tmpDir, []string{"topic"}, BranchOption{}, stdout, stderr)
+		cmd, _ := NewBranch(tmpDir, []string{"topic"}, BranchOption{}, stdout, stderr)
 		cmd.Run()
 
 		expected, _ := cmd.repo.Refs.ReadHead()
@@ -63,7 +42,7 @@ func TestBranchWithChainOfCommits(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
 
-		cmd := branch(t, tmpDir, []string{"^"}, BranchOption{}, stdout, stderr)
+		cmd, _ := NewBranch(tmpDir, []string{"^"}, BranchOption{}, stdout, stderr)
 		cmd.Run()
 
 		expected := `fatal: '^' is not a valid branch name.`
@@ -77,7 +56,7 @@ func TestBranchWithChainOfCommits(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
 
-		cmd := branch(t, tmpDir, []string{"topic"}, BranchOption{}, stdout, stderr)
+		cmd, _ := NewBranch(tmpDir, []string{"topic"}, BranchOption{}, stdout, stderr)
 		cmd.Run()
 		cmd.Run() // call twice
 
@@ -92,7 +71,7 @@ func TestBranchWithChainOfCommits(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
 
-		cmd := branch(t, tmpDir, []string{"topic", "HEAD^"}, BranchOption{}, stdout, stderr)
+		cmd, _ := NewBranch(tmpDir, []string{"topic", "HEAD^"}, BranchOption{}, stdout, stderr)
 		cmd.Run()
 
 		oid, _ := cmd.repo.Refs.ReadHead()
@@ -111,7 +90,7 @@ func TestBranchWithChainOfCommits(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
 
-		cmd := branch(t, tmpDir, []string{"topic", "@~2"}, BranchOption{}, stdout, stderr)
+		cmd, _ := NewBranch(tmpDir, []string{"topic", "@~2"}, BranchOption{}, stdout, stderr)
 		cmd.Run()
 
 		oid, _ := cmd.repo.Refs.ReadHead()
@@ -132,9 +111,9 @@ func TestBranchWithChainOfCommits(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
 
-		cmd := branch(t, tmpDir, []string{"topic", "@~1"}, BranchOption{}, stdout, stderr)
+		cmd, _ := NewBranch(tmpDir, []string{"topic", "@~1"}, BranchOption{}, stdout, stderr)
 		cmd.Run()
-		cmd = branch(t, tmpDir, []string{"another", "topic^"}, BranchOption{}, stdout, stderr)
+		cmd, _ = NewBranch(tmpDir, []string{"another", "topic^"}, BranchOption{}, stdout, stderr)
 		cmd.Run()
 
 		result, _ := resolveRevision(t, tmpDir, "HEAD~2")
@@ -150,13 +129,13 @@ func TestBranchWithChainOfCommits(t *testing.T) {
 		defer os.RemoveAll(tmpDir)
 
 		commitId, _ := resolveRevision(t, tmpDir, "@~2")
-		repo := Repo(t, tmpDir)
+		r := repo(t, tmpDir)
 
-		a := repo.Database.ShortOid(commitId)
-		cmd := branch(t, tmpDir, []string{"topic", a}, BranchOption{}, stdout, stderr)
+		a := r.Database.ShortOid(commitId)
+		cmd, _ := NewBranch(tmpDir, []string{"topic", a}, BranchOption{}, stdout, stderr)
 		cmd.Run()
 
-		expected, _ := repo.Refs.ReadRef("topic")
+		expected, _ := r.Refs.ReadRef("topic")
 
 		if !reflect.DeepEqual(commitId, expected) {
 			t.Errorf("want %q, but got %q", expected, commitId)
@@ -167,7 +146,7 @@ func TestBranchWithChainOfCommits(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
 
-		cmd := branch(t, tmpDir, []string{"topic", "^"}, BranchOption{}, stdout, stderr)
+		cmd, _ := NewBranch(tmpDir, []string{"topic", "^"}, BranchOption{}, stdout, stderr)
 		cmd.Run()
 
 		expected := `fatal: Not a valid object name: '^'.`
@@ -181,7 +160,7 @@ func TestBranchWithChainOfCommits(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
 
-		cmd := branch(t, tmpDir, []string{"topic", "no-such-branch"}, BranchOption{}, stdout, stderr)
+		cmd, _ := NewBranch(tmpDir, []string{"topic", "no-such-branch"}, BranchOption{}, stdout, stderr)
 		cmd.Run()
 
 		expected := `fatal: Not a valid object name: 'no-such-branch'.`
@@ -195,7 +174,7 @@ func TestBranchWithChainOfCommits(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
 
-		cmd := branch(t, tmpDir, []string{"topic", "@^^^^"}, BranchOption{}, stdout, stderr)
+		cmd, _ := NewBranch(tmpDir, []string{"topic", "@^^^^"}, BranchOption{}, stdout, stderr)
 		cmd.Run()
 
 		expected := `fatal: Not a valid object name: '@^^^^'.`
@@ -209,7 +188,7 @@ func TestBranchWithChainOfCommits(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
 
-		cmd := branch(t, tmpDir, []string{"topic", "@~50"}, BranchOption{}, stdout, stderr)
+		cmd, _ := NewBranch(tmpDir, []string{"topic", "@~50"}, BranchOption{}, stdout, stderr)
 		cmd.Run()
 
 		expected := `fatal: Not a valid object name: '@~50'.`
@@ -223,11 +202,11 @@ func TestBranchWithChainOfCommits(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
 
-		repo := Repo(t, tmpDir)
-		head, _ := repo.Refs.ReadHead()
-		treeObj, _ := repo.Database.Load(head)
+		r := repo(t, tmpDir)
+		head, _ := r.Refs.ReadHead()
+		treeObj, _ := r.Database.Load(head)
 		treeId := treeObj.(*database.Commit).Tree()
-		cmd := branch(t, tmpDir, []string{"topic", treeId}, BranchOption{}, stdout, stderr)
+		cmd, _ := NewBranch(tmpDir, []string{"topic", treeId}, BranchOption{}, stdout, stderr)
 		cmd.Run()
 
 		expected := fmt.Sprintf("error: object %s is a tree, not a commit\nfatal: Not a valid object name: '%s'.", treeId, treeId)
@@ -241,11 +220,11 @@ func TestBranchWithChainOfCommits(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
 
-		repo := Repo(t, tmpDir)
-		head, _ := repo.Refs.ReadHead()
-		treeObj, _ := repo.Database.Load(head)
+		r := repo(t, tmpDir)
+		head, _ := r.Refs.ReadHead()
+		treeObj, _ := r.Database.Load(head)
 		treeId := treeObj.(*database.Commit).Tree()
-		cmd := branch(t, tmpDir, []string{"topic", treeId + "^^"}, BranchOption{}, stdout, stderr)
+		cmd, _ := NewBranch(tmpDir, []string{"topic", treeId + "^^"}, BranchOption{}, stdout, stderr)
 		cmd.Run()
 
 		expected := fmt.Sprintf("error: object %s is a tree, not a commit\nfatal: Not a valid object name: '%s'.", treeId, treeId+"^^")

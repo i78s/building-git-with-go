@@ -23,15 +23,15 @@ func assertStatus(t *testing.T, tmpDir string, stdout *bytes.Buffer, stderr *byt
 }
 
 func TestStatusListFilesAsUntrackedIfTheyAreNotInTheIndex(t *testing.T) {
-	tmpDir, stdout, stderr := SetupTestEnvironment(t)
+	tmpDir, stdout, stderr := setupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)
 
-	WriteFile(t, tmpDir, "committed.txt", "")
+	writeFile(t, tmpDir, "committed.txt", "")
 
 	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-	TestCommit(t, tmpDir, "commit message")
+	commit(t, tmpDir, "commit message")
 
-	WriteFile(t, tmpDir, "file.txt", "")
+	writeFile(t, tmpDir, "file.txt", "")
 
 	expected := `?? file.txt
 `
@@ -39,7 +39,7 @@ func TestStatusListFilesAsUntrackedIfTheyAreNotInTheIndex(t *testing.T) {
 }
 
 func TestStatusListUntrackedFilesInNameOrder(t *testing.T) {
-	tmpDir, stdout, stderr := SetupTestEnvironment(t)
+	tmpDir, stdout, stderr := setupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)
 
 	filesToAdd := []*filesToAdd{
@@ -47,7 +47,7 @@ func TestStatusListUntrackedFilesInNameOrder(t *testing.T) {
 		{name: "another.txt", content: ""},
 	}
 	for _, file := range filesToAdd {
-		WriteFile(t, tmpDir, file.name, file.content)
+		writeFile(t, tmpDir, file.name, file.content)
 	}
 
 	expected := `?? another.txt
@@ -57,7 +57,7 @@ func TestStatusListUntrackedFilesInNameOrder(t *testing.T) {
 }
 
 func TestStatusListUntrackedDirectoriesNotTheirContents(t *testing.T) {
-	tmpDir, stdout, stderr := SetupTestEnvironment(t)
+	tmpDir, stdout, stderr := setupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)
 
 	filesToAdd := []*filesToAdd{
@@ -65,7 +65,7 @@ func TestStatusListUntrackedDirectoriesNotTheirContents(t *testing.T) {
 		{name: "dir/another.txt", content: ""},
 	}
 	for _, file := range filesToAdd {
-		WriteFile(t, tmpDir, file.name, file.content)
+		writeFile(t, tmpDir, file.name, file.content)
 	}
 
 	expected := `?? dir/
@@ -75,19 +75,19 @@ func TestStatusListUntrackedDirectoriesNotTheirContents(t *testing.T) {
 }
 
 func TestStatusListUntrackedFilesInsideTrackedDirectories(t *testing.T) {
-	tmpDir, stdout, stderr := SetupTestEnvironment(t)
+	tmpDir, stdout, stderr := setupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)
 
-	WriteFile(t, tmpDir, "a/b/inner.txt", "")
+	writeFile(t, tmpDir, "a/b/inner.txt", "")
 	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-	TestCommit(t, tmpDir, "commit message")
+	commit(t, tmpDir, "commit message")
 
 	filesToAdd := []*filesToAdd{
 		{name: "a/outer.txt", content: ""},
 		{name: "a/b/c/file.txt", content: ""},
 	}
 	for _, file := range filesToAdd {
-		WriteFile(t, tmpDir, file.name, file.content)
+		writeFile(t, tmpDir, file.name, file.content)
 	}
 
 	expected := `?? a/b/c/
@@ -97,20 +97,20 @@ func TestStatusListUntrackedFilesInsideTrackedDirectories(t *testing.T) {
 }
 
 func TestStatusDoesNotListEmptyUntrackedDirectories(t *testing.T) {
-	tmpDir, stdout, stderr := SetupTestEnvironment(t)
+	tmpDir, stdout, stderr := setupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)
 
-	Mkdir(t, tmpDir, "outer")
+	mkdir(t, tmpDir, "outer")
 
 	expected := ``
 	assertStatus(t, tmpDir, stdout, stderr, expected)
 }
 
 func TestStatusListUntrackedDirectoriesIndirectlyContainFiles(t *testing.T) {
-	tmpDir, stdout, stderr := SetupTestEnvironment(t)
+	tmpDir, stdout, stderr := setupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)
 
-	WriteFile(t, tmpDir, "outer/inner/file.txt", "")
+	writeFile(t, tmpDir, "outer/inner/file.txt", "")
 
 	expected := `?? outer/
 `
@@ -119,7 +119,7 @@ func TestStatusListUntrackedDirectoriesIndirectlyContainFiles(t *testing.T) {
 
 func TestStatusIndexWorkspaceChanges(t *testing.T) {
 	setup := func() (tmpDir string, stdout, stderr *bytes.Buffer) {
-		tmpDir, stdout, stderr = SetupTestEnvironment(t)
+		tmpDir, stdout, stderr = setupTestEnvironment(t)
 
 		filesToAdd := []*filesToAdd{
 			{name: "1.txt", content: "one"},
@@ -127,11 +127,11 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 			{name: "a/b/3.txt", content: "three"},
 		}
 		for _, file := range filesToAdd {
-			WriteFile(t, tmpDir, file.name, file.content)
+			writeFile(t, tmpDir, file.name, file.content)
 		}
 
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-		TestCommit(t, tmpDir, "commit message")
+		commit(t, tmpDir, "commit message")
 
 		return
 	}
@@ -147,8 +147,8 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 	t.Run("reports files with modified contents", func(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
-		WriteFile(t, tmpDir, "1.txt", "changed")
-		WriteFile(t, tmpDir, "a/2.txt", "modified")
+		writeFile(t, tmpDir, "1.txt", "changed")
+		writeFile(t, tmpDir, "a/2.txt", "modified")
 
 		expected := ` M 1.txt
  M a/2.txt
@@ -159,7 +159,7 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 	t.Run("reports modified files with unchanged size", func(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
-		WriteFile(t, tmpDir, "a/b/3.txt", "hello")
+		writeFile(t, tmpDir, "a/b/3.txt", "hello")
 
 		expected := ` M a/b/3.txt
 `
@@ -169,7 +169,7 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 	t.Run("reports files with changed modes", func(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
-		MakeExecutable(t, tmpDir, "a/2.txt")
+		makeExecutable(t, tmpDir, "a/2.txt")
 
 		expected := ` M a/2.txt
 `
@@ -179,7 +179,7 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 	t.Run("prints nothing if a file is touched", func(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
-		Touch(t, tmpDir, "1.txt")
+		touch(t, tmpDir, "1.txt")
 
 		expected := ``
 		assertStatus(t, tmpDir, stdout, stderr, expected)
@@ -188,7 +188,7 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 	t.Run("reports deleted files", func(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
-		Delete(t, tmpDir, "a/2.txt")
+		delete(t, tmpDir, "a/2.txt")
 
 		expected := ` D a/2.txt
 `
@@ -198,7 +198,7 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 	t.Run("reports files in deleted directories", func(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
-		Delete(t, tmpDir, "a")
+		delete(t, tmpDir, "a")
 
 		expected := ` D a/2.txt
  D a/b/3.txt
@@ -209,7 +209,7 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 
 func TestStatusHeadIndexChanges(t *testing.T) {
 	setup := func() (tmpDir string, stdout, stderr *bytes.Buffer) {
-		tmpDir, stdout, stderr = SetupTestEnvironment(t)
+		tmpDir, stdout, stderr = setupTestEnvironment(t)
 
 		filesToAdd := []*filesToAdd{
 			{name: "1.txt", content: "one"},
@@ -217,11 +217,11 @@ func TestStatusHeadIndexChanges(t *testing.T) {
 			{name: "a/b/3.txt", content: "three"},
 		}
 		for _, file := range filesToAdd {
-			WriteFile(t, tmpDir, file.name, file.content)
+			writeFile(t, tmpDir, file.name, file.content)
 		}
 
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-		TestCommit(t, tmpDir, "commit message")
+		commit(t, tmpDir, "commit message")
 
 		return
 	}
@@ -229,7 +229,7 @@ func TestStatusHeadIndexChanges(t *testing.T) {
 	t.Run("reports a file added to a tracked directory", func(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
-		WriteFile(t, tmpDir, "a/4.txt", "four")
+		writeFile(t, tmpDir, "a/4.txt", "four")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
 
 		expected := `A  a/4.txt
@@ -240,7 +240,7 @@ func TestStatusHeadIndexChanges(t *testing.T) {
 	t.Run("reports a file added to an untracked directory", func(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
-		WriteFile(t, tmpDir, "d/e/5.txt", "five")
+		writeFile(t, tmpDir, "d/e/5.txt", "five")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
 
 		expected := `A  d/e/5.txt
@@ -251,7 +251,7 @@ func TestStatusHeadIndexChanges(t *testing.T) {
 	t.Run("reports modified modes", func(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
-		MakeExecutable(t, tmpDir, "1.txt")
+		makeExecutable(t, tmpDir, "1.txt")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
 
 		expected := `M  1.txt
@@ -262,7 +262,7 @@ func TestStatusHeadIndexChanges(t *testing.T) {
 	t.Run("reports modified contents", func(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
-		WriteFile(t, tmpDir, "a/b/3.txt", "changed")
+		writeFile(t, tmpDir, "a/b/3.txt", "changed")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
 
 		expected := `M  a/b/3.txt
@@ -273,8 +273,8 @@ func TestStatusHeadIndexChanges(t *testing.T) {
 	t.Run("reports deleted files", func(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
-		Delete(t, tmpDir, "1.txt")
-		Delete(t, tmpDir, ".git/index")
+		delete(t, tmpDir, "1.txt")
+		delete(t, tmpDir, ".git/index")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
 
 		expected := `D  1.txt
@@ -285,8 +285,8 @@ func TestStatusHeadIndexChanges(t *testing.T) {
 	t.Run("reports all deleted files inside directories", func(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
-		Delete(t, tmpDir, "a")
-		Delete(t, tmpDir, ".git/index")
+		delete(t, tmpDir, "a")
+		delete(t, tmpDir, ".git/index")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
 
 		expected := `D  a/2.txt

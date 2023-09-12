@@ -85,27 +85,28 @@ var baseFiles = map[string]string{
 	"outer/inner/3.txt": "3",
 }
 
+var checkout = func(tmpDir string, stdout, stderr *bytes.Buffer, revision string) {
+	options := CheckOutOption{}
+	checkout, _ := NewCheckOut(tmpDir, []string{revision}, options, stdout, stderr)
+	checkout.Run()
+}
+
 func TestCheckOutWithSetOfFiles(t *testing.T) {
 	commitAll := func(t *testing.T, tmpDir string) {
-		Delete(t, tmpDir, ".git/index")
+		delete(t, tmpDir, ".git/index")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-		TestCommit(t, tmpDir, "change")
-	}
-	checkout := func(tmpDir string, stdout, stderr *bytes.Buffer, revision string) {
-		options := CheckOutOption{}
-		checkout, _ := NewCheckOut(tmpDir, []string{revision}, options, stdout, stderr)
-		checkout.Run()
+		commit(t, tmpDir, "change")
 	}
 
 	setup := func() (tmpDir string, stdout, stderr *bytes.Buffer, commitAndCheckout func(revision string)) {
-		tmpDir, stdout, stderr = SetupTestEnvironment(t)
+		tmpDir, stdout, stderr = setupTestEnvironment(t)
 
 		for name, content := range baseFiles {
-			WriteFile(t, tmpDir, name, content)
+			writeFile(t, tmpDir, name, content)
 		}
 
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-		TestCommit(t, tmpDir, "first")
+		commit(t, tmpDir, "first")
 
 		commitAndCheckout = func(revision string) {
 			commitAll(t, tmpDir)
@@ -119,7 +120,7 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, commitAndCheckout := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "1.txt", "changed")
+		writeFile(t, tmpDir, "1.txt", "changed")
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
@@ -130,10 +131,10 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "1.txt", "changed")
+		writeFile(t, tmpDir, "1.txt", "changed")
 		commitAll(t, tmpDir)
 
-		WriteFile(t, tmpDir, "1.txt", "conflict")
+		writeFile(t, tmpDir, "1.txt", "conflict")
 		checkout(tmpDir, stdout, stderr, "@^")
 
 		assertStaleFile(t, stderr, "1.txt")
@@ -143,10 +144,10 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "1.txt", "changed")
+		writeFile(t, tmpDir, "1.txt", "changed")
 		commitAll(t, tmpDir)
 
-		WriteFile(t, tmpDir, "1.txt", "1")
+		writeFile(t, tmpDir, "1.txt", "1")
 		checkout(tmpDir, stdout, stderr, "@^")
 
 		assertStaleFile(t, stderr, "1.txt")
@@ -156,10 +157,10 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "1.txt", "changed")
+		writeFile(t, tmpDir, "1.txt", "changed")
 		commitAll(t, tmpDir)
 
-		MakeExecutable(t, tmpDir, "1.txt")
+		makeExecutable(t, tmpDir, "1.txt")
 		checkout(tmpDir, stdout, stderr, "@^")
 
 		assertStaleFile(t, stderr, "1.txt")
@@ -169,10 +170,10 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "1.txt", "changed")
+		writeFile(t, tmpDir, "1.txt", "changed")
 		commitAll(t, tmpDir)
 
-		Delete(t, tmpDir, "1.txt")
+		delete(t, tmpDir, "1.txt")
 		checkout(tmpDir, stdout, stderr, "@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
@@ -183,10 +184,10 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "outer/inner/3.txt", "changed")
+		writeFile(t, tmpDir, "outer/inner/3.txt", "changed")
 		commitAll(t, tmpDir)
 
-		Delete(t, tmpDir, "outer")
+		delete(t, tmpDir, "outer")
 		checkout(tmpDir, stdout, stderr, "@^")
 
 		assertWorkspace(t, tmpDir, map[string]string{
@@ -201,10 +202,10 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "1.txt", "changed")
+		writeFile(t, tmpDir, "1.txt", "changed")
 		commitAll(t, tmpDir)
 
-		WriteFile(t, tmpDir, "1.txt", "conflict")
+		writeFile(t, tmpDir, "1.txt", "conflict")
 		Add(tmpDir, []string{"."}, stdout, stderr)
 
 		checkout(tmpDir, stdout, stderr, "@^")
@@ -215,10 +216,10 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "1.txt", "changed")
+		writeFile(t, tmpDir, "1.txt", "changed")
 		commitAll(t, tmpDir)
 
-		WriteFile(t, tmpDir, "1.txt", "1")
+		writeFile(t, tmpDir, "1.txt", "1")
 		Add(tmpDir, []string{"."}, stdout, stderr)
 		checkout(tmpDir, stdout, stderr, "@^")
 
@@ -230,10 +231,10 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "1.txt", "changed")
+		writeFile(t, tmpDir, "1.txt", "changed")
 		commitAll(t, tmpDir)
 
-		MakeExecutable(t, tmpDir, "1.txt")
+		makeExecutable(t, tmpDir, "1.txt")
 		Add(tmpDir, []string{"."}, stdout, stderr)
 
 		checkout(tmpDir, stdout, stderr, "@^")
@@ -244,11 +245,11 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "1.txt", "changed")
+		writeFile(t, tmpDir, "1.txt", "changed")
 		commitAll(t, tmpDir)
 
-		Delete(t, tmpDir, "1.txt")
-		Delete(t, tmpDir, ".git/index")
+		delete(t, tmpDir, "1.txt")
+		delete(t, tmpDir, ".git/index")
 		Add(tmpDir, []string{"."}, stdout, stderr)
 
 		checkout(tmpDir, stdout, stderr, "@^")
@@ -259,13 +260,13 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "1.txt", "changed")
+		writeFile(t, tmpDir, "1.txt", "changed")
 		commitAll(t, tmpDir)
 
-		Delete(t, tmpDir, "1.txt")
-		Delete(t, tmpDir, ".git/index")
+		delete(t, tmpDir, "1.txt")
+		delete(t, tmpDir, ".git/index")
 		Add(tmpDir, []string{"."}, stdout, stderr)
-		WriteFile(t, tmpDir, "1.txt", "conflict")
+		writeFile(t, tmpDir, "1.txt", "conflict")
 
 		checkout(tmpDir, stdout, stderr, "@^")
 		assertStaleFile(t, stderr, "1.txt")
@@ -275,11 +276,11 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "outer/inner/3.txt", "changed")
+		writeFile(t, tmpDir, "outer/inner/3.txt", "changed")
 		commitAll(t, tmpDir)
 
-		Delete(t, tmpDir, "outer/inner")
-		Delete(t, tmpDir, ".git/index")
+		delete(t, tmpDir, "outer/inner")
+		delete(t, tmpDir, ".git/index")
 		Add(tmpDir, []string{"."}, stdout, stderr)
 
 		checkout(tmpDir, stdout, stderr, "@^")
@@ -290,11 +291,11 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "outer/inner/3.txt", "changed")
+		writeFile(t, tmpDir, "outer/inner/3.txt", "changed")
 		commitAll(t, tmpDir)
 
-		Delete(t, tmpDir, "outer/inner")
-		WriteFile(t, tmpDir, "outer/inner", "conflict")
+		delete(t, tmpDir, "outer/inner")
+		writeFile(t, tmpDir, "outer/inner", "conflict")
 
 		checkout(tmpDir, stdout, stderr, "@^")
 		assertStaleFile(t, stderr, "outer/inner/3.txt")
@@ -304,11 +305,11 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "outer/inner/3.txt", "changed")
+		writeFile(t, tmpDir, "outer/inner/3.txt", "changed")
 		commitAll(t, tmpDir)
 
-		Delete(t, tmpDir, "outer/inner")
-		WriteFile(t, tmpDir, "outer/inner", "conflict")
+		delete(t, tmpDir, "outer/inner")
+		writeFile(t, tmpDir, "outer/inner", "conflict")
 		Add(tmpDir, []string{"."}, stdout, stderr)
 
 		checkout(tmpDir, stdout, stderr, "@^")
@@ -319,13 +320,13 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "outer/inner/3.txt", "changed")
+		writeFile(t, tmpDir, "outer/inner/3.txt", "changed")
 		commitAll(t, tmpDir)
 
-		Delete(t, tmpDir, "outer/inner")
-		Delete(t, tmpDir, ".git/index")
+		delete(t, tmpDir, "outer/inner")
+		delete(t, tmpDir, ".git/index")
 		Add(tmpDir, []string{"."}, stdout, stderr)
-		WriteFile(t, tmpDir, "outer/inner", "conflict")
+		writeFile(t, tmpDir, "outer/inner", "conflict")
 
 		checkout(tmpDir, stdout, stderr, "@^")
 		assertStaleFile(t, stderr, "outer/inner/3.txt")
@@ -335,11 +336,11 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "outer/2.txt", "changed")
+		writeFile(t, tmpDir, "outer/2.txt", "changed")
 		commitAll(t, tmpDir)
 
-		Delete(t, tmpDir, "outer/2.txt")
-		WriteFile(t, tmpDir, "outer/2.txt/extra.log", "conflict")
+		delete(t, tmpDir, "outer/2.txt")
+		writeFile(t, tmpDir, "outer/2.txt/extra.log", "conflict")
 
 		checkout(tmpDir, stdout, stderr, "@^")
 		assertStaleFile(t, stderr, "outer/2.txt")
@@ -349,11 +350,11 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "outer/2.txt", "changed")
+		writeFile(t, tmpDir, "outer/2.txt", "changed")
 		commitAll(t, tmpDir)
 
-		Delete(t, tmpDir, "outer/2.txt")
-		WriteFile(t, tmpDir, "outer/2.txt/extra.log", "conflict")
+		delete(t, tmpDir, "outer/2.txt")
+		writeFile(t, tmpDir, "outer/2.txt/extra.log", "conflict")
 		Add(tmpDir, []string{"."}, stdout, stderr)
 
 		checkout(tmpDir, stdout, stderr, "@^")
@@ -364,7 +365,7 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, commitAndCheckout := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "94.txt", "94")
+		writeFile(t, tmpDir, "94.txt", "94")
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
@@ -375,7 +376,7 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, commitAndCheckout := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "outer/94.txt", "94")
+		writeFile(t, tmpDir, "outer/94.txt", "94")
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
@@ -386,7 +387,7 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, commitAndCheckout := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "new/94.txt", "94")
+		writeFile(t, tmpDir, "new/94.txt", "94")
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
@@ -398,7 +399,7 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, commitAndCheckout := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "new/inner/94.txt", "94")
+		writeFile(t, tmpDir, "new/inner/94.txt", "94")
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
@@ -410,7 +411,7 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, commitAndCheckout := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "outer/94.txt", "94")
+		writeFile(t, tmpDir, "outer/94.txt", "94")
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
@@ -421,10 +422,10 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "outer/94.txt", "94")
+		writeFile(t, tmpDir, "outer/94.txt", "94")
 		commitAll(t, tmpDir)
 
-		WriteFile(t, tmpDir, "outer/94.txt", "conflict")
+		writeFile(t, tmpDir, "outer/94.txt", "conflict")
 		checkout(tmpDir, stdout, stderr, "@^")
 
 		assertStaleFile(t, stderr, "outer/94.txt")
@@ -434,10 +435,10 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "outer/94.txt", "94")
+		writeFile(t, tmpDir, "outer/94.txt", "94")
 		commitAll(t, tmpDir)
 
-		MakeExecutable(t, tmpDir, "outer/94.txt")
+		makeExecutable(t, tmpDir, "outer/94.txt")
 		checkout(tmpDir, stdout, stderr, "@^")
 
 		assertStaleFile(t, stderr, "outer/94.txt")
@@ -447,10 +448,10 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "outer/94.txt", "94")
+		writeFile(t, tmpDir, "outer/94.txt", "94")
 		commitAll(t, tmpDir)
 
-		Delete(t, tmpDir, "outer/94.txt")
+		delete(t, tmpDir, "outer/94.txt")
 		checkout(tmpDir, stdout, stderr, "@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
@@ -461,10 +462,10 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "outer/inner/94.txt", "94")
+		writeFile(t, tmpDir, "outer/inner/94.txt", "94")
 		commitAll(t, tmpDir)
 
-		Delete(t, tmpDir, "outer/inner")
+		delete(t, tmpDir, "outer/inner")
 		checkout(tmpDir, stdout, stderr, "@^")
 
 		assertWorkspace(t, tmpDir, map[string]string{
@@ -479,10 +480,10 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "outer/94.txt", "94")
+		writeFile(t, tmpDir, "outer/94.txt", "94")
 		commitAll(t, tmpDir)
 
-		WriteFile(t, tmpDir, "outer/94.txt", "conflict")
+		writeFile(t, tmpDir, "outer/94.txt", "conflict")
 		Add(tmpDir, []string{"."}, stdout, stderr)
 		checkout(tmpDir, stdout, stderr, "@^")
 
@@ -493,10 +494,10 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "outer/94.txt", "94")
+		writeFile(t, tmpDir, "outer/94.txt", "94")
 		commitAll(t, tmpDir)
 
-		MakeExecutable(t, tmpDir, "outer/94.txt")
+		makeExecutable(t, tmpDir, "outer/94.txt")
 		Add(tmpDir, []string{"."}, stdout, stderr)
 		checkout(tmpDir, stdout, stderr, "@^")
 
@@ -507,11 +508,11 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "outer/94.txt", "94")
+		writeFile(t, tmpDir, "outer/94.txt", "94")
 		commitAll(t, tmpDir)
 
-		Delete(t, tmpDir, "outer/94.txt")
-		Delete(t, tmpDir, ".git/index")
+		delete(t, tmpDir, "outer/94.txt")
+		delete(t, tmpDir, ".git/index")
 		Add(tmpDir, []string{"."}, stdout, stderr)
 		checkout(tmpDir, stdout, stderr, "@^")
 
@@ -523,13 +524,13 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "outer/94.txt", "94")
+		writeFile(t, tmpDir, "outer/94.txt", "94")
 		commitAll(t, tmpDir)
 
-		Delete(t, tmpDir, "outer/94.txt")
-		Delete(t, tmpDir, ".git/index")
+		delete(t, tmpDir, "outer/94.txt")
+		delete(t, tmpDir, ".git/index")
 		Add(tmpDir, []string{"."}, stdout, stderr)
-		WriteFile(t, tmpDir, "outer/94.txt", "conflict")
+		writeFile(t, tmpDir, "outer/94.txt", "conflict")
 		checkout(tmpDir, stdout, stderr, "@^")
 
 		assertRemoveConflict(t, stderr, "outer/94.txt")
@@ -539,11 +540,11 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "outer/inner/94.txt", "94")
+		writeFile(t, tmpDir, "outer/inner/94.txt", "94")
 		commitAll(t, tmpDir)
 
-		Delete(t, tmpDir, "outer/inner")
-		Delete(t, tmpDir, ".git/index")
+		delete(t, tmpDir, "outer/inner")
+		delete(t, tmpDir, ".git/index")
 		Add(tmpDir, []string{"."}, stdout, stderr)
 		checkout(tmpDir, stdout, stderr, "@^")
 
@@ -559,11 +560,11 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "outer/inner/94.txt", "94")
+		writeFile(t, tmpDir, "outer/inner/94.txt", "94")
 		commitAll(t, tmpDir)
 
-		Delete(t, tmpDir, "outer/inner")
-		WriteFile(t, tmpDir, "outer/inner", "conflict")
+		delete(t, tmpDir, "outer/inner")
+		writeFile(t, tmpDir, "outer/inner", "conflict")
 		checkout(tmpDir, stdout, stderr, "@^")
 
 		assertStaleFile(t, stderr, "outer/inner/94.txt")
@@ -573,11 +574,11 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "outer/inner/94.txt", "94")
+		writeFile(t, tmpDir, "outer/inner/94.txt", "94")
 		commitAll(t, tmpDir)
 
-		Delete(t, tmpDir, "outer/inner")
-		WriteFile(t, tmpDir, "outer/inner", "conflict")
+		delete(t, tmpDir, "outer/inner")
+		writeFile(t, tmpDir, "outer/inner", "conflict")
 		Add(tmpDir, []string{"."}, stdout, stderr)
 		checkout(tmpDir, stdout, stderr, "@^")
 
@@ -595,13 +596,13 @@ D  outer/inner/3.txt
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "outer/inner/94.txt", "94")
+		writeFile(t, tmpDir, "outer/inner/94.txt", "94")
 		commitAll(t, tmpDir)
 
-		Delete(t, tmpDir, "outer/inner")
-		Delete(t, tmpDir, ".git/index")
+		delete(t, tmpDir, "outer/inner")
+		delete(t, tmpDir, ".git/index")
 		Add(tmpDir, []string{"."}, stdout, stderr)
-		WriteFile(t, tmpDir, "outer/inner", "conflict")
+		writeFile(t, tmpDir, "outer/inner", "conflict")
 		checkout(tmpDir, stdout, stderr, "@^")
 
 		assertRemoveConflict(t, stderr, "outer/inner")
@@ -611,11 +612,11 @@ D  outer/inner/3.txt
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "outer/94.txt", "94")
+		writeFile(t, tmpDir, "outer/94.txt", "94")
 		commitAll(t, tmpDir)
 
-		Delete(t, tmpDir, "outer/94.txt")
-		WriteFile(t, tmpDir, "outer/94.txt/extra.log", "conflict")
+		delete(t, tmpDir, "outer/94.txt")
+		writeFile(t, tmpDir, "outer/94.txt/extra.log", "conflict")
 		checkout(tmpDir, stdout, stderr, "@^")
 
 		assertStaleFile(t, stderr, "outer/94.txt")
@@ -625,11 +626,11 @@ D  outer/inner/3.txt
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "outer/94.txt", "94")
+		writeFile(t, tmpDir, "outer/94.txt", "94")
 		commitAll(t, tmpDir)
 
-		Delete(t, tmpDir, "outer/94.txt")
-		WriteFile(t, tmpDir, "outer/94.txt/extra.log", "conflict")
+		delete(t, tmpDir, "outer/94.txt")
+		writeFile(t, tmpDir, "outer/94.txt/extra.log", "conflict")
 		Add(tmpDir, []string{"."}, stdout, stderr)
 		checkout(tmpDir, stdout, stderr, "@^")
 
@@ -641,7 +642,7 @@ D  outer/inner/3.txt
 		tmpDir, stdout, stderr, commitAndCheckout := setup()
 		defer os.RemoveAll(tmpDir)
 
-		Delete(t, tmpDir, "1.txt")
+		delete(t, tmpDir, "1.txt")
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
@@ -652,7 +653,7 @@ D  outer/inner/3.txt
 		tmpDir, stdout, stderr, commitAndCheckout := setup()
 		defer os.RemoveAll(tmpDir)
 
-		Delete(t, tmpDir, "outer/2.txt")
+		delete(t, tmpDir, "outer/2.txt")
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
@@ -663,7 +664,7 @@ D  outer/inner/3.txt
 		tmpDir, stdout, stderr, commitAndCheckout := setup()
 		defer os.RemoveAll(tmpDir)
 
-		Delete(t, tmpDir, "outer")
+		delete(t, tmpDir, "outer")
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
@@ -674,10 +675,10 @@ D  outer/inner/3.txt
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		Delete(t, tmpDir, "outer/2.txt")
+		delete(t, tmpDir, "outer/2.txt")
 		commitAll(t, tmpDir)
 
-		WriteFile(t, tmpDir, "outer/2.txt", "conflict")
+		writeFile(t, tmpDir, "outer/2.txt", "conflict")
 		checkout(tmpDir, stdout, stderr, "@^")
 
 		assertOverwriteConflict(t, stderr, "outer/2.txt")
@@ -687,10 +688,10 @@ D  outer/inner/3.txt
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		Delete(t, tmpDir, "outer/2.txt")
+		delete(t, tmpDir, "outer/2.txt")
 		commitAll(t, tmpDir)
 
-		WriteFile(t, tmpDir, "outer/2.txt", "conflict")
+		writeFile(t, tmpDir, "outer/2.txt", "conflict")
 		Add(tmpDir, []string{"."}, stdout, stderr)
 		checkout(tmpDir, stdout, stderr, "@^")
 
@@ -701,10 +702,10 @@ D  outer/inner/3.txt
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		Delete(t, tmpDir, "outer/2.txt")
+		delete(t, tmpDir, "outer/2.txt")
 		commitAll(t, tmpDir)
 
-		WriteFile(t, tmpDir, "outer/2.txt", "2")
+		writeFile(t, tmpDir, "outer/2.txt", "2")
 		Add(tmpDir, []string{"."}, stdout, stderr)
 		checkout(tmpDir, stdout, stderr, "@^")
 
@@ -716,11 +717,11 @@ D  outer/inner/3.txt
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		Delete(t, tmpDir, "outer/inner/3.txt")
+		delete(t, tmpDir, "outer/inner/3.txt")
 		commitAll(t, tmpDir)
 
-		Delete(t, tmpDir, "outer/inner")
-		WriteFile(t, tmpDir, "outer/inner", "conflict")
+		delete(t, tmpDir, "outer/inner")
+		writeFile(t, tmpDir, "outer/inner", "conflict")
 		checkout(tmpDir, stdout, stderr, "@^")
 
 		assertOverwriteConflict(t, stderr, "outer/inner")
@@ -730,11 +731,11 @@ D  outer/inner/3.txt
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		Delete(t, tmpDir, "outer/inner/3.txt")
+		delete(t, tmpDir, "outer/inner/3.txt")
 		commitAll(t, tmpDir)
 
-		Delete(t, tmpDir, "outer/inner")
-		WriteFile(t, tmpDir, "outer/inner", "conflict")
+		delete(t, tmpDir, "outer/inner")
+		writeFile(t, tmpDir, "outer/inner", "conflict")
 		Add(tmpDir, []string{"."}, stdout, stderr)
 		checkout(tmpDir, stdout, stderr, "@^")
 
@@ -742,15 +743,14 @@ D  outer/inner/3.txt
 		assertStatus(t, tmpDir, stdout, stderr, "")
 	})
 
-	// NG
 	t.Run("fails to add with an untracked file at a child path", func(t *testing.T) {
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		Delete(t, tmpDir, "outer/2.txt")
+		delete(t, tmpDir, "outer/2.txt")
 		commitAll(t, tmpDir)
 
-		WriteFile(t, tmpDir, "outer/2.txt/extra.log", "conflict")
+		writeFile(t, tmpDir, "outer/2.txt/extra.log", "conflict")
 		checkout(tmpDir, stdout, stderr, "@^")
 
 		assertStaleDirectory(t, stderr, "outer/2.txt")
@@ -760,10 +760,10 @@ D  outer/inner/3.txt
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		Delete(t, tmpDir, "outer/2.txt")
+		delete(t, tmpDir, "outer/2.txt")
 		commitAll(t, tmpDir)
 
-		WriteFile(t, tmpDir, "outer/2.txt/extra.log", "conflict")
+		writeFile(t, tmpDir, "outer/2.txt/extra.log", "conflict")
 		Add(tmpDir, []string{"."}, stdout, stderr)
 		checkout(tmpDir, stdout, stderr, "@^")
 
@@ -775,8 +775,8 @@ D  outer/inner/3.txt
 		tmpDir, stdout, stderr, commitAndCheckout := setup()
 		defer os.RemoveAll(tmpDir)
 
-		Delete(t, tmpDir, "outer/inner")
-		WriteFile(t, tmpDir, "outer/inner", "in")
+		delete(t, tmpDir, "outer/inner")
+		writeFile(t, tmpDir, "outer/inner", "in")
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
@@ -787,8 +787,8 @@ D  outer/inner/3.txt
 		tmpDir, stdout, stderr, commitAndCheckout := setup()
 		defer os.RemoveAll(tmpDir)
 
-		Delete(t, tmpDir, "outer/2.txt")
-		WriteFile(t, tmpDir, "outer/2.txt/nested.log", "nested")
+		delete(t, tmpDir, "outer/2.txt")
+		writeFile(t, tmpDir, "outer/2.txt/nested.log", "nested")
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
@@ -799,11 +799,11 @@ D  outer/inner/3.txt
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "1.txt", "changed")
+		writeFile(t, tmpDir, "1.txt", "changed")
 		commitAll(t, tmpDir)
 
-		WriteFile(t, tmpDir, "outer/2.txt", "hello")
-		Delete(t, tmpDir, "outer/inner")
+		writeFile(t, tmpDir, "outer/2.txt", "hello")
+		delete(t, tmpDir, "outer/inner")
 		checkout(tmpDir, stdout, stderr, "@^")
 
 		assertWorkspace(t, tmpDir, map[string]string{
@@ -819,11 +819,11 @@ D  outer/inner/3.txt
 		tmpDir, stdout, stderr, _ := setup()
 		defer os.RemoveAll(tmpDir)
 
-		WriteFile(t, tmpDir, "1.txt", "changed")
+		writeFile(t, tmpDir, "1.txt", "changed")
 		commitAll(t, tmpDir)
 
-		WriteFile(t, tmpDir, "outer/2.txt", "hello")
-		WriteFile(t, tmpDir, "outer/inner/4.txt", "world")
+		writeFile(t, tmpDir, "outer/2.txt", "hello")
+		writeFile(t, tmpDir, "outer/inner/4.txt", "world")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
 		checkout(tmpDir, stdout, stderr, "@^")
 
@@ -838,5 +838,79 @@ D  outer/inner/3.txt
 		assertStatus(t, tmpDir, stdout, stderr, `M  outer/2.txt
 A  outer/inner/4.txt
 `)
+	})
+}
+
+func TestCheckOutWithChainOfCommits(t *testing.T) {
+	setup := func() (tmpDir string, stdout, stderr *bytes.Buffer) {
+		tmpDir, stdout, stderr = setupTestEnvironment(t)
+
+		messages := []string{"first", "second", "third"}
+		for _, message := range messages {
+			writeFile(t, tmpDir, "file.txt", message)
+			Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
+			commit(t, tmpDir, message)
+		}
+
+		brunchCmd, _ := NewBranch(tmpDir, []string{"topic"}, BranchOption{}, stdout, stderr)
+		brunchCmd.Run()
+		brunchCmd, _ = NewBranch(tmpDir, []string{"second", "@^"}, BranchOption{}, stdout, stderr)
+		brunchCmd.Run()
+
+		return
+	}
+
+	t.Run("checking out a branch", func(t *testing.T) {
+		tmpDir, stdout, stderr := setup()
+		defer os.RemoveAll(tmpDir)
+
+		checkout(tmpDir, stdout, stderr, "topic")
+
+		t.Run("links HEAD to the branch", func(t *testing.T) {
+			r := repo(t, tmpDir)
+			expected := "refs/heads/topic"
+
+			ref, _ := r.Refs.CurrentRef("")
+			if got := ref.(repository.SymRef).Path; got != expected {
+				t.Errorf("want %q, but got %q", expected, got)
+			}
+		})
+
+		t.Run("resolves HEAD to the same object as the branch", func(t *testing.T) {
+			r := repo(t, tmpDir)
+			expected, _ := r.Refs.ReadHead()
+
+			ref, _ := r.Refs.ReadRef("topic")
+			if got := ref; got != expected {
+				t.Errorf("want %q, but got %q", expected, got)
+			}
+		})
+	})
+
+	t.Run("checking out a relative revision", func(t *testing.T) {
+		tmpDir, stdout, stderr := setup()
+		defer os.RemoveAll(tmpDir)
+
+		checkout(tmpDir, stdout, stderr, "topic^")
+
+		t.Run("detaches HEAD", func(t *testing.T) {
+			r := repo(t, tmpDir)
+			expected := "HEAD"
+
+			ref, _ := r.Refs.CurrentRef("")
+			if got := ref.(repository.SymRef).Path; got != expected {
+				t.Errorf("want %q, but got %q", expected, got)
+			}
+		})
+
+		t.Run("puts the revision's value in HEAD", func(t *testing.T) {
+			r := repo(t, tmpDir)
+			expected, _ := r.Refs.ReadHead()
+
+			ref, _ := resolveRevision(t, tmpDir, "topic^")
+			if got := ref; got != expected {
+				t.Errorf("want %q, but got %q", expected, got)
+			}
+		})
 	})
 }
