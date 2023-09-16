@@ -841,76 +841,209 @@ A  outer/inner/4.txt
 	})
 }
 
-func TestCheckOutWithChainOfCommits(t *testing.T) {
+func setupForTestCheckOutWithChainOfCommits(t *testing.T) (tmpDir string, stdout, stderr *bytes.Buffer) {
+	tmpDir, stdout, stderr = setupTestEnvironment(t)
+
+	messages := []string{"first", "second", "third"}
+	for _, message := range messages {
+		writeFile(t, tmpDir, "file.txt", message)
+		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
+		commit(t, tmpDir, message)
+	}
+
+	brunchCmd, _ := NewBranch(tmpDir, []string{"topic"}, BranchOption{}, new(bytes.Buffer), new(bytes.Buffer))
+	brunchCmd.Run()
+	brunchCmd, _ = NewBranch(tmpDir, []string{"second", "@^"}, BranchOption{}, new(bytes.Buffer), new(bytes.Buffer))
+	brunchCmd.Run()
+
+	return
+}
+
+func TestCheckOutWithChainOfCommitsCheckingOutBranch(t *testing.T) {
 	setup := func() (tmpDir string, stdout, stderr *bytes.Buffer) {
-		tmpDir, stdout, stderr = setupTestEnvironment(t)
+		tmpDir, stdout, stderr = setupForTestCheckOutWithChainOfCommits(t)
 
-		messages := []string{"first", "second", "third"}
-		for _, message := range messages {
-			writeFile(t, tmpDir, "file.txt", message)
-			Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-			commit(t, tmpDir, message)
-		}
-
-		brunchCmd, _ := NewBranch(tmpDir, []string{"topic"}, BranchOption{}, stdout, stderr)
-		brunchCmd.Run()
-		brunchCmd, _ = NewBranch(tmpDir, []string{"second", "@^"}, BranchOption{}, stdout, stderr)
-		brunchCmd.Run()
+		checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "topic")
 
 		return
 	}
 
-	t.Run("checking out a branch", func(t *testing.T) {
+	t.Run("links HEAD to the branch", func(t *testing.T) {
+		tmpDir, _, _ := setup()
+		defer os.RemoveAll(tmpDir)
+
+		r := repo(t, tmpDir)
+		expected := "refs/heads/topic"
+
+		ref, _ := r.Refs.CurrentRef("")
+		if got := ref.Path; got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("resolves HEAD to the same object as the branch", func(t *testing.T) {
+		tmpDir, _, _ := setup()
+		defer os.RemoveAll(tmpDir)
+
+		r := repo(t, tmpDir)
+		expected, _ := r.Refs.ReadHead()
+
+		ref, _ := r.Refs.ReadRef("topic")
+		if got := ref; got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("prints a message when switching to the same branch", func(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
 
 		checkout(tmpDir, stdout, stderr, "topic")
-
-		t.Run("links HEAD to the branch", func(t *testing.T) {
-			r := repo(t, tmpDir)
-			expected := "refs/heads/topic"
-
-			ref, _ := r.Refs.CurrentRef("")
-			if got := ref.(repository.SymRef).Path; got != expected {
-				t.Errorf("want %q, but got %q", expected, got)
-			}
-		})
-
-		t.Run("resolves HEAD to the same object as the branch", func(t *testing.T) {
-			r := repo(t, tmpDir)
-			expected, _ := r.Refs.ReadHead()
-
-			ref, _ := r.Refs.ReadRef("topic")
-			if got := ref; got != expected {
-				t.Errorf("want %q, but got %q", expected, got)
-			}
-		})
+		expected := `Already on 'topic'
+`
+		if got := stderr.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
 	})
 
-	t.Run("checking out a relative revision", func(t *testing.T) {
+	t.Run("prints a message when switching to another branch", func(t *testing.T) {
 		tmpDir, stdout, stderr := setup()
 		defer os.RemoveAll(tmpDir)
 
-		checkout(tmpDir, stdout, stderr, "topic^")
+		checkout(tmpDir, stdout, stderr, "second")
+		expected := `Switched to branch 'second'
+`
+		if got := stderr.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
 
-		t.Run("detaches HEAD", func(t *testing.T) {
-			r := repo(t, tmpDir)
-			expected := "HEAD"
+	t.Run("prints a warning when detaching HEAD", func(t *testing.T) {
+		tmpDir, stdout, stderr := setup()
+		defer os.RemoveAll(tmpDir)
 
-			ref, _ := r.Refs.CurrentRef("")
-			if got := ref.(repository.SymRef).Path; got != expected {
-				t.Errorf("want %q, but got %q", expected, got)
-			}
-		})
+		rev, _ := resolveRevision(t, tmpDir, "@")
+		shortOid := repo(t, tmpDir).Database.ShortOid(rev)
 
-		t.Run("puts the revision's value in HEAD", func(t *testing.T) {
-			r := repo(t, tmpDir)
-			expected, _ := r.Refs.ReadHead()
+		checkout(tmpDir, stdout, stderr, "@")
 
-			ref, _ := resolveRevision(t, tmpDir, "topic^")
-			if got := ref; got != expected {
-				t.Errorf("want %q, but got %q", expected, got)
-			}
-		})
+		expected := fmt.Sprintf(`Note: checking out '@'.
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by performing another checkout.
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using the branch command. Example:
+
+	jit branch <new-branch-name>
+HEAD is now at %s third
+`, shortOid)
+
+		if got := stderr.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+}
+
+func TestCheckOutWithChainOfCommitsCheckingOutRelativeRevision(t *testing.T) {
+	setup := func() (tmpDir string, stdout, stderr *bytes.Buffer) {
+		tmpDir, stdout, stderr = setupForTestCheckOutWithChainOfCommits(t)
+
+		checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "topic^")
+
+		return
+	}
+
+	t.Run("detaches HEAD", func(t *testing.T) {
+		tmpDir, _, _ := setup()
+		defer os.RemoveAll(tmpDir)
+
+		r := repo(t, tmpDir)
+		expected := "HEAD"
+
+		ref, _ := r.Refs.CurrentRef("")
+		if got := ref.Path; got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("puts the revision's value in HEAD", func(t *testing.T) {
+		tmpDir, _, _ := setup()
+		defer os.RemoveAll(tmpDir)
+
+		r := repo(t, tmpDir)
+		expected, _ := r.Refs.ReadHead()
+
+		ref, _ := resolveRevision(t, tmpDir, "topic^")
+		if got := ref; got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("prints a message when switching to the same commit", func(t *testing.T) {
+		tmpDir, stdout, stderr := setup()
+		defer os.RemoveAll(tmpDir)
+
+		rev, _ := resolveRevision(t, tmpDir, "@")
+		shortOid := repo(t, tmpDir).Database.ShortOid(rev)
+
+		checkout(tmpDir, stdout, stderr, "@")
+
+		expected := fmt.Sprintf(`HEAD is now at %s second
+`, shortOid)
+
+		if got := stderr.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("prints a message when switching to a different commit", func(t *testing.T) {
+		tmpDir, stdout, stderr := setup()
+		defer os.RemoveAll(tmpDir)
+
+		rev, _ := resolveRevision(t, tmpDir, "@")
+		a := repo(t, tmpDir).Database.ShortOid(rev)
+		rev, _ = resolveRevision(t, tmpDir, "@^")
+		b := repo(t, tmpDir).Database.ShortOid(rev)
+
+		checkout(tmpDir, stdout, stderr, "@^")
+
+		expected := fmt.Sprintf(`Previous HEAD position was %s second
+HEAD is now at %s first
+`, a, b)
+
+		if got := stderr.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("prints a message when switching to a branch with the same ID", func(t *testing.T) {
+		tmpDir, stdout, stderr := setup()
+		defer os.RemoveAll(tmpDir)
+
+		checkout(tmpDir, stdout, stderr, "second")
+
+		expected := "Switched to branch 'second'\n"
+
+		if got := stderr.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("prints a message when switching to a different branch", func(t *testing.T) {
+		tmpDir, stdout, stderr := setup()
+		defer os.RemoveAll(tmpDir)
+
+		rev, _ := resolveRevision(t, tmpDir, "@")
+		shortOid := repo(t, tmpDir).Database.ShortOid(rev)
+
+		checkout(tmpDir, stdout, stderr, "topic")
+
+		expected := fmt.Sprintf(`Previous HEAD position was %s second
+Switched to branch 'topic'
+`, shortOid)
+
+		if got := stderr.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
 	})
 }

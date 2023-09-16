@@ -24,12 +24,26 @@ func (e *InvalidBranchError) Error() string {
 }
 
 type SymRef struct {
+	Refs *Refs
 	Path string
 }
 
-type Ref struct {
-	Oid string
+func (s *SymRef) ReadOid() (string, error) {
+	return s.Refs.ReadRef(s.Path)
 }
+
+func (s *SymRef) IsHead() bool {
+	return s.Path == HEAD
+}
+
+type Ref struct {
+	oid string
+}
+
+func (r *Ref) ReadOid() string {
+	return r.oid
+}
+
 type Refs struct {
 	pathname  string
 	refsPath  string
@@ -110,7 +124,7 @@ func (r *Refs) CreateBranch(branchName, startOid string) error {
 	return r.updateRefFile(path, startOid)
 }
 
-func (r *Refs) CurrentRef(source string) (interface{}, error) {
+func (r *Refs) CurrentRef(source string) (*SymRef, error) {
 	if source == "" {
 		source = HEAD
 	}
@@ -120,10 +134,10 @@ func (r *Refs) CurrentRef(source string) (interface{}, error) {
 	}
 
 	switch v := ref.(type) {
-	case SymRef:
+	case *SymRef:
 		return r.CurrentRef(v.Path)
 	default:
-		return SymRef{Path: source}, nil
+		return &SymRef{Refs: r, Path: source}, nil
 	}
 }
 
@@ -152,9 +166,9 @@ func (r *Refs) readOidOrSymRef(path string) (interface{}, error) {
 	trimedData := strings.TrimSpace(string(data))
 	matches := symRefRegexp.FindStringSubmatch(trimedData)
 	if matches != nil {
-		return SymRef{Path: matches[1]}, nil
+		return &SymRef{Refs: r, Path: matches[1]}, nil
 	}
-	return Ref{Oid: trimedData}, nil
+	return &Ref{oid: trimedData}, nil
 }
 
 func (r *Refs) readSymRef(path string) (string, error) {
@@ -164,10 +178,10 @@ func (r *Refs) readSymRef(path string) (string, error) {
 	}
 
 	switch v := ref.(type) {
-	case SymRef:
+	case *SymRef:
 		return r.readSymRef(filepath.Join(r.pathname, v.Path))
-	case Ref:
-		return v.Oid, nil
+	case *Ref:
+		return v.oid, nil
 	}
 	return "", fmt.Errorf("")
 }
