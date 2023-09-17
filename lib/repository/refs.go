@@ -64,7 +64,7 @@ func (r *Refs) ReadHead() (string, error) {
 }
 
 func (r *Refs) UpdateHead(oid string) error {
-	return r.updateRefFile(filepath.Join(r.pathname, HEAD), oid)
+	return r.updateSymRef(filepath.Join(r.pathname, HEAD), oid)
 }
 
 func (r *Refs) SetHead(revision, oid string) error {
@@ -205,14 +205,34 @@ func (r *Refs) updateRefFile(path, oid string) error {
 		break
 	}
 
-	err := lockfile.Write([]byte(oid + "\n"))
-	if err != nil {
-		return err
-	}
-	err = lockfile.Commit()
+	return r.writeLockFile(lockfile, oid)
+}
+
+func (r *Refs) updateSymRef(path, oid string) error {
+	lockfile := lockfile.NewLockfile(path)
+	err := lockfile.HoldForUpdate()
 	if err != nil {
 		return err
 	}
 
-	return nil
+	ref, _ := r.readOidOrSymRef(path)
+	if err != nil {
+		return err
+	}
+
+	switch v := ref.(type) {
+	case *SymRef:
+		defer lockfile.Rollback()
+		return r.updateSymRef(filepath.Join(r.pathname, v.Path), oid)
+	default:
+		return r.writeLockFile(lockfile, oid)
+	}
+}
+
+func (r *Refs) writeLockFile(lockfile *lockfile.Lockfile, oid string) error {
+	err := lockfile.Write([]byte(oid + "\n"))
+	if err != nil {
+		return err
+	}
+	return lockfile.Commit()
 }
