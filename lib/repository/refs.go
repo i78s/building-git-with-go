@@ -3,6 +3,7 @@ package repository
 import (
 	"building-git/lib/errors"
 	"building-git/lib/lockfile"
+	"io/fs"
 	"regexp"
 	"strings"
 
@@ -34,6 +35,10 @@ func (s *SymRef) ReadOid() (string, error) {
 
 func (s *SymRef) IsHead() bool {
 	return s.Path == HEAD
+}
+
+func (s *SymRef) ShortName() (string, error) {
+	return s.Refs.ShortName(s.Path)
 }
 
 type Ref struct {
@@ -79,6 +84,25 @@ func (r *Refs) SetHead(revision, oid string) error {
 		return r.updateRefFile(head, fmt.Sprintf("ref: %s", relative))
 	}
 	return r.updateRefFile(head, oid)
+}
+
+func (r *Refs) ListBranches() ([]*SymRef, error) {
+	return r.listRefs(r.headsPath)
+}
+
+func (r *Refs) ShortName(path string) (string, error) {
+	joinedPath := filepath.Join(r.pathname, path)
+
+	prefixes := []string{r.headsPath, r.pathname}
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(joinedPath, prefix) {
+			relPath, err := filepath.Rel(prefix, joinedPath)
+			if err == nil {
+				return relPath, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("no matching prefix found for path: %s", path)
 }
 
 func relativePathFrom(base, target string) (string, error) {
@@ -139,6 +163,43 @@ func (r *Refs) CurrentRef(source string) (*SymRef, error) {
 	default:
 		return &SymRef{Refs: r, Path: source}, nil
 	}
+}
+
+func (r *Refs) listRefs(rootPath string) ([]*SymRef, error) {
+	var refs []*SymRef
+
+	err := filepath.Walk(rootPath, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if path == rootPath {
+			return nil
+		}
+
+		base := filepath.Base(path)
+		if base == "." || base == ".." {
+			return nil
+		}
+
+		relPath, err := filepath.Rel(r.pathname, path)
+		if err != nil {
+			return err
+		}
+
+		if !info.IsDir() {
+			refs = append(refs, &SymRef{Refs: r, Path: relPath})
+		}
+		return nil
+	})
+
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []*SymRef{}, nil
+		}
+		return nil, err
+	}
+	return refs, nil
 }
 
 func (r *Refs) pathForName(name string) (string, error) {

@@ -1,6 +1,7 @@
 package command
 
 import (
+	"building-git/lib/database"
 	"building-git/lib/repository"
 	"bytes"
 	"fmt"
@@ -41,23 +42,16 @@ func resolveRevision(t *testing.T, tmpDir, expression string) (string, error) {
 	return repository.NewRevision(repo(t, tmpDir), expression).Resolve("")
 }
 
-func setupRepo(t *testing.T, path string) {
+func loadCommit(t *testing.T, tmpDir string, expression string) (database.GitObject, error) {
+	t.Helper()
+	rev, _ := resolveRevision(t, tmpDir, expression)
+	return repo(t, tmpDir).Database.Load(rev)
+}
+
+func setupRepo(t *testing.T, tmpDir string) {
 	t.Helper()
 
-	rootPath, err := filepath.Abs(path)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-	}
-
-	gitPath := filepath.Join(rootPath, ".git")
-	dirs := []string{"objects", "refs"}
-
-	for _, dir := range dirs {
-		err := os.MkdirAll(filepath.Join(gitPath, dir), os.ModePerm)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "fatal: %s\n", err.Error())
-		}
-	}
+	Init([]string{tmpDir}, new(bytes.Buffer), new(bytes.Buffer))
 }
 
 func repo(t *testing.T, path string) *repository.Repository {

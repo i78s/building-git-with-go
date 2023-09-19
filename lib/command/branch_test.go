@@ -233,4 +233,43 @@ func TestBranchWithChainOfCommits(t *testing.T) {
 			t.Errorf("want %q, but got %q", expected, got)
 		}
 	})
+
+	t.Run("lists existing branches", func(t *testing.T) {
+		tmpDir, stdout, stderr := setup()
+		defer os.RemoveAll(tmpDir)
+
+		cmd, _ := NewBranch(tmpDir, []string{"new-feature"}, BranchOption{}, stdout, stderr)
+		cmd.Run()
+		cmd, _ = NewBranch(tmpDir, []string{}, BranchOption{}, stdout, stderr)
+		cmd.Run()
+
+		expected := `* master
+  new-feature
+`
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("lists existing branches with verbose info", func(t *testing.T) {
+		tmpDir, stdout, stderr := setup()
+		defer os.RemoveAll(tmpDir)
+
+		a, _ := loadCommit(t, tmpDir, "@^")
+		b, _ := loadCommit(t, tmpDir, "@")
+
+		cmd, _ := NewBranch(tmpDir, []string{"new-feature", "@^"}, BranchOption{}, stdout, stderr)
+		cmd.Run()
+		cmd, _ = NewBranch(tmpDir, []string{}, BranchOption{Verbose: true}, stdout, stderr)
+		cmd.Run()
+
+		r := repo(t, tmpDir)
+		expected := fmt.Sprintf(`* master      %s third
+  new-feature %s second
+`, r.Database.ShortOid(b.Oid()), r.Database.ShortOid(a.Oid()))
+
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
 }

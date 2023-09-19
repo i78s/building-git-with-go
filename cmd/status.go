@@ -24,9 +24,9 @@ var statusCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		porcelain, _ := cmd.Flags().GetBool("porcelain")
+		porcelainFlag, _ := cmd.Flags().GetBool("porcelain")
 		options := command.StatusOption{
-			Porcelain: porcelain,
+			Porcelain: porcelainFlag,
 		}
 
 		status, _ := command.NewStatus(dir, args, options, stdout, stderr)

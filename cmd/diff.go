@@ -8,7 +8,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var cached bool
+var (
+	cached bool
+	staged bool
+)
 
 var diffCmd = &cobra.Command{
 	Use:   "diff",
@@ -24,9 +27,10 @@ var diffCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		cached, _ := cmd.Flags().GetBool("cached")
+		cachedFlag, _ := cmd.Flags().GetBool("cached")
+		stagedFlag, _ := cmd.Flags().GetBool("staged")
 		options := command.DiffOption{
-			Cached: cached,
+			Cached: cachedFlag || stagedFlag,
 		}
 
 		diff, _ := command.NewDiff(dir, args, options, stdout, stderr)
@@ -36,6 +40,7 @@ var diffCmd = &cobra.Command{
 }
 
 func init() {
-	diffCmd.Flags().BoolVar(&porcelain, "cached", false, "prints the changes staged for commit")
+	diffCmd.Flags().BoolVar(&cached, "cached", false, "prints the changes staged for commit")
+	diffCmd.Flags().BoolVar(&staged, "staged", false, "alias for --cached; prints the changes staged for commit")
 	rootCmd.AddCommand(diffCmd)
 }
