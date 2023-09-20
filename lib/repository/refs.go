@@ -148,6 +148,26 @@ func (r *Refs) CreateBranch(branchName, startOid string) error {
 	return r.updateRefFile(path, startOid)
 }
 
+func (r *Refs) DeleteBranch(branchName string) (string, error) {
+	path := filepath.Join(r.headsPath, branchName)
+
+	lockfile := lockfile.NewLockfile(path)
+	lockfile.HoldForUpdate()
+	defer lockfile.Rollback()
+
+	oid, err := r.readSymRef(path)
+	if err != nil {
+		return "", err
+	}
+	if err := os.Remove(path); err != nil {
+		return "", err
+	}
+	if err := r.deleteParentDirectories(path); err != nil {
+		return "", err
+	}
+	return oid, nil
+}
+
 func (r *Refs) CurrentRef(source string) (*SymRef, error) {
 	if source == "" {
 		source = HEAD
@@ -213,6 +233,25 @@ func (r *Refs) pathForName(name string) (string, error) {
 		}
 	}
 	return "", err
+}
+
+func (r *Refs) deleteParentDirectories(path string) error {
+	dirs := ascend(path)
+	for _, dir := range dirs {
+		if dir == r.headsPath {
+			break
+		}
+		err := os.Remove(dir)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				if pathErr, ok := err.(*os.PathError); ok && pathErr.Err.Error() == "directory not empty" {
+					break
+				}
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (r *Refs) readOidOrSymRef(path string) (interface{}, error) {

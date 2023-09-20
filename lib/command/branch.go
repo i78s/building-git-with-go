@@ -25,6 +25,8 @@ type Branch struct {
 
 type BranchOption struct {
 	Verbose bool
+	Delete  bool
+	Force   bool
 }
 
 func NewBranch(dir string, args []string, options BranchOption, stdout, stderr io.Writer) (*Branch, error) {
@@ -46,7 +48,12 @@ func NewBranch(dir string, args []string, options BranchOption, stdout, stderr i
 
 func (b *Branch) Run() int {
 	var err error
-	if len(b.args) == 0 {
+	if b.options.Delete {
+		err = b.deleteBranches()
+		if err != nil {
+			return 1
+		}
+	} else if len(b.args) == 0 {
 		b.listBranch()
 	} else {
 		err = b.createBranch()
@@ -134,5 +141,30 @@ func (b *Branch) createBranch() error {
 		return err
 	}
 
+	return nil
+}
+
+func (b *Branch) deleteBranches() error {
+	for _, branch := range b.args {
+		err := b.deleteBranch(branch)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (b *Branch) deleteBranch(branchName string) error {
+	if !b.options.Force {
+		return nil
+	}
+
+	oid, err := b.repo.Refs.DeleteBranch(branchName)
+	if err != nil {
+		fmt.Fprintf(b.stderr, "error: branch '%s' not found.\n", branchName)
+		return err
+	}
+	short := b.repo.Database.ShortOid(oid)
+	fmt.Fprintf(b.stdout, "Deleted branch %s (was %s).\n", branchName, short)
 	return nil
 }

@@ -239,19 +239,23 @@ func (m *Migration) collectErrors() error {
 }
 
 func ascend(path string) []string {
-	var parts []string
-	for path != "." && path != "/" {
-		parts = append(parts, path)
-		path = filepath.Dir(path)
+	var dirs []string
+	for {
+		dirs = append(dirs, path)
+		parent := filepath.Dir(path)
+		if parent == path || parent == "." {
+			break
+		}
+		path = parent
 	}
-	return parts
+	return dirs
 }
 
 func descend(path string) []string {
-	var parts []string
+	var dirs []string
 	for path != "." && path != "/" {
-		parts = append([]string{path}, parts...)
+		dirs = append([]string{path}, dirs...)
 		path = filepath.Dir(path)
 	}
-	return parts
+	return dirs
 }

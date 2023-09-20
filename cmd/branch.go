@@ -9,7 +9,10 @@ import (
 )
 
 var (
-	verbose bool
+	verbose     bool
+	delete      bool
+	force       bool
+	forceDelete bool
 )
 
 var branchCmd = &cobra.Command{
@@ -27,8 +30,17 @@ var branchCmd = &cobra.Command{
 		}
 
 		verboseFlag, _ := cmd.Flags().GetBool("verbose")
+		deleteFlag, _ := cmd.Flags().GetBool("delete")
+		forceFlag, _ := cmd.Flags().GetBool("force")
+		forceDeleteFlag, _ := cmd.Flags().GetBool("forceDelete")
+		if forceDeleteFlag {
+			deleteFlag = true
+			forceFlag = true
+		}
 		options := command.BranchOption{
 			Verbose: verboseFlag,
+			Delete:  deleteFlag,
+			Force:   forceFlag,
 		}
 
 		diff, _ := command.NewBranch(dir, args, options, stdout, stderr)
@@ -38,6 +50,9 @@ var branchCmd = &cobra.Command{
 }
 
 func init() {
-	branchCmd.Flags().BoolVar(&verbose, "verbose", false, "display additional details about each branch.")
+	branchCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "display additional details about each branch.")
+	branchCmd.Flags().BoolVarP(&delete, "delete", "d", false, "Delete the specified branch.")
+	branchCmd.Flags().BoolVarP(&force, "force", "f", false, "Force deletion of the branch, even if it has unmerged changes.")
+	branchCmd.Flags().BoolVar(&forceDelete, "D", false, "Force deletion of the branch, even if it has unmerged changes.")
 	rootCmd.AddCommand(branchCmd)
 }

@@ -272,4 +272,51 @@ func TestBranchWithChainOfCommits(t *testing.T) {
 			t.Errorf("want %q, but got %q", expected, got)
 		}
 	})
+
+	t.Run("deletes a branch", func(t *testing.T) {
+		tmpDir, stdout, stderr := setup()
+		defer os.RemoveAll(tmpDir)
+
+		r := repo(t, tmpDir)
+		head, _ := r.Refs.ReadHead()
+
+		cmd, _ := NewBranch(tmpDir, []string{"bug-fix"}, BranchOption{}, stdout, stderr)
+		cmd.Run()
+		cmd, _ = NewBranch(tmpDir, []string{"bug-fix"}, BranchOption{Delete: true, Force: true}, stdout, stderr)
+		cmd.Run()
+
+		expected := fmt.Sprintf(`Deleted branch bug-fix (was %s).
+`, r.Database.ShortOid(head))
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+
+		branches, _ := r.Refs.ListBranches()
+
+		for _, b := range branches {
+			short, _ := b.ShortName()
+			if short == "bug-fix" {
+				t.Errorf("Unexpected branch name: %s", short)
+				return
+			}
+		}
+	})
+
+	t.Run("fails to delete a non-existent branch", func(t *testing.T) {
+		tmpDir, stdout, stderr := setup()
+		defer os.RemoveAll(tmpDir)
+
+		cmd, _ := NewBranch(tmpDir, []string{"no-such-branch"}, BranchOption{Delete: true, Force: true}, stdout, stderr)
+		status := cmd.Run()
+
+		if status != 1 {
+			t.Errorf("want %q, but got %q", 1, status)
+		}
+
+		expected := `error: branch 'no-such-branch' not found.
+`
+		if got := stderr.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
 }
