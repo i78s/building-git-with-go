@@ -80,11 +80,24 @@ func (s *Status) printResults() {
 }
 
 func (s *Status) printLongFormat() {
+	s.printBranchStatus()
+
 	s.printChanges("Changes to be committed", *s.status.IndexChanges, color.New(color.FgGreen))
 	s.printChanges("Changes not staged for commit", *s.status.WorkspaceChanges, color.New(color.FgRed))
 	s.printUntrackedChanges("Untracked files", *s.status.Untracked, color.New(color.FgRed))
 
 	s.printCommitStatus()
+}
+
+func (s *Status) printBranchStatus() {
+	current, _ := s.repo.Refs.CurrentRef("")
+
+	if current.IsHead() {
+		color.New(color.FgRed).Fprint(s.stdout, "Not currently on any branch.\n")
+		return
+	}
+	short, _ := current.ShortName()
+	fmt.Fprintf(s.stdout, "On branch %s\n", short)
 }
 
 func (s *Status) printChanges(message string, changeset sortedmap.SortedMap[repository.ChangeType], color *color.Color) {
