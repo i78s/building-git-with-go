@@ -108,3 +108,7 @@ func (c *Commit) Parent() string {
 func (c *Commit) Author() *Author {
 	return c.author
 }
+
+func (c *Commit) Message() string {
+	return c.message
+}

@@ -24,8 +24,8 @@ var checkOutCmd = &cobra.Command{
 
 		options := command.CheckOutOption{}
 
-		status, _ := command.NewCheckOut(dir, args, options, stdout, stderr)
-		code := status.Run()
+		checkout, _ := command.NewCheckOut(dir, args, options, stdout, stderr)
+		code := checkout.Run()
 		os.Exit(code)
 	},
 }

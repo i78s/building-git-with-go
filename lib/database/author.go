@@ -11,15 +11,15 @@ const (
 )
 
 type Author struct {
-	name  string
-	email string
+	Name  string
+	Email string
 	time  time.Time
 }
 
 func NewAuthor(name, email string, time time.Time) *Author {
 	return &Author{
-		name:  name,
-		email: email,
+		Name:  name,
+		Email: email,
 		time:  time,
 	}
 }
@@ -43,6 +43,10 @@ func (a *Author) ShortDate() string {
 	return a.time.Format("2006-01-02")
 }
 
+func (a *Author) ReadableTime() string {
+	return a.time.Format("Mon Jan 2 15:04:05 2006 -0700")
+}
+
 func (a *Author) String() string {
-	return fmt.Sprintf("%s <%s> %s", a.name, a.email, a.time.Format(timeFormat))
+	return fmt.Sprintf("%s <%s> %s", a.Name, a.Email, a.time.Format(timeFormat))
 }
