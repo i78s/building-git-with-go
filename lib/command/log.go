@@ -12,6 +12,7 @@ import (
 )
 
 type LogOption struct {
+	Abbrev bool
 }
 
 type Log struct {
@@ -33,6 +34,7 @@ func NewLog(dir string, args []string, options LogOption, stdout, stderr io.Writ
 	return &Log{
 		rootPath: rootPath,
 		args:     args,
+		options:  options,
 		repo:     repo,
 		stdout:   stdout,
 		stderr:   stderr,
@@ -73,11 +75,18 @@ func (l *Log) showCommit(blankLine bool, commit *database.Commit) {
 	if blankLine {
 		fmt.Fprintf(l.stdout, "\n")
 	}
-	color.New(color.FgYellow).Fprintf(l.stdout, "commit %s\n", commit.Oid())
+	color.New(color.FgYellow).Fprintf(l.stdout, "commit %s\n", l.abbrev(commit))
 	fmt.Fprintf(l.stdout, "Author: %s <%s>\n", author.Name, author.Email)
 	fmt.Fprintf(l.stdout, "Date:  %s\n", author.ReadableTime())
 	fmt.Fprintf(l.stdout, "\n")
 	for _, line := range strings.Split(commit.Message(), "\n") {
 		fmt.Fprintf(l.stdout, "    %s\n", line)
 	}
+}
+
+func (l *Log) abbrev(commit *database.Commit) string {
+	if l.options.Abbrev {
+		return l.repo.Database.ShortOid(commit.Oid())
+	}
+	return commit.Oid()
 }

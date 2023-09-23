@@ -10,6 +10,10 @@ import (
 	"golang.org/x/term"
 )
 
+var (
+	abbrevCommit bool
+)
+
 var logCmd = &cobra.Command{
 	Use:   "log",
 	Short: "git log",
@@ -24,7 +28,10 @@ var logCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		options := command.LogOption{}
+		abbrevCommitFlag, _ := cmd.Flags().GetBool("abbrev-commit")
+		options := command.LogOption{
+			Abbrev: abbrevCommitFlag,
+		}
 
 		isTTY := term.IsTerminal(int(os.Stdout.Fd()))
 		writer, cleanup := pager.SetupPager(isTTY, stdout, stderr)
@@ -37,5 +44,6 @@ var logCmd = &cobra.Command{
 }
 
 func init() {
+	logCmd.Flags().BoolVar(&abbrevCommit, "abbrev-commit", false, "Show only the first few characters of the SHA-1 checksum.")
 	rootCmd.AddCommand(logCmd)
 }

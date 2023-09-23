@@ -64,4 +64,38 @@ Date:  %s
 			t.Errorf("want %q, but got %q", expected, got)
 		}
 	})
+
+	t.Run("prints a log in medium format with abbreviated commit IDs", func(t *testing.T) {
+		tmpDir, stdout, stderr, commits := setUpForTestLogWithChainOfCommits(t)
+		defer os.RemoveAll(tmpDir)
+
+		log, _ := NewLog(tmpDir, []string{}, LogOption{Abbrev: true}, stdout, stderr)
+		log.Run()
+
+		r := repo(t, tmpDir)
+
+		expected := fmt.Sprintf(`commit %s
+Author: A. U. Thor <author@example.com>
+Date:  %s
+
+    C
+
+commit %s
+Author: A. U. Thor <author@example.com>
+Date:  %s
+
+    B
+
+commit %s
+Author: A. U. Thor <author@example.com>
+Date:  %s
+
+    A
+`, r.Database.ShortOid(commits[0].Oid()), commits[0].Author().ReadableTime(),
+			r.Database.ShortOid(commits[1].Oid()), commits[1].Author().ReadableTime(),
+			r.Database.ShortOid(commits[2].Oid()), commits[2].Author().ReadableTime())
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
 }
