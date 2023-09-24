@@ -13,6 +13,7 @@ import (
 
 type LogOption struct {
 	Abbrev bool
+	Format string
 }
 
 type Log struct {
@@ -70,6 +71,15 @@ func (l *Log) eachCommit() chan *database.Commit {
 }
 
 func (l *Log) showCommit(blankLine bool, commit *database.Commit) {
+	switch l.options.Format {
+	case "", "medium":
+		l.showCommitMedium(blankLine, commit)
+	case "oneline":
+		l.showCommitOneLine(commit)
+	}
+}
+
+func (l *Log) showCommitMedium(blankLine bool, commit *database.Commit) {
 	author := commit.Author()
 
 	if blankLine {
@@ -82,6 +92,10 @@ func (l *Log) showCommit(blankLine bool, commit *database.Commit) {
 	for _, line := range strings.Split(commit.Message(), "\n") {
 		fmt.Fprintf(l.stdout, "    %s\n", line)
 	}
+}
+
+func (l *Log) showCommitOneLine(commit *database.Commit) {
+	color.New(color.FgYellow).Fprintf(l.stdout, "commit %s %s\n", l.abbrev(commit), commit.TitleLine())
 }
 
 func (l *Log) abbrev(commit *database.Commit) string {
