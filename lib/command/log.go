@@ -12,17 +12,21 @@ import (
 )
 
 type LogOption struct {
-	Abbrev bool
-	Format string
+	Abbrev   bool
+	Format   string
+	Decorate string
+	IsTty    bool
 }
 
 type Log struct {
-	rootPath string
-	args     []string
-	options  LogOption
-	repo     *repository.Repository
-	stdout   io.Writer
-	stderr   io.Writer
+	rootPath    string
+	args        []string
+	options     LogOption
+	repo        *repository.Repository
+	stdout      io.Writer
+	stderr      io.Writer
+	currentRef  *repository.SymRef
+	reverseRefs map[string][]*repository.SymRef
 }
 
 func NewLog(dir string, args []string, options LogOption, stdout, stderr io.Writer) (*Log, error) {
@@ -43,6 +47,9 @@ func NewLog(dir string, args []string, options LogOption, stdout, stderr io.Writ
 }
 
 func (l *Log) Run() int {
+	l.reverseRefs = l.repo.Refs.ReverseRefs()
+	l.currentRef, _ = l.repo.Refs.CurrentRef("")
+
 	blankLine := false
 	for commit := range l.eachCommit() {
 		l.showCommit(blankLine, commit)
@@ -85,7 +92,13 @@ func (l *Log) showCommitMedium(blankLine bool, commit *database.Commit) {
 	if blankLine {
 		fmt.Fprintf(l.stdout, "\n")
 	}
-	color.New(color.FgYellow).Fprintf(l.stdout, "commit %s\n", l.abbrev(commit))
+	fmt.Fprintf(l.stdout,
+		color.New(color.FgYellow).Sprintf("commit %s", l.abbrev(commit))+
+			l.decorate(commit),
+	)
+
+	fmt.Fprintf(l.stdout, "\n")
+
 	fmt.Fprintf(l.stdout, "Author: %s <%s>\n", author.Name, author.Email)
 	fmt.Fprintf(l.stdout, "Date:  %s\n", author.ReadableTime())
 	fmt.Fprintf(l.stdout, "\n")
@@ -95,7 +108,11 @@ func (l *Log) showCommitMedium(blankLine bool, commit *database.Commit) {
 }
 
 func (l *Log) showCommitOneLine(commit *database.Commit) {
-	color.New(color.FgYellow).Fprintf(l.stdout, "commit %s %s\n", l.abbrev(commit), commit.TitleLine())
+	id := fmt.Sprintf(
+		color.New(color.FgYellow).Sprintf("commit %s", l.abbrev(commit)) +
+			l.decorate(commit),
+	)
+	fmt.Fprintf(l.stdout, "%s %s\n", id, commit.TitleLine())
 }
 
 func (l *Log) abbrev(commit *database.Commit) string {
@@ -103,4 +120,67 @@ func (l *Log) abbrev(commit *database.Commit) string {
 		return l.repo.Database.ShortOid(commit.Oid())
 	}
 	return commit.Oid()
+}
+
+func (l *Log) decorate(commit *database.Commit) string {
+	switch l.options.Decorate {
+	case "auto":
+		if !l.options.IsTty {
+			return ""
+		}
+	case "no":
+		return ""
+	}
+
+	refs, ok := l.reverseRefs[commit.Oid()]
+	if !ok {
+		return ""
+	}
+
+	var head *repository.SymRef
+	var otherRefs []*repository.SymRef
+	for _, ref := range refs {
+		if ref.IsHead() && !l.currentRef.IsHead() {
+			head = ref
+		} else {
+			otherRefs = append(otherRefs, ref)
+		}
+	}
+
+	var names []string
+	for _, ref := range otherRefs {
+		names = append(names, l.decorationName(head, ref))
+	}
+
+	return fmt.Sprint(
+		color.New(color.FgYellow).Sprint(" ("),
+		strings.Join(names, color.New(color.FgYellow).Sprint(", ")),
+		color.New(color.FgYellow).Sprint(")"),
+	)
+}
+
+func (l *Log) decorationName(head, ref *repository.SymRef) string {
+	var name string
+	switch l.options.Decorate {
+	case "short", "auto":
+		name, _ = ref.ShortName()
+	case "full":
+		name = ref.Path
+	}
+
+	name = l.refColor(ref)(name)
+
+	if head != nil && ref.Path == l.currentRef.Path {
+		name = fmt.Sprintf("%s -> %s", head.Path, name)
+		name = l.refColor(head)(name)
+	}
+
+	return name
+}
+
+func (l *Log) refColor(ref *repository.SymRef) func(a ...interface{}) string {
+	if ref.IsHead() {
+		return color.New(color.FgCyan, color.Bold).SprintFunc()
+	}
+	return color.New(color.FgGreen, color.Bold).SprintFunc()
 }

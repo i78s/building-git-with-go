@@ -86,8 +86,27 @@ func (r *Refs) SetHead(revision, oid string) error {
 	return r.updateRefFile(head, oid)
 }
 
+func (r *Refs) listAllRefs() []*SymRef {
+	list, _ := r.listRefs(r.refsPath)
+	list = append([]*SymRef{{Refs: r, Path: HEAD}}, list...)
+	return list
+}
+
 func (r *Refs) ListBranches() ([]*SymRef, error) {
 	return r.listRefs(r.headsPath)
+}
+
+func (r *Refs) ReverseRefs() map[string][]*SymRef {
+	table := make(map[string][]*SymRef)
+
+	for _, ref := range r.listAllRefs() {
+		oid, _ := ref.ReadOid()
+		if oid == "" {
+			continue
+		}
+		table[oid] = append(table[oid], ref)
+	}
+	return table
 }
 
 func (r *Refs) ShortName(path string) (string, error) {

@@ -37,6 +37,12 @@ func commit(t *testing.T, dir string, message string) {
 	Commit(dir, []string{}, stdin, new(bytes.Buffer), new(bytes.Buffer))
 }
 
+func checkout(tmpDir string, stdout, stderr *bytes.Buffer, revision string) {
+	options := CheckOutOption{}
+	checkout, _ := NewCheckOut(tmpDir, []string{revision}, options, stdout, stderr)
+	checkout.Run()
+}
+
 func resolveRevision(t *testing.T, tmpDir, expression string) (string, error) {
 	t.Helper()
 	return repository.NewRevision(repo(t, tmpDir), expression).Resolve("")

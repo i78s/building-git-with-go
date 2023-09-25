@@ -85,12 +85,6 @@ var baseFiles = map[string]string{
 	"outer/inner/3.txt": "3",
 }
 
-var checkout = func(tmpDir string, stdout, stderr *bytes.Buffer, revision string) {
-	options := CheckOutOption{}
-	checkout, _ := NewCheckOut(tmpDir, []string{revision}, options, stdout, stderr)
-	checkout.Run()
-}
-
 func TestCheckOutWithSetOfFiles(t *testing.T) {
 	commitAll := func(t *testing.T, tmpDir string) {
 		delete(t, tmpDir, ".git/index")

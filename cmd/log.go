@@ -32,23 +32,28 @@ var logCmd = &cobra.Command{
 
 		abbrevCommit, _ := cmd.Flags().GetBool("abbrev-commit")
 		pretty, _ := cmd.Flags().GetString("pretty")
-		if _, exists := LogFormat[pretty]; !exists {
-			pretty = "medium"
-		}
 		oneline, _ := cmd.Flags().GetBool("oneline")
 		if oneline {
 			pretty = "oneline"
 			abbrevCommit = true
 		}
 
-		options := command.LogOption{
-			Abbrev: abbrevCommit,
-			Format: pretty,
+		decorate, _ := cmd.Flags().GetString("decorate")
+		noDecorate, _ := cmd.Flags().GetBool("no-decorate")
+		if noDecorate {
+			decorate = "no"
 		}
 
 		isTTY := term.IsTerminal(int(os.Stdout.Fd()))
 		writer, cleanup := pager.SetupPager(isTTY, stdout, stderr)
 		defer cleanup()
+
+		options := command.LogOption{
+			Abbrev:   abbrevCommit,
+			Format:   pretty,
+			Decorate: decorate,
+			IsTty:    isTTY,
+		}
 
 		status, _ := command.NewLog(dir, args, options, writer, stderr)
 		code := status.Run()
@@ -59,8 +64,13 @@ var logCmd = &cobra.Command{
 func init() {
 	logCmd.Flags().Bool("abbrev-commit", false, "Show only the first few characters of the SHA-1 checksum.")
 	logCmd.Flags().String("pretty", "medium", "Set log message format")
+	logCmd.Flags().Lookup("pretty").NoOptDefVal = "medium"
+
 	// logCmd.Flags().String("format", "medium", "Alias for --pretty")
 	logCmd.Flags().Bool("oneline", false, "Shorthand for --pretty=oneline --abbrev-commit")
+	logCmd.Flags().String("decorate", "auto", "Decorate log format")
+	logCmd.Flags().Lookup("decorate").NoOptDefVal = "short"
+	logCmd.Flags().Bool("no-decorate", false, "Disable decorate")
 
 	rootCmd.AddCommand(logCmd)
 }
