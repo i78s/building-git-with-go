@@ -194,4 +194,43 @@ commit %s (refs/heads/topic) A
 			t.Errorf("want %q, but got %q", expected, got)
 		}
 	})
+
+	t.Run("prints a log with patches", func(t *testing.T) {
+		tmpDir, stdout, stderr, commits := setUpForTestLogWithChainOfCommits(t)
+		defer os.RemoveAll(tmpDir)
+
+		log, _ := NewLog(tmpDir, []string{}, LogOption{Format: "oneline", IsTty: false, Patch: true, Decorate: "auto"}, stdout, stderr)
+		log.Run()
+
+		expected := fmt.Sprintf(`commit %s C
+diff --git a/file.txt b/file.txt
+index 7371f47..96d80cd 100644
+--- a/file.txt
++++ b/file.txt
+@@ -1,1 +1,1 @@
+-B
++C
+commit %s B
+diff --git a/file.txt b/file.txt
+index 8c7e5a6..7371f47 100644
+--- a/file.txt
++++ b/file.txt
+@@ -1,1 +1,1 @@
+-A
++B
+commit %s A
+diff --git a/file.txt b/file.txt
+new file mode 100644
+index 0000000..8c7e5a6
+--- /dev/null
++++ b/file.txt
+@@ -0,0 +1,1 @@
++A
+`, commits[0].Oid(),
+			commits[1].Oid(),
+			commits[2].Oid())
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
 }

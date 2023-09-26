@@ -8,11 +8,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	cached bool
-	staged bool
-)
-
 var diffCmd = &cobra.Command{
 	Use:   "diff",
 	Short: "git diff",
@@ -27,10 +22,17 @@ var diffCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		cachedFlag, _ := cmd.Flags().GetBool("cached")
-		stagedFlag, _ := cmd.Flags().GetBool("staged")
+		cached, _ := cmd.Flags().GetBool("cached")
+		staged, _ := cmd.Flags().GetBool("staged")
+
+		patch, _ := cmd.Flags().GetBool("patch")
+		noPatch, _ := cmd.Flags().GetBool("no-patch")
+		if noPatch {
+			patch = false
+		}
 		options := command.DiffOption{
-			Cached: cachedFlag || stagedFlag,
+			Cached: cached || staged,
+			Patch:  patch,
 		}
 
 		diff, _ := command.NewDiff(dir, args, options, stdout, stderr)
@@ -40,7 +42,9 @@ var diffCmd = &cobra.Command{
 }
 
 func init() {
-	diffCmd.Flags().BoolVar(&cached, "cached", false, "prints the changes staged for commit")
-	diffCmd.Flags().BoolVar(&staged, "staged", false, "alias for --cached; prints the changes staged for commit")
+	diffCmd.Flags().Bool("cached", false, "prints the changes staged for commit")
+	diffCmd.Flags().Bool("staged", false, "alias for --cached; prints the changes staged for commit")
+	diffCmd.Flags().Bool("patch", true, "generate patch (default is true)")
+	diffCmd.Flags().Bool("no-patch", false, "do not generate patch (default is false)")
 	rootCmd.AddCommand(diffCmd)
 }

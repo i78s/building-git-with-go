@@ -1,6 +1,7 @@
 package command
 
 import (
+	"building-git/lib/command/print_diff"
 	"building-git/lib/database"
 	"building-git/lib/repository"
 	"fmt"
@@ -16,6 +17,7 @@ type LogOption struct {
 	Format   string
 	Decorate string
 	IsTty    bool
+	Patch    bool
 }
 
 type Log struct {
@@ -27,6 +29,7 @@ type Log struct {
 	stderr      io.Writer
 	currentRef  *repository.SymRef
 	reverseRefs map[string][]*repository.SymRef
+	prindDiff   *print_diff.PrintDiff
 }
 
 func NewLog(dir string, args []string, options LogOption, stdout, stderr io.Writer) (*Log, error) {
@@ -35,14 +38,16 @@ func NewLog(dir string, args []string, options LogOption, stdout, stderr io.Writ
 		return nil, err
 	}
 	repo := repository.NewRepository(rootPath)
+	prindDiff, _ := print_diff.NewPrintDiff(dir, stdout, stderr)
 
 	return &Log{
-		rootPath: rootPath,
-		args:     args,
-		options:  options,
-		repo:     repo,
-		stdout:   stdout,
-		stderr:   stderr,
+		rootPath:  rootPath,
+		args:      args,
+		options:   options,
+		repo:      repo,
+		stdout:    stdout,
+		stderr:    stderr,
+		prindDiff: prindDiff,
 	}, nil
 }
 
@@ -81,15 +86,19 @@ func (l *Log) showCommit(blankLine bool, commit *database.Commit) {
 	switch l.options.Format {
 	case "", "medium":
 		l.showCommitMedium(blankLine, commit)
+		blankLine = false
 	case "oneline":
 		l.showCommitOneLine(commit)
+		blankLine = false
 	}
+
+	l.showPatch(blankLine, commit)
 }
 
 func (l *Log) showCommitMedium(blankLine bool, commit *database.Commit) {
 	author := commit.Author()
 
-	if blankLine {
+	if l.options.Format != "oneline" && blankLine {
 		fmt.Fprintf(l.stdout, "\n")
 	}
 	fmt.Fprintf(l.stdout,
@@ -183,4 +192,15 @@ func (l *Log) refColor(ref *repository.SymRef) func(a ...interface{}) string {
 		return color.New(color.FgCyan, color.Bold).SprintFunc()
 	}
 	return color.New(color.FgGreen, color.Bold).SprintFunc()
+}
+
+func (l *Log) showPatch(blankLine bool, commit *database.Commit) {
+	if !l.options.Patch {
+		return
+	}
+
+	if blankLine {
+		fmt.Fprintf(l.stdout, "\n")
+	}
+	l.prindDiff.PrintCommitDiff(commit.Parent(), commit.Oid())
 }
