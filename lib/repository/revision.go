@@ -13,7 +13,7 @@ var (
 	PARENT       = regexp.MustCompile(`^(.+)\^$`)
 	ANCESTOR     = regexp.MustCompile(`^(.+)~(\d+)$`)
 	REF_ALIASES  = map[string]string{
-		"@": "HEAD",
+		"@": HEAD,
 	}
 	COMMIT = "commit"
 )

@@ -68,8 +68,12 @@ func (l *Log) eachCommit() chan *database.Commit {
 	ch := make(chan *database.Commit)
 
 	go func() {
-		oid, _ := l.repo.Refs.ReadHead()
+		start := repository.HEAD
+		if len(l.args) > 0 {
+			start = l.args[0]
+		}
 
+		oid, _ := repository.NewRevision(l.repo, start).Resolve(repository.COMMIT)
 		for oid != "" {
 			commitObj, _ := l.repo.Database.Load(oid)
 			commit := commitObj.(*database.Commit)

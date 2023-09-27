@@ -140,6 +140,22 @@ commit %s A
 		}
 	})
 
+	t.Run("prints a log starting from a specified commit", func(t *testing.T) {
+		tmpDir, stdout, stderr, commits := setUpForTestLogWithChainOfCommits(t)
+		defer os.RemoveAll(tmpDir)
+
+		log, _ := NewLog(tmpDir, []string{"@^"}, LogOption{Format: "oneline", IsTty: false, Decorate: "auto"}, stdout, stderr)
+		log.Run()
+
+		expected := fmt.Sprintf(`commit %s B
+commit %s A
+`, commits[1].Oid(),
+			commits[2].Oid())
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
 	t.Run("prints a log with short decorations", func(t *testing.T) {
 		tmpDir, stdout, stderr, commits := setUpForTestLogWithChainOfCommits(t)
 		defer os.RemoveAll(tmpDir)
