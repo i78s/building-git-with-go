@@ -30,6 +30,7 @@ type Log struct {
 	currentRef  *repository.SymRef
 	reverseRefs map[string][]*repository.SymRef
 	prindDiff   *print_diff.PrintDiff
+	revList     *repository.RevList
 }
 
 func NewLog(dir string, args []string, options LogOption, stdout, stderr io.Writer) (*Log, error) {
@@ -40,6 +41,12 @@ func NewLog(dir string, args []string, options LogOption, stdout, stderr io.Writ
 	repo := repository.NewRepository(rootPath)
 	prindDiff, _ := print_diff.NewPrintDiff(dir, stdout, stderr)
 
+	start := repository.HEAD
+	if len(args) > 0 {
+		start = args[0]
+	}
+	revList := repository.NewRevList(repo, start)
+
 	return &Log{
 		rootPath:  rootPath,
 		args:      args,
@@ -48,6 +55,7 @@ func NewLog(dir string, args []string, options LogOption, stdout, stderr io.Writ
 		stdout:    stdout,
 		stderr:    stderr,
 		prindDiff: prindDiff,
+		revList:   revList,
 	}, nil
 }
 
@@ -56,34 +64,12 @@ func (l *Log) Run() int {
 	l.currentRef, _ = l.repo.Refs.CurrentRef("")
 
 	blankLine := false
-	for commit := range l.eachCommit() {
+	for commit := range l.revList.EachCommit() {
 		l.showCommit(blankLine, commit)
 		blankLine = true
 	}
 
 	return 0
-}
-
-func (l *Log) eachCommit() chan *database.Commit {
-	ch := make(chan *database.Commit)
-
-	go func() {
-		start := repository.HEAD
-		if len(l.args) > 0 {
-			start = l.args[0]
-		}
-
-		oid, _ := repository.NewRevision(l.repo, start).Resolve(repository.COMMIT)
-		for oid != "" {
-			commitObj, _ := l.repo.Database.Load(oid)
-			commit := commitObj.(*database.Commit)
-			ch <- commit
-			oid = commit.Parent()
-		}
-		close(ch)
-	}()
-
-	return ch
 }
 
 func (l *Log) showCommit(blankLine bool, commit *database.Commit) {
