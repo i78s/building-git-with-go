@@ -4,6 +4,7 @@ import (
 	"building-git/lib/command"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -22,7 +23,10 @@ var commitCmd = &cobra.Command{
 			fmt.Fprintln(stderr, err)
 			os.Exit(1)
 		}
-		code := command.Commit(dir, args, stdin, stdout, stderr)
+
+		options := command.CommitOption{}
+		commit, _ := command.NewCommit(dir, args, options, stdin, stdout, stderr)
+		code := commit.Run(time.Now())
 		os.Exit(code)
 	},
 }

@@ -25,7 +25,7 @@ func setupTestEnvironment(t *testing.T) (string, *bytes.Buffer, *bytes.Buffer) {
 	return tmpDir, outStream, errStream
 }
 
-func commit(t *testing.T, dir string, message string) {
+func commit(t *testing.T, dir string, message string, now time.Time) {
 	t.Helper()
 
 	os.Setenv("GIT_AUTHOR_NAME", "A. U. Thor")
@@ -33,8 +33,10 @@ func commit(t *testing.T, dir string, message string) {
 	defer os.Unsetenv("GIT_AUTHOR_NAME")
 	defer os.Unsetenv("GIT_AUTHOR_EMAIL")
 
+	options := CommitOption{}
 	stdin := strings.NewReader(message)
-	Commit(dir, []string{}, stdin, new(bytes.Buffer), new(bytes.Buffer))
+	c, _ := NewCommit(dir, []string{}, options, stdin, new(bytes.Buffer), new(bytes.Buffer))
+	c.Run(now)
 }
 
 func checkout(tmpDir string, stdout, stderr *bytes.Buffer, revision string) {

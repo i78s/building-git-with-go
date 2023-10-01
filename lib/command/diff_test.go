@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"testing"
+	"time"
 )
 
 func assertDiff(
@@ -106,7 +107,7 @@ func TestDiffWithHeadCommit(t *testing.T) {
 
 		writeFile(t, tmpDir, "file.txt", "contents\n")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-		commit(t, tmpDir, "first commit")
+		commit(t, tmpDir, "first commit", time.Now())
 
 		return
 	}

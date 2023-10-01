@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 )
 
 func setUpForTestLogWithChainOfCommits(t *testing.T) (tmpDir string, stdout, stderr *bytes.Buffer, commits []*database.Commit) {
@@ -13,7 +14,7 @@ func setUpForTestLogWithChainOfCommits(t *testing.T) (tmpDir string, stdout, std
 
 	messages := []string{"A", "B", "C"}
 	for _, message := range messages {
-		commitFile(t, tmpDir, message)
+		commitFile(t, tmpDir, message, time.Now())
 	}
 
 	brunchCmd, _ := NewBranch(tmpDir, []string{"topic", "@^^"}, BranchOption{}, new(bytes.Buffer), new(bytes.Buffer))
@@ -29,10 +30,10 @@ func setUpForTestLogWithChainOfCommits(t *testing.T) (tmpDir string, stdout, std
 	return
 }
 
-func commitFile(t *testing.T, tmpDir, message string) {
+func commitFile(t *testing.T, tmpDir, message string, now time.Time) {
 	writeFile(t, tmpDir, "file.txt", message)
 	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-	commit(t, tmpDir, message)
+	commit(t, tmpDir, message, now)
 }
 
 func TestLogWithChainOfCommits(t *testing.T) {
@@ -111,9 +112,9 @@ Date:  %s
 
 		r := repo(t, tmpDir)
 
-		expected := fmt.Sprintf(`commit %s C
-commit %s B
-commit %s A
+		expected := fmt.Sprintf(`%s C
+%s B
+%s A
 `, r.Database.ShortOid(commits[0].Oid()),
 			r.Database.ShortOid(commits[1].Oid()),
 			r.Database.ShortOid(commits[2].Oid()))
@@ -129,9 +130,9 @@ commit %s A
 		log, _ := NewLog(tmpDir, []string{}, LogOption{Format: "oneline", IsTty: false, Decorate: "auto"}, stdout, stderr)
 		log.Run()
 
-		expected := fmt.Sprintf(`commit %s C
-commit %s B
-commit %s A
+		expected := fmt.Sprintf(`%s C
+%s B
+%s A
 `, commits[0].Oid(),
 			commits[1].Oid(),
 			commits[2].Oid())
@@ -147,8 +148,8 @@ commit %s A
 		log, _ := NewLog(tmpDir, []string{"@^"}, LogOption{Format: "oneline", IsTty: false, Decorate: "auto"}, stdout, stderr)
 		log.Run()
 
-		expected := fmt.Sprintf(`commit %s B
-commit %s A
+		expected := fmt.Sprintf(`%s B
+%s A
 `, commits[1].Oid(),
 			commits[2].Oid())
 		if got := stdout.String(); got != expected {
@@ -163,9 +164,9 @@ commit %s A
 		log, _ := NewLog(tmpDir, []string{}, LogOption{Format: "oneline", IsTty: false, Decorate: "short"}, stdout, stderr)
 		log.Run()
 
-		expected := fmt.Sprintf(`commit %s (HEAD -> master) C
-commit %s B
-commit %s (topic) A
+		expected := fmt.Sprintf(`%s (HEAD -> master) C
+%s B
+%s (topic) A
 `, commits[0].Oid(),
 			commits[1].Oid(),
 			commits[2].Oid())
@@ -182,9 +183,9 @@ commit %s (topic) A
 		log, _ := NewLog(tmpDir, []string{}, LogOption{Format: "oneline", IsTty: false, Decorate: "short"}, stdout, stderr)
 		log.Run()
 
-		expected := fmt.Sprintf(`commit %s (HEAD, master) C
-commit %s B
-commit %s (topic) A
+		expected := fmt.Sprintf(`%s (HEAD, master) C
+%s B
+%s (topic) A
 `, commits[0].Oid(),
 			commits[1].Oid(),
 			commits[2].Oid())
@@ -200,9 +201,9 @@ commit %s (topic) A
 		log, _ := NewLog(tmpDir, []string{}, LogOption{Format: "oneline", IsTty: false, Decorate: "full"}, stdout, stderr)
 		log.Run()
 
-		expected := fmt.Sprintf(`commit %s (HEAD -> refs/heads/master) C
-commit %s B
-commit %s (refs/heads/topic) A
+		expected := fmt.Sprintf(`%s (HEAD -> refs/heads/master) C
+%s B
+%s (refs/heads/topic) A
 `, commits[0].Oid(),
 			commits[1].Oid(),
 			commits[2].Oid())
@@ -218,7 +219,7 @@ commit %s (refs/heads/topic) A
 		log, _ := NewLog(tmpDir, []string{}, LogOption{Format: "oneline", IsTty: false, Patch: true, Decorate: "auto"}, stdout, stderr)
 		log.Run()
 
-		expected := fmt.Sprintf(`commit %s C
+		expected := fmt.Sprintf(`%s C
 diff --git a/file.txt b/file.txt
 index 7371f47..96d80cd 100644
 --- a/file.txt
@@ -226,7 +227,7 @@ index 7371f47..96d80cd 100644
 @@ -1,1 +1,1 @@
 -B
 +C
-commit %s B
+%s B
 diff --git a/file.txt b/file.txt
 index 8c7e5a6..7371f47 100644
 --- a/file.txt
@@ -234,7 +235,7 @@ index 8c7e5a6..7371f47 100644
 @@ -1,1 +1,1 @@
 -A
 +B
-commit %s A
+%s A
 diff --git a/file.txt b/file.txt
 new file mode 100644
 index 0000000..8c7e5a6
@@ -245,6 +246,71 @@ index 0000000..8c7e5a6
 `, commits[0].Oid(),
 			commits[1].Oid(),
 			commits[2].Oid())
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+}
+
+func TestLogWithTreeOfCommits(t *testing.T) {
+	//  m1  m2  m3
+	//   o---o---o [master]
+	//        \
+	//         o---o---o---o [topic]
+	//        t1  t2  t3  t4
+
+	var setUp = func(t *testing.T) (tmpDir string, stdout, stderr *bytes.Buffer, master, topic []string) {
+		tmpDir, stdout, stderr = setupTestEnvironment(t)
+
+		for i := 1; i <= 3; i++ {
+			commitFile(t, tmpDir, fmt.Sprintf("master-%d", i), time.Now())
+		}
+
+		brunchCmd, _ := NewBranch(tmpDir, []string{"topic", "master^"}, BranchOption{}, new(bytes.Buffer), new(bytes.Buffer))
+		brunchCmd.Run()
+		checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "topic")
+
+		branchTime := time.Now().Add(time.Second * 10)
+		for i := 1; i <= 4; i++ {
+			commitFile(t, tmpDir, fmt.Sprintf("topic-%d", i), branchTime)
+		}
+
+		master = []string{}
+		for i := 0; i <= 2; i++ {
+			rev, _ := resolveRevision(t, tmpDir, fmt.Sprintf("master~%d", i))
+			master = append(master, rev)
+		}
+		topic = []string{}
+		for i := 0; i <= 3; i++ {
+			rev, _ := resolveRevision(t, tmpDir, fmt.Sprintf("topic~%d", i))
+			topic = append(topic, rev)
+		}
+
+		return
+	}
+
+	t.Run("logs the combined history of multiple branches", func(t *testing.T) {
+		tmpDir, stdout, stderr, master, topic := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		log, _ := NewLog(tmpDir, []string{"master", "topic"}, LogOption{Format: "oneline", IsTty: false, Decorate: "short"}, stdout, stderr)
+		log.Run()
+
+		expected := fmt.Sprintf(`%s (HEAD -> topic) topic-4
+%s topic-3
+%s topic-2
+%s topic-1
+%s (master) master-3
+%s master-2
+%s master-1
+`, topic[0],
+			topic[1],
+			topic[2],
+			topic[3],
+			master[0],
+			master[1],
+			master[2],
+		)
 		if got := stdout.String(); got != expected {
 			t.Errorf("want %q, but got %q", expected, got)
 		}

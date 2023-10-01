@@ -41,11 +41,7 @@ func NewLog(dir string, args []string, options LogOption, stdout, stderr io.Writ
 	repo := repository.NewRepository(rootPath)
 	prindDiff, _ := print_diff.NewPrintDiff(dir, stdout, stderr)
 
-	start := repository.HEAD
-	if len(args) > 0 {
-		start = args[0]
-	}
-	revList := repository.NewRevList(repo, start)
+	revList := repository.NewRevList(repo, args)
 
 	return &Log{
 		rootPath:  rootPath,
@@ -64,7 +60,7 @@ func (l *Log) Run() int {
 	l.currentRef, _ = l.repo.Refs.CurrentRef("")
 
 	blankLine := false
-	for commit := range l.revList.EachCommit() {
+	for _, commit := range l.revList.Each() {
 		l.showCommit(blankLine, commit)
 		blankLine = true
 	}
@@ -108,7 +104,7 @@ func (l *Log) showCommitMedium(blankLine bool, commit *database.Commit) {
 
 func (l *Log) showCommitOneLine(commit *database.Commit) {
 	id := fmt.Sprintf(
-		color.New(color.FgYellow).Sprintf("commit %s", l.abbrev(commit)) +
+		color.New(color.FgYellow).Sprint(l.abbrev(commit)) +
 			l.decorate(commit),
 	)
 	fmt.Fprintf(l.stdout, "%s %s\n", id, commit.TitleLine())

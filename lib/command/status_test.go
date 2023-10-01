@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"testing"
+	"time"
 )
 
 func assertStatus(t *testing.T, tmpDir string, stdout *bytes.Buffer, stderr *bytes.Buffer, expected string) {
@@ -29,7 +30,7 @@ func TestStatusListFilesAsUntrackedIfTheyAreNotInTheIndex(t *testing.T) {
 	writeFile(t, tmpDir, "committed.txt", "")
 
 	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-	commit(t, tmpDir, "commit message")
+	commit(t, tmpDir, "commit message", time.Now())
 
 	writeFile(t, tmpDir, "file.txt", "")
 
@@ -80,7 +81,7 @@ func TestStatusListUntrackedFilesInsideTrackedDirectories(t *testing.T) {
 
 	writeFile(t, tmpDir, "a/b/inner.txt", "")
 	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-	commit(t, tmpDir, "commit message")
+	commit(t, tmpDir, "commit message", time.Now())
 
 	filesToAdd := []*filesToAdd{
 		{name: "a/outer.txt", content: ""},
@@ -131,7 +132,7 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 		}
 
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-		commit(t, tmpDir, "commit message")
+		commit(t, tmpDir, "commit message", time.Now())
 
 		return
 	}
@@ -221,7 +222,7 @@ func TestStatusHeadIndexChanges(t *testing.T) {
 		}
 
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-		commit(t, tmpDir, "commit message")
+		commit(t, tmpDir, "commit message", time.Now())
 
 		return
 	}

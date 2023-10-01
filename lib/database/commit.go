@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"io"
 	"strings"
+	"time"
 )
 
 type Commit struct {
@@ -65,6 +66,10 @@ func ParseCommit(reader *bufio.Reader) (*Commit, error) {
 
 func (c *Commit) TitleLine() string {
 	return strings.Split(c.message, "\n")[0]
+}
+
+func (c *Commit) Date() time.Time {
+	return c.author.time
 }
 
 func (c *Commit) Type() string {
