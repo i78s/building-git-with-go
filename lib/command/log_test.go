@@ -259,6 +259,7 @@ func TestLogWithTreeOfCommits(t *testing.T) {
 	//         o---o---o---o [topic]
 	//        t1  t2  t3  t4
 
+	var branchTime = time.Now().Add(time.Second * 10)
 	var setUp = func(t *testing.T) (tmpDir string, stdout, stderr *bytes.Buffer, master, topic []string) {
 		tmpDir, stdout, stderr = setupTestEnvironment(t)
 
@@ -270,7 +271,6 @@ func TestLogWithTreeOfCommits(t *testing.T) {
 		brunchCmd.Run()
 		checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "topic")
 
-		branchTime := time.Now().Add(time.Second * 10)
 		for i := 1; i <= 4; i++ {
 			commitFile(t, tmpDir, fmt.Sprintf("topic-%d", i), branchTime)
 		}
@@ -310,6 +310,71 @@ func TestLogWithTreeOfCommits(t *testing.T) {
 			master[0],
 			master[1],
 			master[2],
+		)
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("logs the difference from one one branch to another", func(t *testing.T) {
+		tmpDir, stdout, stderr, _, topic := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		log, _ := NewLog(tmpDir, []string{"master..topic"}, LogOption{Format: "oneline", IsTty: false, Decorate: "auto"}, stdout, stderr)
+		log.Run()
+
+		expected := fmt.Sprintf(`%s topic-4
+%s topic-3
+%s topic-2
+%s topic-1
+`, topic[0],
+			topic[1],
+			topic[2],
+			topic[3],
+		)
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("excludes a long branch when commit times are equal", func(t *testing.T) {
+		tmpDir, stdout, stderr, _, topic := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		brunchCmd, _ := NewBranch(tmpDir, []string{"side", "topic^^"}, BranchOption{}, new(bytes.Buffer), new(bytes.Buffer))
+		brunchCmd.Run()
+		checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "side")
+
+		for i := 1; i <= 10; i++ {
+			commitFile(t, tmpDir, fmt.Sprintf("side-%d", i), branchTime)
+		}
+
+		log, _ := NewLog(tmpDir, []string{"side..topic", "^master"}, LogOption{Format: "oneline", IsTty: false, Decorate: "auto"}, stdout, stderr)
+		log.Run()
+
+		expected := fmt.Sprintf(`%s topic-4
+%s topic-3
+`, topic[0],
+			topic[1],
+		)
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("logs the last few commits on a branch", func(t *testing.T) {
+		tmpDir, stdout, stderr, _, topic := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		log, _ := NewLog(tmpDir, []string{"@~3.."}, LogOption{Format: "oneline", IsTty: false, Decorate: "auto"}, stdout, stderr)
+		log.Run()
+
+		expected := fmt.Sprintf(`%s topic-4
+%s topic-3
+%s topic-2
+`, topic[0],
+			topic[1],
+			topic[2],
 		)
 		if got := stdout.String(); got != expected {
 			t.Errorf("want %q, but got %q", expected, got)
