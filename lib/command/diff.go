@@ -73,7 +73,7 @@ func (d *Diff) diffCommits() {
 
 	a, _ := repository.NewRevision(d.repo, d.args[0]).Resolve(repository.COMMIT)
 	b, _ := repository.NewRevision(d.repo, d.args[1]).Resolve(repository.COMMIT)
-	d.prindDiff.PrintCommitDiff(a, b)
+	d.prindDiff.PrintCommitDiff(a, b, d.repo.Database)
 }
 
 func (d *Diff) diffHeadIndex() {

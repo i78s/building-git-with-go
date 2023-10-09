@@ -35,7 +35,7 @@ func storeTree(contents map[string]string) string {
 
 func treeDiff(a, b string) map[string][2]TreeObject {
 	db := NewDatabase(testDir)
-	return db.TreeDiff(a, b)
+	return db.TreeDiff(a, b, nil)
 }
 
 func TestTreeDiff(t *testing.T) {

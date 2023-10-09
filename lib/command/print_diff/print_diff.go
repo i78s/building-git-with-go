@@ -84,8 +84,15 @@ func (p *PrintDiff) short(oid string) string {
 	return p.repo.Database.ShortOid(oid)
 }
 
-func (p *PrintDiff) PrintCommitDiff(a, b string) {
-	diff := p.repo.Database.TreeDiff(a, b)
+type Differ interface {
+	TreeDiff(a, b string, differ *database.PathFilter) map[string][2]database.TreeObject
+}
+
+func (p *PrintDiff) PrintCommitDiff(a, b string, differ Differ) {
+	if differ == nil {
+		differ = p.repo.Database
+	}
+	diff := differ.TreeDiff(a, b, nil)
 	paths := []string{}
 	for k := range diff {
 		paths = append(paths, k)

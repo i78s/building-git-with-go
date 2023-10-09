@@ -2,7 +2,6 @@ package database
 
 import (
 	"fmt"
-	"path/filepath"
 )
 
 type TreeDiff struct {
@@ -17,7 +16,7 @@ func NewTreeDiff(database *Database) *TreeDiff {
 	}
 }
 
-func (t *TreeDiff) compareOids(a, b, prefix string) {
+func (t *TreeDiff) compareOids(a, b string, filter *PathFilter) {
 	if a == b {
 		return
 	}
@@ -33,8 +32,8 @@ func (t *TreeDiff) compareOids(a, b, prefix string) {
 		bEntries = tree.Entries
 	}
 
-	t.detectDeletions(aEntries, bEntries, prefix)
-	t.detectAdditions(aEntries, bEntries, prefix)
+	t.detectDeletions(aEntries, bEntries, filter)
+	t.detectAdditions(aEntries, bEntries, filter)
 }
 
 func (t *TreeDiff) oidToTree(oid string) (*Tree, error) {
@@ -55,18 +54,18 @@ func (t *TreeDiff) oidToTree(oid string) (*Tree, error) {
 	return nil, fmt.Errorf("")
 }
 
-func (t *TreeDiff) detectDeletions(a, b map[string]TreeObject, prefix string) {
-	for name, entry := range a {
-		path := filepath.Join(prefix, name)
+func (t *TreeDiff) detectDeletions(a, b map[string]TreeObject, filter *PathFilter) {
+	filter.EachEntry(a, func(name string, entry TreeObject) {
 		other := b[name]
 
 		if entry == nil && other == nil {
-			continue
+			return
 		}
 		if entry != nil && other != nil && other.Oid() == entry.Oid() && other.Mode() == entry.Mode() {
-			continue
+			return
 		}
 
+		subFilter := filter.Join(name)
 		treeA, treeB := "", ""
 		if entry != nil && entry.(*Entry).IsTree() {
 			treeA = entry.Oid()
@@ -74,7 +73,7 @@ func (t *TreeDiff) detectDeletions(a, b map[string]TreeObject, prefix string) {
 		if other != nil && other.(*Entry).IsTree() {
 			treeB = other.Oid()
 		}
-		t.compareOids(treeA, treeB, path)
+		t.compareOids(treeA, treeB, subFilter)
 
 		blobs := [2]TreeObject{}
 		for i, e := range []TreeObject{entry, other} {
@@ -83,23 +82,23 @@ func (t *TreeDiff) detectDeletions(a, b map[string]TreeObject, prefix string) {
 			}
 		}
 		if blobs[0] != nil || blobs[1] != nil {
-			t.changes[path] = blobs
+			t.changes[subFilter.Path] = blobs
 		}
-	}
+	})
 }
 
-func (t *TreeDiff) detectAdditions(a, b map[string]TreeObject, prefix string) {
-	for name, entry := range b {
-		path := filepath.Join(prefix, name)
+func (t *TreeDiff) detectAdditions(a, b map[string]TreeObject, filter *PathFilter) {
+	filter.EachEntry(b, func(name string, entry TreeObject) {
 		_, ok := a[name]
 		if ok {
-			continue
+			return
 		}
 
+		subFilter := filter.Join(name)
 		if entry.(*Entry).IsTree() {
-			t.compareOids("", entry.Oid(), path)
+			t.compareOids("", entry.Oid(), subFilter)
 		} else {
-			t.changes[path] = [2]TreeObject{nil, entry}
+			t.changes[subFilter.Path] = [2]TreeObject{nil, entry}
 		}
-	}
+	})
 }

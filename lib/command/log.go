@@ -188,5 +188,5 @@ func (l *Log) showPatch(blankLine bool, commit *database.Commit) {
 	if blankLine {
 		fmt.Fprintf(l.stdout, "\n")
 	}
-	l.prindDiff.PrintCommitDiff(commit.Parent(), commit.Oid())
+	l.prindDiff.PrintCommitDiff(commit.Parent(), commit.Oid(), l.revList)
 }

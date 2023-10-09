@@ -87,9 +87,12 @@ func (d *Database) PrefixMatch(name string) ([]string, error) {
 	return oids, nil
 }
 
-func (d *Database) TreeDiff(a, b string) map[string][2]TreeObject {
+func (d *Database) TreeDiff(a, b string, filter *PathFilter) map[string][2]TreeObject {
+	if filter == nil {
+		filter = NewPathFilter(nil, "")
+	}
 	diff := NewTreeDiff(d)
-	diff.compareOids(a, b, "")
+	diff.compareOids(a, b, filter)
 	return diff.changes
 }
 

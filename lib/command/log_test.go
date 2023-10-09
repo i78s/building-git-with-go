@@ -9,36 +9,43 @@ import (
 	"time"
 )
 
-func setUpForTestLogWithChainOfCommits(t *testing.T) (tmpDir string, stdout, stderr *bytes.Buffer, commits []*database.Commit) {
-	tmpDir, stdout, stderr = setupTestEnvironment(t)
-
-	messages := []string{"A", "B", "C"}
-	for _, message := range messages {
-		commitFile(t, tmpDir, message, time.Now())
-	}
-
-	brunchCmd, _ := NewBranch(tmpDir, []string{"topic", "@^^"}, BranchOption{}, new(bytes.Buffer), new(bytes.Buffer))
-	brunchCmd.Run()
-
-	commits = []*database.Commit{}
-	for _, rev := range []string{"@", "@^", "@^^"} {
-		cobj, _ := loadCommit(t, tmpDir, rev)
-		c, _ := cobj.(*database.Commit)
-		commits = append(commits, c)
-	}
-
-	return
-}
-
 func commitFile(t *testing.T, tmpDir, message string, now time.Time) {
 	writeFile(t, tmpDir, "file.txt", message)
 	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
 	commit(t, tmpDir, message, now)
 }
 
+func commitTree(t *testing.T, tmpDir, message string, files map[string]string) {
+	for path, contents := range files {
+		writeFile(t, tmpDir, path, contents)
+	}
+	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
+	commit(t, tmpDir, message, time.Now())
+}
+
 func TestLogWithChainOfCommits(t *testing.T) {
+	setUp := func(t *testing.T) (tmpDir string, stdout, stderr *bytes.Buffer, commits []*database.Commit) {
+		tmpDir, stdout, stderr = setupTestEnvironment(t)
+
+		messages := []string{"A", "B", "C"}
+		for _, message := range messages {
+			commitFile(t, tmpDir, message, time.Now())
+		}
+
+		brunchCmd, _ := NewBranch(tmpDir, []string{"topic", "@^^"}, BranchOption{}, new(bytes.Buffer), new(bytes.Buffer))
+		brunchCmd.Run()
+
+		commits = []*database.Commit{}
+		for _, rev := range []string{"@", "@^", "@^^"} {
+			cobj, _ := loadCommit(t, tmpDir, rev)
+			c, _ := cobj.(*database.Commit)
+			commits = append(commits, c)
+		}
+
+		return
+	}
 	t.Run("advances a branch pointer", func(t *testing.T) {
-		tmpDir, stdout, stderr, commits := setUpForTestLogWithChainOfCommits(t)
+		tmpDir, stdout, stderr, commits := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
 		log, _ := NewLog(tmpDir, []string{}, LogOption{IsTty: false, Decorate: "auto"}, stdout, stderr)
@@ -70,7 +77,7 @@ Date:  %s
 	})
 
 	t.Run("prints a log in medium format with abbreviated commit IDs", func(t *testing.T) {
-		tmpDir, stdout, stderr, commits := setUpForTestLogWithChainOfCommits(t)
+		tmpDir, stdout, stderr, commits := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
 		log, _ := NewLog(tmpDir, []string{}, LogOption{Abbrev: true, IsTty: false, Decorate: "auto"}, stdout, stderr)
@@ -104,7 +111,7 @@ Date:  %s
 	})
 
 	t.Run("prints a log in oneline format", func(t *testing.T) {
-		tmpDir, stdout, stderr, commits := setUpForTestLogWithChainOfCommits(t)
+		tmpDir, stdout, stderr, commits := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
 		log, _ := NewLog(tmpDir, []string{}, LogOption{Abbrev: true, Format: "oneline", IsTty: false, Decorate: "auto"}, stdout, stderr)
@@ -124,7 +131,7 @@ Date:  %s
 	})
 
 	t.Run("prints a log in oneline format without abbreviated commit IDs", func(t *testing.T) {
-		tmpDir, stdout, stderr, commits := setUpForTestLogWithChainOfCommits(t)
+		tmpDir, stdout, stderr, commits := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
 		log, _ := NewLog(tmpDir, []string{}, LogOption{Format: "oneline", IsTty: false, Decorate: "auto"}, stdout, stderr)
@@ -142,7 +149,7 @@ Date:  %s
 	})
 
 	t.Run("prints a log starting from a specified commit", func(t *testing.T) {
-		tmpDir, stdout, stderr, commits := setUpForTestLogWithChainOfCommits(t)
+		tmpDir, stdout, stderr, commits := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
 		log, _ := NewLog(tmpDir, []string{"@^"}, LogOption{Format: "oneline", IsTty: false, Decorate: "auto"}, stdout, stderr)
@@ -158,7 +165,7 @@ Date:  %s
 	})
 
 	t.Run("prints a log with short decorations", func(t *testing.T) {
-		tmpDir, stdout, stderr, commits := setUpForTestLogWithChainOfCommits(t)
+		tmpDir, stdout, stderr, commits := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
 		log, _ := NewLog(tmpDir, []string{}, LogOption{Format: "oneline", IsTty: false, Decorate: "short"}, stdout, stderr)
@@ -176,7 +183,7 @@ Date:  %s
 	})
 
 	t.Run("prints a log with detached HEAD", func(t *testing.T) {
-		tmpDir, stdout, stderr, commits := setUpForTestLogWithChainOfCommits(t)
+		tmpDir, stdout, stderr, commits := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
 		checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "@")
@@ -195,7 +202,7 @@ Date:  %s
 	})
 
 	t.Run("prints a log with full decorations", func(t *testing.T) {
-		tmpDir, stdout, stderr, commits := setUpForTestLogWithChainOfCommits(t)
+		tmpDir, stdout, stderr, commits := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
 		log, _ := NewLog(tmpDir, []string{}, LogOption{Format: "oneline", IsTty: false, Decorate: "full"}, stdout, stderr)
@@ -213,7 +220,7 @@ Date:  %s
 	})
 
 	t.Run("prints a log with patches", func(t *testing.T) {
-		tmpDir, stdout, stderr, commits := setUpForTestLogWithChainOfCommits(t)
+		tmpDir, stdout, stderr, commits := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
 		log, _ := NewLog(tmpDir, []string{}, LogOption{Format: "oneline", IsTty: false, Patch: true, Decorate: "auto"}, stdout, stderr)
@@ -246,6 +253,138 @@ index 0000000..8c7e5a6
 `, commits[0].Oid(),
 			commits[1].Oid(),
 			commits[2].Oid())
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+}
+
+func TestLogWithCommitsChangingDifferentFiles(t *testing.T) {
+	setUp := func(t *testing.T) (tmpDir string, stdout, stderr *bytes.Buffer, commits []*database.Commit) {
+		tmpDir, stdout, stderr = setupTestEnvironment(t)
+
+		commitTree(t, tmpDir, "first", map[string]string{
+			"a/1.txt":   "1",
+			"b/c/2.txt": "2",
+		})
+
+		commitTree(t, tmpDir, "second", map[string]string{
+			"a/1.txt": "10",
+			"b/3.txt": "3",
+		})
+
+		commitTree(t, tmpDir, "third", map[string]string{
+			"b/c/2.txt": "4",
+		})
+
+		commits = []*database.Commit{}
+		for _, rev := range []string{"@^^", "@^", "@"} {
+			cobj, _ := loadCommit(t, tmpDir, rev)
+			c, _ := cobj.(*database.Commit)
+			commits = append(commits, c)
+		}
+
+		return
+	}
+
+	t.Run("logs commits that change a file", func(t *testing.T) {
+		tmpDir, stdout, stderr, commits := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		log, _ := NewLog(tmpDir, []string{"a/1.txt"}, LogOption{Format: "oneline", IsTty: false, Decorate: "auto"}, stdout, stderr)
+		log.Run()
+
+		expected := fmt.Sprintf(`%s second
+%s first
+`, commits[1].Oid(),
+			commits[0].Oid(),
+		)
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("logs commits that change a directory", func(t *testing.T) {
+		tmpDir, stdout, stderr, commits := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		log, _ := NewLog(tmpDir, []string{"b"}, LogOption{Format: "oneline", IsTty: false, Decorate: "auto"}, stdout, stderr)
+		log.Run()
+
+		expected := fmt.Sprintf(`%s third
+%s second
+%s first
+`, commits[2].Oid(),
+			commits[1].Oid(),
+			commits[0].Oid(),
+		)
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("logs commits that change a directory and one of its files", func(t *testing.T) {
+		tmpDir, stdout, stderr, commits := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		log, _ := NewLog(tmpDir, []string{"b", "b/3.txt"}, LogOption{Format: "oneline", IsTty: false, Decorate: "auto"}, stdout, stderr)
+		log.Run()
+
+		expected := fmt.Sprintf(`%s third
+%s second
+%s first
+`, commits[2].Oid(),
+			commits[1].Oid(),
+			commits[0].Oid(),
+		)
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("logs commits that change a nested directory", func(t *testing.T) {
+		tmpDir, stdout, stderr, commits := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		log, _ := NewLog(tmpDir, []string{"b/c"}, LogOption{Format: "oneline", IsTty: false, Decorate: "auto"}, stdout, stderr)
+		log.Run()
+
+		expected := fmt.Sprintf(`%s third
+%s first
+`, commits[2].Oid(),
+			commits[0].Oid(),
+		)
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("logs commits with patches for selected files", func(t *testing.T) {
+		tmpDir, stdout, stderr, commits := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		log, _ := NewLog(tmpDir, []string{"a/1.txt"}, LogOption{Format: "oneline", IsTty: false, Decorate: "auto", Patch: true}, stdout, stderr)
+		log.Run()
+
+		expected := fmt.Sprintf(`%s second
+diff --git a/a/1.txt b/a/1.txt
+index 56a6051..9a03714 100644
+--- a/a/1.txt
++++ b/a/1.txt
+@@ -1,1 +1,1 @@
+-1
++10
+%s first
+diff --git a/a/1.txt b/a/1.txt
+new file mode 100644
+index 0000000..56a6051
+--- /dev/null
++++ b/a/1.txt
+@@ -0,0 +1,1 @@
++1
+`, commits[1].Oid(),
+			commits[0].Oid(),
+		)
 		if got := stdout.String(); got != expected {
 			t.Errorf("want %q, but got %q", expected, got)
 		}

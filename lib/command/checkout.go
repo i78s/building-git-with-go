@@ -68,7 +68,7 @@ func (c *CheckOut) Run() int {
 		return 1
 	}
 
-	treeDiff := c.repo.Database.TreeDiff(currentOid, targetOid)
+	treeDiff := c.repo.Database.TreeDiff(currentOid, targetOid, nil)
 	migration := c.repo.Migration(treeDiff)
 	err = migration.ApplyChanges()
 	if err != nil {

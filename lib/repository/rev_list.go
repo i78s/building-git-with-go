@@ -13,6 +13,7 @@ const (
 	added RevListFlag = iota
 	seen
 	uninteresting
+	treesame
 )
 
 var (
@@ -26,7 +27,10 @@ type RevList struct {
 	flags   map[string]map[RevListFlag]bool
 	queue   []*database.Commit
 	limited bool
+	prune   []string
+	diffs   map[[2]string]map[string][2]database.TreeObject
 	output  []*database.Commit
+	filter  *database.PathFilter
 }
 
 func NewRevList(repo *Repository, revs []string) *RevList {
@@ -35,6 +39,8 @@ func NewRevList(repo *Repository, revs []string) *RevList {
 		commits: map[string]*database.Commit{},
 		flags:   map[string]map[RevListFlag]bool{},
 		queue:   make([]*database.Commit, 0),
+		prune:   make([]string, 0),
+		diffs:   make(map[[2]string]map[string][2]database.TreeObject),
 		output:  make([]*database.Commit, 0),
 	}
 
@@ -44,6 +50,7 @@ func NewRevList(repo *Repository, revs []string) *RevList {
 	if len(revList.queue) == 0 {
 		revList.handleRevision(HEAD)
 	}
+	revList.filter = database.PathFilterBuild(revList.prune)
 
 	return revList
 }
@@ -60,8 +67,21 @@ func (r *RevList) Each() []*database.Commit {
 	return commits
 }
 
+func (r *RevList) TreeDiff(oldOid, newOid string, differ *database.PathFilter) map[string][2]database.TreeObject {
+	key := [2]string{oldOid, newOid}
+	diff, ok := r.diffs[key]
+	if ok {
+		return diff
+	}
+
+	r.diffs[key] = r.repo.Database.TreeDiff(oldOid, newOid, r.filter)
+	return r.diffs[key]
+}
+
 func (r *RevList) handleRevision(rev string) {
-	if match := RANGE.FindStringSubmatch(rev); match != nil {
+	if stat, _ := r.repo.Workspace.StatFile(rev); stat != nil {
+		r.prune = append(r.prune, rev)
+	} else if match := RANGE.FindStringSubmatch(rev); match != nil {
 		r.setStartPoint(match[1], false)
 		r.setStartPoint(match[2], true)
 	} else if match := EXCLUDE.FindStringSubmatch(rev); match != nil {
@@ -145,14 +165,18 @@ func (r *RevList) addParents(commit *database.Commit) {
 	if !r.mark(commit.Oid(), added) {
 		return
 	}
+
 	parent := r.loadCommit(commit.Parent())
-	if parent == nil {
-		return
-	}
 	if r.isMarked(commit.Oid(), uninteresting) {
-		r.markParentsUninteresting(parent)
+		if parent != nil {
+			r.markParentsUninteresting(parent)
+		}
+	} else {
+		r.simplifyCommit(commit)
 	}
-	r.enqueueCommit(parent)
+	if parent != nil {
+		r.enqueueCommit(parent)
+	}
 }
 
 func (r *RevList) markParentsUninteresting(commit *database.Commit) {
@@ -161,6 +185,17 @@ func (r *RevList) markParentsUninteresting(commit *database.Commit) {
 			break
 		}
 		commit = r.commits[commit.Parent()]
+	}
+}
+
+func (r *RevList) simplifyCommit(commit *database.Commit) {
+	if len(r.prune) == 0 {
+		return
+	}
+
+	td := r.TreeDiff(commit.Parent(), commit.Oid(), nil)
+	if len(td) == 0 {
+		r.mark(commit.Oid(), treesame)
 	}
 }
 
@@ -173,6 +208,9 @@ func (r *RevList) traverseCommits(fn func(*database.Commit)) {
 			r.addParents(commit)
 		}
 		if r.isMarked(commit.Oid(), uninteresting) {
+			continue
+		}
+		if r.isMarked(commit.Oid(), treesame) {
 			continue
 		}
 		fn(commit)
