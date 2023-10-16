@@ -13,7 +13,7 @@ var setUp = func(t *testing.T) (tmpDir string, chain func(names []string), ances
 	db := database.NewDatabase(tmpDir)
 	commits := map[string]string{}
 
-	commit := func(parent, message string, now time.Time) {
+	commit := func(parent []string, message string, now time.Time) {
 		author := database.NewAuthor("A. U. Thor", "author@example.com", now)
 		c := database.NewCommit(parent, "'0' *  40", author, message)
 		db.Store(c)
@@ -22,9 +22,9 @@ var setUp = func(t *testing.T) (tmpDir string, chain func(names []string), ances
 
 	chain = func(names []string) {
 		for i := 0; i < len(names)-1; i++ {
-			parent := ""
+			parent := []string{}
 			if names[i] != "" {
-				parent = commits[names[i]]
+				parent = append(parent, commits[names[i]])
 			}
 			message := names[i+1]
 			commit(parent, message, time.Now())

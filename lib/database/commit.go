@@ -8,16 +8,16 @@ import (
 )
 
 type Commit struct {
-	parent  string
+	parents []string
 	oid     string
 	tree    string
 	author  *Author
 	message string
 }
 
-func NewCommit(parent, tree string, author *Author, message string) *Commit {
+func NewCommit(parents []string, tree string, author *Author, message string) *Commit {
 	return &Commit{
-		parent:  parent,
+		parents: parents,
 		tree:    tree,
 		author:  author,
 		message: message,
@@ -25,7 +25,7 @@ func NewCommit(parent, tree string, author *Author, message string) *Commit {
 }
 
 func ParseCommit(reader *bufio.Reader) (*Commit, error) {
-	headers := make(map[string]string)
+	headers := make(map[string][]string)
 	message := ""
 
 	for {
@@ -48,18 +48,27 @@ func ParseCommit(reader *bufio.Reader) (*Commit, error) {
 		}
 
 		parts := strings.SplitN(line, " ", 2)
-
-		headers[parts[0]] = parts[1]
+		if len(parts) == 1 {
+			parts = append(parts, "")
+		}
+		if headers[parts[0]] == nil {
+			headers[parts[0]] = make([]string, 0)
+		}
+		headers[parts[0]] = append(headers[parts[0]], parts[1])
 	}
 
-	author, err := ParseAuthor(headers["author"])
+	author, err := ParseAuthor(headers["author"][0])
 	if err != nil {
 		return nil, err
 	}
 
+	if headers["parent"] == nil {
+		headers["parent"] = []string{""}
+	}
+
 	return NewCommit(
 		headers["parent"],
-		headers["tree"],
+		headers["tree"][0],
 		author,
 		message), nil
 }
@@ -81,8 +90,8 @@ func (c Commit) String() string {
 		"tree " + c.tree,
 	}
 
-	if c.parent != "" {
-		lines = append(lines, "parent "+c.parent)
+	for _, p := range c.parents {
+		lines = append(lines, "parent "+p)
 	}
 	lines = append(lines,
 		"author "+c.author.String(),
@@ -107,7 +116,7 @@ func (c *Commit) Tree() string {
 }
 
 func (c *Commit) Parent() string {
-	return c.parent
+	return c.parents[0]
 }
 
 func (c *Commit) Author() *Author {
