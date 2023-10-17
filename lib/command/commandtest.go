@@ -8,6 +8,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -37,6 +39,14 @@ func commit(t *testing.T, dir string, message string, now time.Time) {
 	stdin := strings.NewReader(message)
 	c, _ := NewCommit(dir, []string{}, options, stdin, new(bytes.Buffer), new(bytes.Buffer))
 	c.Run(now)
+}
+
+func commitTree(t *testing.T, tmpDir, message string, files map[string]string) {
+	for path, contents := range files {
+		writeFile(t, tmpDir, path, contents)
+	}
+	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
+	commit(t, tmpDir, message, time.Now())
 }
 
 func checkout(tmpDir string, stdout, stderr *bytes.Buffer, revision string) {
@@ -149,5 +159,38 @@ func delete(t *testing.T, path, name string) {
 	err := os.RemoveAll(filePath)
 	if err != nil {
 		t.Fatalf("Failed to delete file or directory: %s", err)
+	}
+}
+
+func assertWorkspace(t *testing.T, dir string, expected map[string]string) {
+	rootPath, _ := filepath.Abs(dir)
+	repo := repository.NewRepository(rootPath)
+
+	actual := make(map[string]string)
+
+	files, _ := repo.Workspace.ListFiles(rootPath)
+	sort.Strings(files)
+	for _, path := range files {
+		actual[path], _ = repo.Workspace.ReadFile(path)
+	}
+
+	if !reflect.DeepEqual(actual, expected) {
+		t.Errorf("want %q, but got %q", expected, actual)
+	}
+}
+
+func assertStatus(t *testing.T, tmpDir string, stdout *bytes.Buffer, stderr *bytes.Buffer, expected string) {
+	args := []string{}
+	options := StatusOption{
+		Porcelain: true,
+	}
+	statusCmd, err := NewStatus(tmpDir, args, options, stdout, stderr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	statusCmd.Run()
+
+	if got := stdout.String(); got != expected {
+		t.Errorf("want %q, but got %q", expected, got)
 	}
 }

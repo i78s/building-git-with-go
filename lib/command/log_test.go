@@ -15,14 +15,6 @@ func commitFile(t *testing.T, tmpDir, message string, now time.Time) {
 	commit(t, tmpDir, message, now)
 }
 
-func commitTree(t *testing.T, tmpDir, message string, files map[string]string) {
-	for path, contents := range files {
-		writeFile(t, tmpDir, path, contents)
-	}
-	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-	commit(t, tmpDir, message, time.Now())
-}
-
 func TestLogWithChainOfCommits(t *testing.T) {
 	setUp := func(t *testing.T) (tmpDir string, stdout, stderr *bytes.Buffer, commits []*database.Commit) {
 		tmpDir, stdout, stderr = setupTestEnvironment(t)

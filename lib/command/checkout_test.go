@@ -1,33 +1,13 @@
 package command
 
 import (
-	"building-git/lib/repository"
 	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
-	"sort"
 	"testing"
 	"time"
 )
-
-func assertWorkspace(t *testing.T, dir string, expected map[string]string) {
-	rootPath, _ := filepath.Abs(dir)
-	repo := repository.NewRepository(rootPath)
-
-	actual := make(map[string]string)
-
-	files, _ := repo.Workspace.ListFiles(rootPath)
-	sort.Strings(files)
-	for _, path := range files {
-		actual[path], _ = repo.Workspace.ReadFile(path)
-	}
-
-	if !reflect.DeepEqual(actual, expected) {
-		t.Errorf("want %q, but got %q", expected, actual)
-	}
-}
 
 func assertNoent(t *testing.T, repoPath, filename string) {
 	_, err := os.Stat(filepath.Join(repoPath, filename))

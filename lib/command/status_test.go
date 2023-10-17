@@ -7,22 +7,6 @@ import (
 	"time"
 )
 
-func assertStatus(t *testing.T, tmpDir string, stdout *bytes.Buffer, stderr *bytes.Buffer, expected string) {
-	args := []string{}
-	options := StatusOption{
-		Porcelain: true,
-	}
-	statusCmd, err := NewStatus(tmpDir, args, options, stdout, stderr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	statusCmd.Run()
-
-	if got := stdout.String(); got != expected {
-		t.Errorf("want %q, but got %q", expected, got)
-	}
-}
-
 func TestStatusListFilesAsUntrackedIfTheyAreNotInTheIndex(t *testing.T) {
 	tmpDir, stdout, stderr := setupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)

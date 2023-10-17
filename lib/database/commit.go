@@ -8,7 +8,7 @@ import (
 )
 
 type Commit struct {
-	parents []string
+	Parents []string
 	oid     string
 	tree    string
 	author  *Author
@@ -17,7 +17,7 @@ type Commit struct {
 
 func NewCommit(parents []string, tree string, author *Author, message string) *Commit {
 	return &Commit{
-		parents: parents,
+		Parents: parents,
 		tree:    tree,
 		author:  author,
 		message: message,
@@ -90,7 +90,7 @@ func (c Commit) String() string {
 		"tree " + c.tree,
 	}
 
-	for _, p := range c.parents {
+	for _, p := range c.Parents {
 		lines = append(lines, "parent "+p)
 	}
 	lines = append(lines,
@@ -116,7 +116,7 @@ func (c *Commit) Tree() string {
 }
 
 func (c *Commit) Parent() string {
-	return c.parents[0]
+	return c.Parents[0]
 }
 
 func (c *Commit) Author() *Author {
