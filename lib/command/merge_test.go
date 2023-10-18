@@ -4,7 +4,6 @@ import (
 	"building-git/lib/database"
 	"bytes"
 	"os"
-	"strings"
 	"testing"
 )
 
@@ -35,14 +34,8 @@ func TestMergeUnconflictedMergeWithTwoFiles(t *testing.T) {
 			"f.txt": "2",
 		})
 
-		os.Setenv("GIT_AUTHOR_NAME", "A. U. Thor")
-		os.Setenv("GIT_AUTHOR_EMAIL", "author@example.com")
-		defer os.Unsetenv("GIT_AUTHOR_NAME")
-		defer os.Unsetenv("GIT_AUTHOR_EMAIL")
 		options := MergeOption{}
-		stdin := strings.NewReader("merge topic branch")
-		mergeCmd, _ := NewMerge(tmpDir, []string{"topic"}, options, stdin, stdout, stderr)
-		mergeCmd.Run()
+		mergeCommit(t, tmpDir, "topic", "merge topic branch", options, stdout, stderr)
 
 		return
 	}
@@ -61,7 +54,7 @@ func TestMergeUnconflictedMergeWithTwoFiles(t *testing.T) {
 		tmpDir, stdout, stderr := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
-		assertStatus(t, tmpDir, stdout, stderr, "")
+		assertGitStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("writes a commit with the old HEAD and the merged commit as parents", func(t *testing.T) {
@@ -77,5 +70,98 @@ func TestMergeUnconflictedMergeWithTwoFiles(t *testing.T) {
 		if commit.Parents[0] != expected[0] || commit.Parents[1] != expected[1] {
 			t.Errorf("want %q, but got %q", expected, commit.Parents)
 		}
+	})
+}
+
+func TestMergeMultipleCommonAncestors(t *testing.T) {
+	//   A   B   C       M1  H   M2
+	//   o---o---o-------o---o---o
+	//        \         /       /
+	//         o---o---o G     /
+	//         D  E \         /
+	//               `-------o
+	//                       F
+
+	setUp := func(t *testing.T) (tmpDir string, stdout, stderr *bytes.Buffer) {
+		tmpDir, stdout, stderr = setupTestEnvironment(t)
+
+		commitTree(t, tmpDir, "A", map[string]string{
+			"f.txt": "1",
+		})
+		commitTree(t, tmpDir, "B", map[string]string{
+			"f.txt": "2",
+		})
+		commitTree(t, tmpDir, "C", map[string]string{
+			"f.txt": "3",
+		})
+
+		brunchCmd, _ := NewBranch(tmpDir, []string{"topic", "master^"}, BranchOption{}, new(bytes.Buffer), new(bytes.Buffer))
+		brunchCmd.Run()
+		checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "topic")
+		commitTree(t, tmpDir, "D", map[string]string{
+			"g.txt": "1",
+		})
+		commitTree(t, tmpDir, "E", map[string]string{
+			"g.txt": "2",
+		})
+		commitTree(t, tmpDir, "F", map[string]string{
+			"g.txt": "3",
+		})
+
+		brunchCmd, _ = NewBranch(tmpDir, []string{"joiner", "topic^"}, BranchOption{}, new(bytes.Buffer), new(bytes.Buffer))
+		brunchCmd.Run()
+		checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "joiner")
+		commitTree(t, tmpDir, "G", map[string]string{
+			"h.txt": "1",
+		})
+
+		checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "master")
+
+		return
+	}
+
+	t.Run("performs the first merge", func(t *testing.T) {
+		tmpDir, stdout, stderr := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		options := MergeOption{}
+		status := mergeCommit(t, tmpDir, "joiner", "merge joiner", options, stdout, stderr)
+
+		if status != 0 {
+			t.Errorf("want %q, but got %q", 0, status)
+		}
+
+		assertWorkspace(t, tmpDir, map[string]string{
+			"f.txt": "3",
+			"g.txt": "2",
+			"h.txt": "1",
+		})
+
+		assertGitStatus(t, tmpDir, stdout, stderr, "")
+	})
+
+	t.Run("performs the second merge", func(t *testing.T) {
+		tmpDir, stdout, stderr := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		options := MergeOption{}
+		mergeCommit(t, tmpDir, "joiner", "merge joiner", options, stdout, stderr)
+
+		commitTree(t, tmpDir, "H", map[string]string{
+			"f.txt": "4",
+		})
+
+		status := mergeCommit(t, tmpDir, "topic", "merge topic", options, stdout, stderr)
+		if status != 0 {
+			t.Errorf("want %q, but got %q", 0, status)
+		}
+
+		assertWorkspace(t, tmpDir, map[string]string{
+			"f.txt": "4",
+			"g.txt": "3",
+			"h.txt": "1",
+		})
+
+		assertGitStatus(t, tmpDir, stdout, stderr, "")
 	})
 }

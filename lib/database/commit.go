@@ -63,7 +63,7 @@ func ParseCommit(reader *bufio.Reader) (*Commit, error) {
 	}
 
 	if headers["parent"] == nil {
-		headers["parent"] = []string{""}
+		headers["parent"] = []string{}
 	}
 
 	return NewCommit(
@@ -116,6 +116,9 @@ func (c *Commit) Tree() string {
 }
 
 func (c *Commit) Parent() string {
+	if len(c.Parents) == 0 {
+		return ""
+	}
 	return c.Parents[0]
 }
 

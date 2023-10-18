@@ -49,7 +49,12 @@ func (c *Commit) Run(now time.Time) int {
 	reader := bufio.NewReader(c.stdin)
 	message, _ := reader.ReadString('\n')
 
-	commit := write_commit.WriteCommit(c.repo, []string{parent}, message, now)
+	parents := []string{}
+	if parent != "" {
+		parents = append(parents, parent)
+	}
+
+	commit := write_commit.WriteCommit(c.repo, parents, message, now)
 
 	messageLines := strings.Split(message, "\n")
 	isRoot := ""

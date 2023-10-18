@@ -42,6 +42,8 @@ func commit(t *testing.T, dir string, message string, now time.Time) {
 }
 
 func commitTree(t *testing.T, tmpDir, message string, files map[string]string) {
+	t.Helper()
+
 	for path, contents := range files {
 		writeFile(t, tmpDir, path, contents)
 	}
@@ -53,6 +55,18 @@ func checkout(tmpDir string, stdout, stderr *bytes.Buffer, revision string) {
 	options := CheckOutOption{}
 	checkout, _ := NewCheckOut(tmpDir, []string{revision}, options, stdout, stderr)
 	checkout.Run()
+}
+
+func mergeCommit(t *testing.T, tmpDir, branch, message string, options MergeOption, stdout, stderr *bytes.Buffer) int {
+	t.Helper()
+
+	os.Setenv("GIT_AUTHOR_NAME", "A. U. Thor")
+	os.Setenv("GIT_AUTHOR_EMAIL", "author@example.com")
+	defer os.Unsetenv("GIT_AUTHOR_NAME")
+	defer os.Unsetenv("GIT_AUTHOR_EMAIL")
+	stdin := strings.NewReader(message)
+	mergeCmd, _ := NewMerge(tmpDir, []string{branch}, options, stdin, stdout, stderr)
+	return mergeCmd.Run()
 }
 
 func resolveRevision(t *testing.T, tmpDir, expression string) (string, error) {
@@ -179,7 +193,7 @@ func assertWorkspace(t *testing.T, dir string, expected map[string]string) {
 	}
 }
 
-func assertStatus(t *testing.T, tmpDir string, stdout *bytes.Buffer, stderr *bytes.Buffer, expected string) {
+func assertGitStatus(t *testing.T, tmpDir string, stdout *bytes.Buffer, stderr *bytes.Buffer, expected string) {
 	args := []string{}
 	options := StatusOption{
 		Porcelain: true,

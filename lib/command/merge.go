@@ -46,8 +46,8 @@ func (m *Merge) Run() int {
 	revision := repository.NewRevision(m.repo, m.args[0])
 	mergeOid, _ := revision.Resolve(repository.COMMIT)
 
-	common := merge.NewCommonAncestors(m.repo.Database, headOid, mergeOid)
-	baseOid := common.Find()
+	common := merge.NewBases(m.repo.Database, headOid, mergeOid)
+	baseOid := common.Find()[0]
 
 	m.repo.Index.LoadForUpdate()
 

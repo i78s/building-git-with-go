@@ -20,7 +20,7 @@ func TestStatusListFilesAsUntrackedIfTheyAreNotInTheIndex(t *testing.T) {
 
 	expected := `?? file.txt
 `
-	assertStatus(t, tmpDir, stdout, stderr, expected)
+	assertGitStatus(t, tmpDir, stdout, stderr, expected)
 }
 
 func TestStatusListUntrackedFilesInNameOrder(t *testing.T) {
@@ -38,7 +38,7 @@ func TestStatusListUntrackedFilesInNameOrder(t *testing.T) {
 	expected := `?? another.txt
 ?? file.txt
 `
-	assertStatus(t, tmpDir, stdout, stderr, expected)
+	assertGitStatus(t, tmpDir, stdout, stderr, expected)
 }
 
 func TestStatusListUntrackedDirectoriesNotTheirContents(t *testing.T) {
@@ -56,7 +56,7 @@ func TestStatusListUntrackedDirectoriesNotTheirContents(t *testing.T) {
 	expected := `?? dir/
 ?? file.txt
 `
-	assertStatus(t, tmpDir, stdout, stderr, expected)
+	assertGitStatus(t, tmpDir, stdout, stderr, expected)
 }
 
 func TestStatusListUntrackedFilesInsideTrackedDirectories(t *testing.T) {
@@ -78,7 +78,7 @@ func TestStatusListUntrackedFilesInsideTrackedDirectories(t *testing.T) {
 	expected := `?? a/b/c/
 ?? a/outer.txt
 `
-	assertStatus(t, tmpDir, stdout, stderr, expected)
+	assertGitStatus(t, tmpDir, stdout, stderr, expected)
 }
 
 func TestStatusDoesNotListEmptyUntrackedDirectories(t *testing.T) {
@@ -88,7 +88,7 @@ func TestStatusDoesNotListEmptyUntrackedDirectories(t *testing.T) {
 	mkdir(t, tmpDir, "outer")
 
 	expected := ``
-	assertStatus(t, tmpDir, stdout, stderr, expected)
+	assertGitStatus(t, tmpDir, stdout, stderr, expected)
 }
 
 func TestStatusListUntrackedDirectoriesIndirectlyContainFiles(t *testing.T) {
@@ -99,7 +99,7 @@ func TestStatusListUntrackedDirectoriesIndirectlyContainFiles(t *testing.T) {
 
 	expected := `?? outer/
 `
-	assertStatus(t, tmpDir, stdout, stderr, expected)
+	assertGitStatus(t, tmpDir, stdout, stderr, expected)
 }
 
 func TestStatusIndexWorkspaceChanges(t *testing.T) {
@@ -126,7 +126,7 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 		defer os.RemoveAll(tmpDir)
 
 		expected := ``
-		assertStatus(t, tmpDir, stdout, stderr, expected)
+		assertGitStatus(t, tmpDir, stdout, stderr, expected)
 	})
 
 	t.Run("reports files with modified contents", func(t *testing.T) {
@@ -138,7 +138,7 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 		expected := ` M 1.txt
  M a/2.txt
 `
-		assertStatus(t, tmpDir, stdout, stderr, expected)
+		assertGitStatus(t, tmpDir, stdout, stderr, expected)
 	})
 
 	t.Run("reports modified files with unchanged size", func(t *testing.T) {
@@ -148,7 +148,7 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 
 		expected := ` M a/b/3.txt
 `
-		assertStatus(t, tmpDir, stdout, stderr, expected)
+		assertGitStatus(t, tmpDir, stdout, stderr, expected)
 	})
 
 	t.Run("reports files with changed modes", func(t *testing.T) {
@@ -158,7 +158,7 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 
 		expected := ` M a/2.txt
 `
-		assertStatus(t, tmpDir, stdout, stderr, expected)
+		assertGitStatus(t, tmpDir, stdout, stderr, expected)
 	})
 
 	t.Run("prints nothing if a file is touched", func(t *testing.T) {
@@ -167,7 +167,7 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 		touch(t, tmpDir, "1.txt")
 
 		expected := ``
-		assertStatus(t, tmpDir, stdout, stderr, expected)
+		assertGitStatus(t, tmpDir, stdout, stderr, expected)
 	})
 
 	t.Run("reports deleted files", func(t *testing.T) {
@@ -177,7 +177,7 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 
 		expected := ` D a/2.txt
 `
-		assertStatus(t, tmpDir, stdout, stderr, expected)
+		assertGitStatus(t, tmpDir, stdout, stderr, expected)
 	})
 
 	t.Run("reports files in deleted directories", func(t *testing.T) {
@@ -188,7 +188,7 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 		expected := ` D a/2.txt
  D a/b/3.txt
 `
-		assertStatus(t, tmpDir, stdout, stderr, expected)
+		assertGitStatus(t, tmpDir, stdout, stderr, expected)
 	})
 }
 
@@ -219,7 +219,7 @@ func TestStatusHeadIndexChanges(t *testing.T) {
 
 		expected := `A  a/4.txt
 `
-		assertStatus(t, tmpDir, stdout, stderr, expected)
+		assertGitStatus(t, tmpDir, stdout, stderr, expected)
 	})
 
 	t.Run("reports a file added to an untracked directory", func(t *testing.T) {
@@ -230,7 +230,7 @@ func TestStatusHeadIndexChanges(t *testing.T) {
 
 		expected := `A  d/e/5.txt
 `
-		assertStatus(t, tmpDir, stdout, stderr, expected)
+		assertGitStatus(t, tmpDir, stdout, stderr, expected)
 	})
 
 	t.Run("reports modified modes", func(t *testing.T) {
@@ -241,7 +241,7 @@ func TestStatusHeadIndexChanges(t *testing.T) {
 
 		expected := `M  1.txt
 `
-		assertStatus(t, tmpDir, stdout, stderr, expected)
+		assertGitStatus(t, tmpDir, stdout, stderr, expected)
 	})
 
 	t.Run("reports modified contents", func(t *testing.T) {
@@ -252,7 +252,7 @@ func TestStatusHeadIndexChanges(t *testing.T) {
 
 		expected := `M  a/b/3.txt
 `
-		assertStatus(t, tmpDir, stdout, stderr, expected)
+		assertGitStatus(t, tmpDir, stdout, stderr, expected)
 	})
 
 	t.Run("reports deleted files", func(t *testing.T) {
@@ -264,7 +264,7 @@ func TestStatusHeadIndexChanges(t *testing.T) {
 
 		expected := `D  1.txt
 `
-		assertStatus(t, tmpDir, stdout, stderr, expected)
+		assertGitStatus(t, tmpDir, stdout, stderr, expected)
 	})
 
 	t.Run("reports all deleted files inside directories", func(t *testing.T) {
@@ -277,6 +277,6 @@ func TestStatusHeadIndexChanges(t *testing.T) {
 		expected := `D  a/2.txt
 D  a/b/3.txt
 `
-		assertStatus(t, tmpDir, stdout, stderr, expected)
+		assertGitStatus(t, tmpDir, stdout, stderr, expected)
 	})
 }

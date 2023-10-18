@@ -99,7 +99,7 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
-		assertStatus(t, tmpDir, stdout, stderr, "")
+		assertGitStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("fails to update a modified file", func(t *testing.T) {
@@ -152,7 +152,7 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		checkout(tmpDir, stdout, stderr, "@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
-		assertStatus(t, tmpDir, stdout, stderr, "")
+		assertGitStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("restores files from a deleted directory", func(t *testing.T) {
@@ -169,7 +169,7 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 			"1.txt":             "1",
 			"outer/inner/3.txt": "3",
 		})
-		assertStatus(t, tmpDir, stdout, stderr, ` D outer/2.txt
+		assertGitStatus(t, tmpDir, stdout, stderr, ` D outer/2.txt
 `)
 	})
 
@@ -199,7 +199,7 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		checkout(tmpDir, stdout, stderr, "@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
-		assertStatus(t, tmpDir, stdout, stderr, "")
+		assertGitStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("fails to update a staged changed-mode file", func(t *testing.T) {
@@ -344,7 +344,7 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
-		assertStatus(t, tmpDir, stdout, stderr, "")
+		assertGitStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("removes a file from an existing directory", func(t *testing.T) {
@@ -355,7 +355,7 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
-		assertStatus(t, tmpDir, stdout, stderr, "")
+		assertGitStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("removes a file from a new directory", func(t *testing.T) {
@@ -367,7 +367,7 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 
 		assertWorkspace(t, tmpDir, baseFiles)
 		assertNoent(t, tmpDir, "new")
-		assertStatus(t, tmpDir, stdout, stderr, "")
+		assertGitStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("removes a file from a new nested directory", func(t *testing.T) {
@@ -379,7 +379,7 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 
 		assertWorkspace(t, tmpDir, baseFiles)
 		assertNoent(t, tmpDir, "new")
-		assertStatus(t, tmpDir, stdout, stderr, "")
+		assertGitStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("removes a file from a non-empty directory", func(t *testing.T) {
@@ -390,7 +390,7 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
-		assertStatus(t, tmpDir, stdout, stderr, "")
+		assertGitStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("fails to remove a modified file", func(t *testing.T) {
@@ -430,7 +430,7 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		checkout(tmpDir, stdout, stderr, "@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
-		assertStatus(t, tmpDir, stdout, stderr, "")
+		assertGitStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("leaves a deleted directory deleted", func(t *testing.T) {
@@ -447,7 +447,7 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 			"1.txt":       "1",
 			"outer/2.txt": "2",
 		})
-		assertStatus(t, tmpDir, stdout, stderr, ` D outer/inner/3.txt
+		assertGitStatus(t, tmpDir, stdout, stderr, ` D outer/inner/3.txt
 `)
 	})
 
@@ -492,7 +492,7 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		checkout(tmpDir, stdout, stderr, "@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
-		assertStatus(t, tmpDir, stdout, stderr, "")
+		assertGitStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("fails to remove an unindexed and untracked file", func(t *testing.T) {
@@ -527,7 +527,7 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 			"1.txt":       "1",
 			"outer/2.txt": "2",
 		})
-		assertStatus(t, tmpDir, stdout, stderr, `D  outer/inner/3.txt
+		assertGitStatus(t, tmpDir, stdout, stderr, `D  outer/inner/3.txt
 `)
 	})
 
@@ -562,7 +562,7 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 			"outer/2.txt": "2",
 			"outer/inner": "conflict",
 		})
-		assertStatus(t, tmpDir, stdout, stderr, `A  outer/inner
+		assertGitStatus(t, tmpDir, stdout, stderr, `A  outer/inner
 D  outer/inner/3.txt
 `)
 	})
@@ -610,7 +610,7 @@ D  outer/inner/3.txt
 		checkout(tmpDir, stdout, stderr, "@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
-		assertStatus(t, tmpDir, stdout, stderr, "")
+		assertGitStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("add a file", func(t *testing.T) {
@@ -621,7 +621,7 @@ D  outer/inner/3.txt
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
-		assertStatus(t, tmpDir, stdout, stderr, "")
+		assertGitStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("add a file to a directory", func(t *testing.T) {
@@ -632,7 +632,7 @@ D  outer/inner/3.txt
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
-		assertStatus(t, tmpDir, stdout, stderr, "")
+		assertGitStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("add a directory", func(t *testing.T) {
@@ -643,7 +643,7 @@ D  outer/inner/3.txt
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
-		assertStatus(t, tmpDir, stdout, stderr, "")
+		assertGitStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("fails to add an untracked file", func(t *testing.T) {
@@ -685,7 +685,7 @@ D  outer/inner/3.txt
 		checkout(tmpDir, stdout, stderr, "@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
-		assertStatus(t, tmpDir, stdout, stderr, "")
+		assertGitStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("fails to add with an untracked file at a parent path", func(t *testing.T) {
@@ -715,7 +715,7 @@ D  outer/inner/3.txt
 		checkout(tmpDir, stdout, stderr, "@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
-		assertStatus(t, tmpDir, stdout, stderr, "")
+		assertGitStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("fails to add with an untracked file at a child path", func(t *testing.T) {
@@ -743,7 +743,7 @@ D  outer/inner/3.txt
 		checkout(tmpDir, stdout, stderr, "@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
-		assertStatus(t, tmpDir, stdout, stderr, "")
+		assertGitStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("replaces a file with a directory", func(t *testing.T) {
@@ -755,7 +755,7 @@ D  outer/inner/3.txt
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
-		assertStatus(t, tmpDir, stdout, stderr, "")
+		assertGitStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("replaces a directory with a file", func(t *testing.T) {
@@ -767,7 +767,7 @@ D  outer/inner/3.txt
 		commitAndCheckout("@^")
 
 		assertWorkspace(t, tmpDir, baseFiles)
-		assertStatus(t, tmpDir, stdout, stderr, "")
+		assertGitStatus(t, tmpDir, stdout, stderr, "")
 	})
 
 	t.Run("maintains workspace modifications", func(t *testing.T) {
@@ -785,7 +785,7 @@ D  outer/inner/3.txt
 			"1.txt":       "1",
 			"outer/2.txt": "hello",
 		})
-		assertStatus(t, tmpDir, stdout, stderr, ` M outer/2.txt
+		assertGitStatus(t, tmpDir, stdout, stderr, ` M outer/2.txt
  D outer/inner/3.txt
 `)
 	})
@@ -810,7 +810,7 @@ D  outer/inner/3.txt
 			expectedFiles[path] = content
 		}
 		assertWorkspace(t, tmpDir, expectedFiles)
-		assertStatus(t, tmpDir, stdout, stderr, `M  outer/2.txt
+		assertGitStatus(t, tmpDir, stdout, stderr, `M  outer/2.txt
 A  outer/inner/4.txt
 `)
 	})
