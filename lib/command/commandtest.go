@@ -41,14 +41,14 @@ func commit(t *testing.T, dir string, message string, now time.Time) {
 	c.Run(now)
 }
 
-func commitTree(t *testing.T, tmpDir, message string, files map[string]string) {
+func commitTree(t *testing.T, tmpDir, message string, files map[string]string, now time.Time) {
 	t.Helper()
 
 	for path, contents := range files {
 		writeFile(t, tmpDir, path, contents)
 	}
 	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-	commit(t, tmpDir, message, time.Now())
+	commit(t, tmpDir, message, now)
 }
 
 func checkout(tmpDir string, stdout, stderr *bytes.Buffer, revision string) {

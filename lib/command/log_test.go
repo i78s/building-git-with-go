@@ -258,16 +258,16 @@ func TestLogWithCommitsChangingDifferentFiles(t *testing.T) {
 		commitTree(t, tmpDir, "first", map[string]string{
 			"a/1.txt":   "1",
 			"b/c/2.txt": "2",
-		})
+		}, time.Now())
 
 		commitTree(t, tmpDir, "second", map[string]string{
 			"a/1.txt": "10",
 			"b/3.txt": "3",
-		})
+		}, time.Now())
 
 		commitTree(t, tmpDir, "third", map[string]string{
 			"b/c/2.txt": "4",
-		})
+		}, time.Now())
 
 		commits = []*database.Commit{}
 		for _, rev := range []string{"@^^", "@^", "@"} {
@@ -506,6 +506,83 @@ func TestLogWithTreeOfCommits(t *testing.T) {
 `, topic[0],
 			topic[1],
 			topic[2],
+		)
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+}
+
+func TestLogWithGraphOfCommits(t *testing.T) {
+	//   A   B   C   D   J   K
+	//   o---o---o---o---o---o [master]
+	//        \         /
+	//         o---o---o---o [topic]
+	//         E   F   G   H
+
+	var branchTime = time.Now()
+	var setUp = func(t *testing.T) (tmpDir string, stdout, stderr *bytes.Buffer, master, topic []string) {
+		tmpDir, stdout, stderr = setupTestEnvironment(t)
+
+		for c := 'A'; c <= 'B'; c++ {
+			commitTree(t, tmpDir, string(c), map[string]string{"f.txt": string(c)}, branchTime)
+		}
+		for c := 'C'; c <= 'D'; c++ {
+			commitTree(t, tmpDir, string(c), map[string]string{"f.txt": string(c)}, branchTime.Add(time.Second))
+		}
+
+		brunchCmd, _ := NewBranch(tmpDir, []string{"topic", "master~2"}, BranchOption{}, new(bytes.Buffer), new(bytes.Buffer))
+		brunchCmd.Run()
+		checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "topic")
+
+		for c := 'E'; c <= 'H'; c++ {
+			commitTree(t, tmpDir, string(c), map[string]string{"g.txt": string(c)}, branchTime.Add(2*time.Second))
+		}
+
+		checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "master")
+		mergeCommit(t, tmpDir, "topic^", "J", MergeOption{}, stdout, stderr)
+
+		commitTree(t, tmpDir, "K", map[string]string{"f.txt": "K"}, branchTime.Add(3*time.Second))
+
+		master = []string{}
+		for i := 0; i <= 5; i++ {
+			rev, _ := resolveRevision(t, tmpDir, fmt.Sprintf("master~%d", i))
+			master = append(master, rev)
+		}
+		topic = []string{}
+		for i := 0; i <= 3; i++ {
+			rev, _ := resolveRevision(t, tmpDir, fmt.Sprintf("topic~%d", i))
+			topic = append(topic, rev)
+		}
+
+		return
+	}
+
+	t.Run("logs concurrent branches leading to a merge", func(t *testing.T) {
+		tmpDir, stdout, stderr, master, topic := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		log, _ := NewLog(tmpDir, []string{}, LogOption{Format: "oneline", IsTty: false, Decorate: "auto"}, stdout, stderr)
+		log.Run()
+
+		expected := fmt.Sprintf(`%s K
+%s J
+%s G
+%s F
+%s E
+%s D
+%s C
+%s B
+%s A
+`, master[0],
+			master[1],
+			topic[1],
+			topic[2],
+			topic[3],
+			master[2],
+			master[3],
+			master[4],
+			master[5],
 		)
 		if got := stdout.String(); got != expected {
 			t.Errorf("want %q, but got %q", expected, got)

@@ -166,15 +166,19 @@ func (r *RevList) addParents(commit *database.Commit) {
 		return
 	}
 
-	parent := r.loadCommit(commit.Parent())
+	parents := []*database.Commit{}
+	for _, parent := range commit.Parents {
+		parents = append(parents, r.loadCommit(parent))
+	}
+
 	if r.isMarked(commit.Oid(), uninteresting) {
-		if parent != nil {
+		for _, parent := range parents {
 			r.markParentsUninteresting(parent)
 		}
 	} else {
 		r.simplifyCommit(commit)
 	}
-	if parent != nil {
+	for _, parent := range parents {
 		r.enqueueCommit(parent)
 	}
 }

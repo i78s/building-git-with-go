@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"os"
 	"testing"
+	"time"
 )
 
 func TestMergeUnconflictedMergeWithTwoFiles(t *testing.T) {
@@ -20,19 +21,19 @@ func TestMergeUnconflictedMergeWithTwoFiles(t *testing.T) {
 		commitTree(t, tmpDir, "root", map[string]string{
 			"f.txt": "1",
 			"g.txt": "1",
-		})
+		}, time.Now())
 
 		brunchCmd, _ := NewBranch(tmpDir, []string{"topic"}, BranchOption{}, new(bytes.Buffer), new(bytes.Buffer))
 		brunchCmd.Run()
 		checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "topic")
 		commitTree(t, tmpDir, "right", map[string]string{
 			"g.txt": "2",
-		})
+		}, time.Now())
 
 		checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "master")
 		commitTree(t, tmpDir, "left", map[string]string{
 			"f.txt": "2",
-		})
+		}, time.Now())
 
 		options := MergeOption{}
 		mergeCommit(t, tmpDir, "topic", "merge topic branch", options, stdout, stderr)
@@ -87,33 +88,33 @@ func TestMergeMultipleCommonAncestors(t *testing.T) {
 
 		commitTree(t, tmpDir, "A", map[string]string{
 			"f.txt": "1",
-		})
+		}, time.Now())
 		commitTree(t, tmpDir, "B", map[string]string{
 			"f.txt": "2",
-		})
+		}, time.Now())
 		commitTree(t, tmpDir, "C", map[string]string{
 			"f.txt": "3",
-		})
+		}, time.Now())
 
 		brunchCmd, _ := NewBranch(tmpDir, []string{"topic", "master^"}, BranchOption{}, new(bytes.Buffer), new(bytes.Buffer))
 		brunchCmd.Run()
 		checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "topic")
 		commitTree(t, tmpDir, "D", map[string]string{
 			"g.txt": "1",
-		})
+		}, time.Now())
 		commitTree(t, tmpDir, "E", map[string]string{
 			"g.txt": "2",
-		})
+		}, time.Now())
 		commitTree(t, tmpDir, "F", map[string]string{
 			"g.txt": "3",
-		})
+		}, time.Now())
 
 		brunchCmd, _ = NewBranch(tmpDir, []string{"joiner", "topic^"}, BranchOption{}, new(bytes.Buffer), new(bytes.Buffer))
 		brunchCmd.Run()
 		checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "joiner")
 		commitTree(t, tmpDir, "G", map[string]string{
 			"h.txt": "1",
-		})
+		}, time.Now())
 
 		checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "master")
 
@@ -149,7 +150,7 @@ func TestMergeMultipleCommonAncestors(t *testing.T) {
 
 		commitTree(t, tmpDir, "H", map[string]string{
 			"f.txt": "4",
-		})
+		}, time.Now())
 
 		status := mergeCommit(t, tmpDir, "topic", "merge topic", options, stdout, stderr)
 		if status != 0 {
