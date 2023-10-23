@@ -207,9 +207,16 @@ func (r *RevList) simplifyCommit(commit *database.Commit) {
 		return
 	}
 
-	td := r.TreeDiff(commit.Parent(), commit.Oid(), nil)
-	if len(td) == 0 {
-		r.mark(commit.Oid(), treesame)
+	parents := commit.Parents
+	if len(parents) == 0 {
+		parents = append(parents, "")
+	}
+
+	for _, oid := range parents {
+		td := r.TreeDiff(oid, commit.Oid(), nil)
+		if len(td) == 0 {
+			r.mark(commit.Oid(), treesame)
+		}
 	}
 }
 

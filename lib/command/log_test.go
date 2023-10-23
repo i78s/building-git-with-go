@@ -633,4 +633,22 @@ index 96d80cd..02358d2 100644
 			t.Errorf("want %q, but got %q", expected, got)
 		}
 	})
+
+	t.Run("does not list merges with treesame parents for prune paths", func(t *testing.T) {
+		tmpDir, stdout, stderr, _, topic := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		log, _ := NewLog(tmpDir, []string{"g.txt"}, LogOption{Format: "oneline", IsTty: false, Decorate: "auto"}, stdout, stderr)
+		log.Run()
+
+		expected := fmt.Sprintf(`%s G
+%s F
+%s E
+`, topic[1],
+			topic[2],
+			topic[3])
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
 }
