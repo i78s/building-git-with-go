@@ -588,4 +588,49 @@ func TestLogWithGraphOfCommits(t *testing.T) {
 			t.Errorf("want %q, but got %q", expected, got)
 		}
 	})
+
+	t.Run("logs concurrent branches leading to a merge", func(t *testing.T) {
+		tmpDir, stdout, stderr, _, topic := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		log, _ := NewLog(tmpDir, []string{"master..topic"}, LogOption{Format: "oneline", IsTty: false, Decorate: "auto"}, stdout, stderr)
+		log.Run()
+
+		expected := fmt.Sprintf("%s H\n", topic[0])
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("does not show patches for merge commits", func(t *testing.T) {
+		tmpDir, stdout, stderr, master, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		log, _ := NewLog(tmpDir, []string{"topic..master", "^master^^^"}, LogOption{Format: "oneline", IsTty: false, Decorate: "auto", Patch: true}, stdout, stderr)
+		log.Run()
+
+		expected := fmt.Sprintf(`%s K
+diff --git a/f.txt b/f.txt
+index 02358d2..449e49e 100644
+--- a/f.txt
++++ b/f.txt
+@@ -1,1 +1,1 @@
+-D
++K
+%s J
+%s D
+diff --git a/f.txt b/f.txt
+index 96d80cd..02358d2 100644
+--- a/f.txt
++++ b/f.txt
+@@ -1,1 +1,1 @@
+-C
++D
+`, master[0],
+			master[1],
+			master[2])
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
 }

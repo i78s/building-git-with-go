@@ -184,11 +184,21 @@ func (r *RevList) addParents(commit *database.Commit) {
 }
 
 func (r *RevList) markParentsUninteresting(commit *database.Commit) {
-	for commit != nil && commit.Parent() != "" {
-		if !r.mark(commit.Parent(), uninteresting) {
-			break
+	queue := make([]string, len(commit.Parents))
+	copy(queue, commit.Parents)
+
+	for len(queue) > 0 {
+		oid := queue[0]
+		queue = queue[1:]
+
+		if !r.mark(oid, uninteresting) {
+			continue
 		}
-		commit = r.commits[commit.Parent()]
+
+		commit, exists := r.commits[oid]
+		if exists {
+			queue = append(queue, commit.Parents...)
+		}
 	}
 }
 

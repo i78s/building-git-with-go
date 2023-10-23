@@ -181,7 +181,7 @@ func (l *Log) refColor(ref *repository.SymRef) func(a ...interface{}) string {
 }
 
 func (l *Log) showPatch(blankLine bool, commit *database.Commit) {
-	if !l.options.Patch {
+	if !(l.options.Patch && len(commit.Parents) <= 1) {
 		return
 	}
 
