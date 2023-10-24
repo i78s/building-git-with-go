@@ -524,9 +524,9 @@ func TestLogWithGraphOfCommits(t *testing.T) {
 	var setUp = func(t *testing.T) (tmpDir string, stdout, stderr *bytes.Buffer, master, topic []string) {
 		tmpDir, stdout, stderr = setupTestEnvironment(t)
 
-		for c := 'A'; c <= 'B'; c++ {
-			commitTree(t, tmpDir, string(c), map[string]string{"f.txt": string(c)}, branchTime)
-		}
+		commitTree(t, tmpDir, "A", map[string]string{"f.txt": "0", "g.txt": "0"}, branchTime)
+		commitTree(t, tmpDir, "B", map[string]string{"f.txt": "B"}, branchTime)
+
 		for c := 'C'; c <= 'D'; c++ {
 			commitTree(t, tmpDir, string(c), map[string]string{"f.txt": string(c)}, branchTime.Add(time.Second))
 		}
@@ -635,7 +635,7 @@ index 96d80cd..02358d2 100644
 	})
 
 	t.Run("does not list merges with treesame parents for prune paths", func(t *testing.T) {
-		tmpDir, stdout, stderr, _, topic := setUp(t)
+		tmpDir, stdout, stderr, master, topic := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
 		log, _ := NewLog(tmpDir, []string{"g.txt"}, LogOption{Format: "oneline", IsTty: false, Decorate: "auto"}, stdout, stderr)
@@ -644,11 +644,58 @@ index 96d80cd..02358d2 100644
 		expected := fmt.Sprintf(`%s G
 %s F
 %s E
+%s A
 `, topic[1],
 			topic[2],
-			topic[3])
+			topic[3],
+			master[5])
 		if got := stdout.String(); got != expected {
 			t.Errorf("want %q, but got %q", expected, got)
 		}
+	})
+
+	t.Run("with changes that are undone on a branch leading to a merge", func(t *testing.T) {
+		t.Run("does not list commits on the filtered branch", func(t *testing.T) {
+			tmpDir, stdout, stderr, _, _ := setUp(t)
+			defer os.RemoveAll(tmpDir)
+
+			brunchCmd, _ := NewBranch(tmpDir, []string{"aba", "master~4"}, BranchOption{}, new(bytes.Buffer), new(bytes.Buffer))
+			brunchCmd.Run()
+			checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "aba")
+
+			for _, n := range []string{"C", "0"} {
+				commitTree(t, tmpDir, n, map[string]string{"g.txt": n}, branchTime.Add(time.Second))
+			}
+
+			mergeCommit(t, tmpDir, "topic^", "J", MergeOption{}, stdout, stderr)
+
+			commitTree(t, tmpDir, "K", map[string]string{"f.txt": "K"}, branchTime.Add(3*time.Second))
+
+			master := []string{}
+			for i := 0; i <= 5; i++ {
+				rev, _ := resolveRevision(t, tmpDir, fmt.Sprintf("master~%d", i))
+				master = append(master, rev)
+			}
+			topic := []string{}
+			for i := 0; i <= 3; i++ {
+				rev, _ := resolveRevision(t, tmpDir, fmt.Sprintf("topic~%d", i))
+				topic = append(topic, rev)
+			}
+
+			log, _ := NewLog(tmpDir, []string{"g.txt"}, LogOption{Format: "oneline", IsTty: false, Decorate: "auto"}, stdout, stderr)
+			log.Run()
+
+			expected := fmt.Sprintf(`%s G
+%s F
+%s E
+%s A
+`, topic[1],
+				topic[2],
+				topic[3],
+				master[5])
+			if got := stdout.String(); got != expected {
+				t.Errorf("want %q, but got %q", expected, got)
+			}
+		})
 	})
 }

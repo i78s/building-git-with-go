@@ -166,17 +166,19 @@ func (r *RevList) addParents(commit *database.Commit) {
 		return
 	}
 
-	parents := []*database.Commit{}
-	for _, parent := range commit.Parents {
-		parents = append(parents, r.loadCommit(parent))
-	}
-
+	var parents []*database.Commit
 	if r.isMarked(commit.Oid(), uninteresting) {
+		for _, parent := range commit.Parents {
+			parents = append(parents, r.loadCommit(parent))
+		}
+
 		for _, parent := range parents {
 			r.markParentsUninteresting(parent)
 		}
 	} else {
-		r.simplifyCommit(commit)
+		for _, oid := range r.simplifyCommit(commit) {
+			parents = append(parents, r.loadCommit(oid))
+		}
 	}
 	for _, parent := range parents {
 		r.enqueueCommit(parent)
@@ -202,9 +204,9 @@ func (r *RevList) markParentsUninteresting(commit *database.Commit) {
 	}
 }
 
-func (r *RevList) simplifyCommit(commit *database.Commit) {
+func (r *RevList) simplifyCommit(commit *database.Commit) []string {
 	if len(r.prune) == 0 {
-		return
+		return commit.Parents
 	}
 
 	parents := commit.Parents
@@ -214,10 +216,14 @@ func (r *RevList) simplifyCommit(commit *database.Commit) {
 
 	for _, oid := range parents {
 		td := r.TreeDiff(oid, commit.Oid(), nil)
-		if len(td) == 0 {
-			r.mark(commit.Oid(), treesame)
+		if len(td) != 0 {
+			continue
 		}
+		r.mark(commit.Oid(), treesame)
+		return []string{oid}
 	}
+
+	return commit.Parents
 }
 
 func (r *RevList) traverseCommits(fn func(*database.Commit)) {
