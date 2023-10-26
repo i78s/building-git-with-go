@@ -589,7 +589,51 @@ func TestLogWithGraphOfCommits(t *testing.T) {
 		}
 	})
 
-	t.Run("logs concurrent branches leading to a merge", func(t *testing.T) {
+	t.Run("logs the first parent of a merge", func(t *testing.T) {
+		tmpDir, stdout, stderr, master, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		log, _ := NewLog(tmpDir, []string{"master^^"}, LogOption{Format: "oneline", IsTty: false, Decorate: "auto"}, stdout, stderr)
+		log.Run()
+
+		expected := fmt.Sprintf(`%s D
+%s C
+%s B
+%s A
+`, master[2],
+			master[3],
+			master[4],
+			master[5],
+		)
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("logs the second parent of a merge", func(t *testing.T) {
+		tmpDir, stdout, stderr, master, topic := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		log, _ := NewLog(tmpDir, []string{"master^^2"}, LogOption{Format: "oneline", IsTty: false, Decorate: "auto"}, stdout, stderr)
+		log.Run()
+
+		expected := fmt.Sprintf(`%s G
+%s F
+%s E
+%s B
+%s A
+`, topic[1],
+			topic[2],
+			topic[3],
+			master[4],
+			master[5],
+		)
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("logs unmerged commits on a branch", func(t *testing.T) {
 		tmpDir, stdout, stderr, _, topic := setUp(t)
 		defer os.RemoveAll(tmpDir)
 

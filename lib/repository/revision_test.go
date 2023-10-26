@@ -30,12 +30,17 @@ func TestParse(t *testing.T) {
 	})
 
 	t.Run("parses a parent ref", func(t *testing.T) {
-		assertParse(t, "HEAD^", &Parent{&ref{"HEAD"}})
+		assertParse(t, "HEAD^", &Parent{&ref{"HEAD"}, 1})
 	})
 
 	t.Run("parses a chain of parent refs", func(t *testing.T) {
 		assertParse(t, "master^^^",
-			&Parent{&Parent{&Parent{&ref{"master"}}}})
+			&Parent{&Parent{&Parent{&ref{"master"}, 1}, 1}, 1})
+	})
+
+	t.Run("parses a parent ref with a number", func(t *testing.T) {
+		assertParse(t, "@^2",
+			&Parent{&ref{"HEAD"}, 2})
 	})
 
 	t.Run("parses an ancestor ref", func(t *testing.T) {
@@ -51,7 +56,9 @@ func TestParse(t *testing.T) {
 							&ref{"HEAD"},
 							2,
 						},
+						1,
 					},
+					1,
 				},
 				3,
 			},

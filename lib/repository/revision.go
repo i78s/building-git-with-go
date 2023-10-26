@@ -10,7 +10,7 @@ import (
 
 var (
 	INVALID_NAME = regexp.MustCompile(`^\.|\/\.|\.\.|^\/|\/$|\.lock$|@\{|[\x00-\x20*:?\[\\^~\x7f]`)
-	PARENT       = regexp.MustCompile(`^(.+)\^$`)
+	PARENT       = regexp.MustCompile(`^(.+)\^(\d*)$`)
 	ANCESTOR     = regexp.MustCompile(`^(.+)~(\d+)$`)
 	REF_ALIASES  = map[string]string{
 		"@": HEAD,
@@ -98,17 +98,22 @@ func (r *Revision) readRef(name string) (string, error) {
 	return "", nil
 }
 
-func (r *Revision) commitParent(oid string) (string, error) {
+func (r *Revision) commitParent(oid string, n int) (string, error) {
+	if n == 0 {
+		n = 1
+	}
 	if oid == "" {
 		return "", nil
 	}
 	commit, err := r.loadTypedObject(oid, COMMIT)
-	if err != nil {
+	if err != nil || commit == nil {
 		return "", err
 	}
 
 	if c, ok := commit.(*database.Commit); ok {
-		return c.Parent(), nil
+		if len(c.Parents) > n-1 {
+			return c.Parents[n-1], nil
+		}
 	}
 	return "", nil
 }
@@ -163,8 +168,12 @@ func (r *Revision) logAmbiguousSha1(name string, candidates []string) error {
 func parse(revision string) ParsedRevision {
 	if match := PARENT.FindStringSubmatch(revision); match != nil {
 		rev := parse(match[1])
+		n := 1
+		if match[2] != "" {
+			n, _ = strconv.Atoi(match[2])
+		}
 		if rev != nil {
-			return &Parent{rev}
+			return &Parent{rev, n}
 		}
 	} else if match := ANCESTOR.FindStringSubmatch(revision); match != nil {
 		rev := parse(match[1])
@@ -192,11 +201,12 @@ func (r *ref) resolve(context *Revision) (string, error) {
 
 type Parent struct {
 	rev ParsedRevision
+	n   int
 }
 
 func (p *Parent) resolve(context *Revision) (string, error) {
 	oid, _ := p.rev.resolve(context)
-	return context.commitParent(oid)
+	return context.commitParent(oid, p.n)
 }
 
 type Ancestor struct {
@@ -208,7 +218,7 @@ func (a *Ancestor) resolve(context *Revision) (string, error) {
 	oid, _ := a.rev.resolve(context)
 	for i := 0; i < a.n; i++ {
 		var err error
-		oid, err = context.commitParent(oid)
+		oid, err = context.commitParent(oid, 1)
 		if err != nil {
 			return "", err
 		}
