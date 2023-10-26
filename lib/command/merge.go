@@ -18,6 +18,7 @@ type Merge struct {
 	args     []string
 	options  MergeOption
 	repo     *repository.Repository
+	inputs   *merge.Inputs
 	stdin    io.Reader
 	stdout   io.Writer
 	stderr   io.Writer
@@ -42,25 +43,27 @@ func NewMerge(dir string, args []string, options MergeOption, stdin io.Reader, s
 }
 
 func (m *Merge) Run() int {
-	headOid, _ := m.repo.Refs.ReadHead()
-	revision := repository.NewRevision(m.repo, m.args[0])
-	mergeOid, _ := revision.Resolve(repository.COMMIT)
+	m.inputs, _ = merge.NewInputs(m.repo, repository.HEAD, m.args[0])
+	m.resolveMerge()
+	m.commitMerge()
 
-	common := merge.NewBases(m.repo.Database, headOid, mergeOid)
-	baseOid := common.Find()[0]
+	return 0
+}
 
+func (m *Merge) resolveMerge() {
 	m.repo.Index.LoadForUpdate()
 
-	treeDiff := m.repo.Database.TreeDiff(baseOid, mergeOid, nil)
-	migration := m.repo.Migration(treeDiff)
-	migration.ApplyChanges()
+	merge := merge.NewResolve(m.repo, m.inputs)
+	merge.Execute()
 
 	m.repo.Index.WriteUpdates()
+}
 
+func (m *Merge) commitMerge() {
+	parents := []string{m.inputs.LeftOid, m.inputs.RightOid}
 	reader := bufio.NewReader(m.stdin)
 	message, _ := reader.ReadString('\n')
 
-	write_commit.WriteCommit(m.repo, []string{headOid, mergeOid}, message, time.Now())
+	write_commit.WriteCommit(m.repo, parents, message, time.Now())
 
-	return 0
 }
