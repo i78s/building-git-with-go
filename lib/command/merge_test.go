@@ -3,6 +3,7 @@ package command
 import (
 	"building-git/lib/database"
 	"bytes"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -40,6 +41,64 @@ func TestMergeMergingAncestor(t *testing.T) {
 	})
 
 	t.Run("does not change the repository state", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		gitObj, _ := loadCommit(t, tmpDir, "@")
+
+		expected := "C"
+		if got := gitObj.(*database.Commit).Message(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+
+		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "")
+	})
+}
+
+func TestMergeFastForwardMerge(t *testing.T) {
+	setUp := func(t *testing.T) (tmpDir string, stdout, stderr *bytes.Buffer) {
+		tmpDir, stdout, stderr = setupTestEnvironment(t)
+
+		now := time.Now()
+		commitTree(t, tmpDir, "A", map[string]string{
+			"f.txt": "1",
+		}, now)
+		commitTree(t, tmpDir, "B", map[string]string{
+			"f.txt": "2",
+		}, now)
+		commitTree(t, tmpDir, "C", map[string]string{
+			"f.txt": "3",
+		}, now)
+
+		brunchCmd, _ := NewBranch(tmpDir, []string{"topic", "@^^"}, BranchOption{}, new(bytes.Buffer), new(bytes.Buffer))
+		brunchCmd.Run()
+		checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "topic")
+
+		options := MergeOption{}
+		mergeCommit(t, tmpDir, "master", "M", options, stdout, stderr)
+
+		return
+	}
+
+	t.Run("prints the fast-forward message", func(t *testing.T) {
+		tmpDir, stdout, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		a, _ := resolveRevision(t, tmpDir, "master^^")
+		b, _ := resolveRevision(t, tmpDir, "master")
+
+		r := repo(t, tmpDir)
+
+		expected := fmt.Sprintf("Updating %s..%s\nFast-forward\n",
+			r.Database.ShortOid(a),
+			r.Database.ShortOid(b),
+		)
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("updates the current branch HEAD", func(t *testing.T) {
 		tmpDir, _, _ := setUp(t)
 		defer os.RemoveAll(tmpDir)
 

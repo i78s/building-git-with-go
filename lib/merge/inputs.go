@@ -40,6 +40,10 @@ func (i *Inputs) IsAlreadyMerged() bool {
 	return len(i.BaseOids) == 1 && i.BaseOids[0] == i.RightOid
 }
 
+func (i *Inputs) IsFastForward() bool {
+	return len(i.BaseOids) == 1 && i.BaseOids[0] == i.LeftOid
+}
+
 func (i *Inputs) resolveRev(rev string) (string, error) {
 	oid, err := repository.NewRevision(i.repo, rev).Resolve(repository.COMMIT)
 	if err != nil {

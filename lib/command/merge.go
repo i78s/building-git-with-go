@@ -50,6 +50,10 @@ func (m *Merge) Run() int {
 		m.handleMergedAncestor()
 		return 0
 	}
+	if m.inputs.IsFastForward() {
+		m.handleFastForward()
+		return 0
+	}
 
 	m.resolveMerge()
 	m.commitMerge()
@@ -76,4 +80,19 @@ func (m *Merge) commitMerge() {
 
 func (m *Merge) handleMergedAncestor() {
 	fmt.Fprintf(m.stdout, "Already up to date.\n")
+}
+
+func (m *Merge) handleFastForward() {
+	a := m.repo.Database.ShortOid(m.inputs.LeftOid)
+	b := m.repo.Database.ShortOid(m.inputs.RightOid)
+
+	fmt.Fprintf(m.stdout, "Updating %s..%s\n", a, b)
+	fmt.Fprintf(m.stdout, "Fast-forward\n")
+
+	m.repo.Index.LoadForUpdate()
+	treeDiff := m.repo.Database.TreeDiff(m.inputs.LeftOid, m.inputs.RightOid, nil)
+	m.repo.Migration(treeDiff).ApplyChanges()
+
+	m.repo.Index.WriteUpdates()
+	m.repo.Refs.UpdateHead(m.inputs.RightOid)
 }
