@@ -8,6 +8,52 @@ import (
 	"time"
 )
 
+func TestMergeMergingAncestor(t *testing.T) {
+	setUp := func(t *testing.T) (tmpDir string, stdout, stderr *bytes.Buffer) {
+		tmpDir, stdout, stderr = setupTestEnvironment(t)
+
+		now := time.Now()
+		commitTree(t, tmpDir, "A", map[string]string{
+			"f.txt": "1",
+		}, now)
+		commitTree(t, tmpDir, "B", map[string]string{
+			"f.txt": "2",
+		}, now)
+		commitTree(t, tmpDir, "C", map[string]string{
+			"f.txt": "3",
+		}, now)
+
+		options := MergeOption{}
+		mergeCommit(t, tmpDir, "@^", "D", options, stdout, stderr)
+
+		return
+	}
+
+	t.Run("prints the up-to-date message", func(t *testing.T) {
+		tmpDir, stdout, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := "Already up to date.\n"
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("does not change the repository state", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		gitObj, _ := loadCommit(t, tmpDir, "@")
+
+		expected := "C"
+		if got := gitObj.(*database.Commit).Message(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+
+		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "")
+	})
+}
+
 func TestMergeUnconflictedMergeWithTwoFiles(t *testing.T) {
 	//   A   B   M
 	//   o---o---o

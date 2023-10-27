@@ -5,6 +5,7 @@ import (
 	"building-git/lib/command/write_commit"
 	"building-git/lib/merge"
 	"building-git/lib/repository"
+	"fmt"
 	"io"
 	"path/filepath"
 	"time"
@@ -43,7 +44,13 @@ func NewMerge(dir string, args []string, options MergeOption, stdin io.Reader, s
 }
 
 func (m *Merge) Run() int {
-	m.inputs, _ = merge.NewInputs(m.repo, repository.HEAD, m.args[0])
+	inputs, _ := merge.NewInputs(m.repo, repository.HEAD, m.args[0])
+	m.inputs = inputs
+	if m.inputs.IsAlreadyMerged() {
+		m.handleMergedAncestor()
+		return 0
+	}
+
 	m.resolveMerge()
 	m.commitMerge()
 
@@ -65,5 +72,8 @@ func (m *Merge) commitMerge() {
 	message, _ := reader.ReadString('\n')
 
 	write_commit.WriteCommit(m.repo, parents, message, time.Now())
+}
 
+func (m *Merge) handleMergedAncestor() {
+	fmt.Fprintf(m.stdout, "Already up to date.\n")
 }
