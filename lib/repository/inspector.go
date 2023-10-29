@@ -65,7 +65,7 @@ func (i *Inspector) compareIndexToWorkspace(entry database.EntryObject, stat fs.
 		return Unmodified
 	}
 
-	data, _ := i.repo.Workspace.ReadFile(entry.Key())
+	data, _ := i.repo.Workspace.ReadFile(entry.Path())
 	blob := database.NewBlob(data)
 	oid, _ := i.repo.Database.HashObject(blob)
 

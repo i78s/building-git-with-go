@@ -12,9 +12,10 @@ type MockEntryObject struct {
 	mode int
 }
 
-func (m *MockEntryObject) Oid() string { return m.oid }
-func (m *MockEntryObject) Key() string { return m.path }
-func (m *MockEntryObject) Mode() int   { return m.mode }
+func (m *MockEntryObject) Oid() string    { return m.oid }
+func (m *MockEntryObject) Path() string   { return m.path }
+func (m *MockEntryObject) Key() [2]string { return [2]string{m.path, "0"} }
+func (m *MockEntryObject) Mode() int      { return m.mode }
 func (m *MockEntryObject) ParentDirectories() []string {
 	var dirs []string
 	path := m.path

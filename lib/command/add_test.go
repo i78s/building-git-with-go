@@ -24,7 +24,7 @@ func assertIndex(t *testing.T, tmpDir string, expected []*indexEntry) {
 	repo.Index.Load()
 	actual := []*indexEntry{}
 	for _, entry := range repo.Index.EachEntry() {
-		actual = append(actual, &indexEntry{mode: entry.Mode(), path: entry.Key()})
+		actual = append(actual, &indexEntry{mode: entry.Mode(), path: entry.Path()})
 	}
 
 	if !reflect.DeepEqual(actual, expected) {
@@ -79,22 +79,16 @@ func TestAddMultipleFilesToIndex(t *testing.T) {
 	tmpDir, stdout, stderr := setupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)
 
-	filesToAdd := []*filesToAdd{
-		{name: "hello.txt", content: "hello"},
-		{name: "world.txt", content: "world"},
-	}
+	writeFile(t, tmpDir, "hello.txt", "hello")
+	writeFile(t, tmpDir, "world.txt", "world")
+
+	Add(tmpDir, []string{"hello.txt", "world.txt"}, stdout, stderr)
+
 	expected := []*indexEntry{
 		{mode: 0o100644, path: "hello.txt"},
 		{mode: 0o100644, path: "world.txt"},
 	}
 
-	fileNames := make([]string, len(filesToAdd))
-	for i, file := range filesToAdd {
-		fileNames[i] = file.name
-		writeFile(t, tmpDir, file.name, file.content)
-	}
-
-	Add(tmpDir, fileNames, stdout, stderr)
 	assertIndex(t, tmpDir, expected)
 }
 
@@ -102,22 +96,17 @@ func TestIncrementallyAddFilesToIndex(t *testing.T) {
 	tmpDir, stdout, stderr := setupTestEnvironment(t)
 	defer os.RemoveAll(tmpDir)
 
-	filesToAdd := []*filesToAdd{
-		{name: "hello.txt", content: "hello"},
-		{name: "world.txt", content: "world"},
-	}
+	writeFile(t, tmpDir, "hello.txt", "hello")
+	writeFile(t, tmpDir, "world.txt", "world")
 
-	fileNames := make([]string, len(filesToAdd))
-	for i, file := range filesToAdd {
-		fileNames[i] = file.name
-		writeFile(t, tmpDir, file.name, file.content)
-	}
+	Add(tmpDir, []string{"world.txt"}, stdout, stderr)
 
-	Add(tmpDir, []string{fileNames[0]}, stdout, stderr)
 	assertIndex(t, tmpDir, []*indexEntry{
-		{mode: 0o100644, path: "hello.txt"},
+		{mode: 0o100644, path: "world.txt"},
 	})
-	Add(tmpDir, []string{fileNames[1]}, stdout, stderr)
+
+	Add(tmpDir, []string{"hello.txt"}, stdout, stderr)
+
 	assertIndex(t, tmpDir, []*indexEntry{
 		{mode: 0o100644, path: "hello.txt"},
 		{mode: 0o100644, path: "world.txt"},

@@ -56,7 +56,7 @@ func TestIndexAdd(t *testing.T) {
 
 			actual := make([]string, 0)
 			for _, entry := range index.EachEntry() {
-				actual = append(actual, entry.Key())
+				actual = append(actual, entry.Path())
 			}
 			sort.Strings(actual) // assuming that order is not important
 

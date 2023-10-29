@@ -137,24 +137,24 @@ func (s *Status) checkIndexEntries() {
 }
 
 func (s *Status) checkIndexAgainstWorkspace(entry database.EntryObject) {
-	stat := s.Stats[entry.Key()]
+	stat := s.Stats[entry.Path()]
 	status := s.inspector.compareIndexToWorkspace(entry, stat)
 
 	if status != Unmodified {
-		s.recordChange(entry.Key(), s.WorkspaceChanges, status)
+		s.recordChange(entry.Path(), s.WorkspaceChanges, status)
 		return
 	}
 	s.repo.Index.UpdateEntryStat(entry, stat)
 }
 
 func (s *Status) checkIndexAgainstHeadTree(entry database.EntryObject) {
-	item := s.HeadTree[entry.Key()]
+	item := s.HeadTree[entry.Path()]
 	status := s.inspector.compareTreeToIndex(item, entry)
 
 	if status == Unmodified {
 		return
 	}
-	s.recordChange(entry.Key(), s.IndexChanges, status)
+	s.recordChange(entry.Path(), s.IndexChanges, status)
 }
 
 func (s *Status) collectDeletedHeadFiles() {

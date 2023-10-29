@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -84,8 +85,16 @@ func ParseEntry(data []byte) *Entry {
 	}
 }
 
-func (e *Entry) Key() string {
-	return string(bytes.TrimRight([]byte(e.path), "\x00"))
+func (e *Entry) Path() string {
+	return e.path
+}
+
+func (e *Entry) Key() [2]string {
+	return [2]string{e.path, e.Stage()}
+}
+
+func (e *Entry) Stage() string {
+	return fmt.Sprint((e.flags >> 12) & 0x3)
 }
 
 func (e *Entry) Mode() int {

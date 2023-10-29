@@ -20,8 +20,8 @@ const (
 
 type Index struct {
 	pathname string
-	entries  map[string]*Entry
-	keys     []string
+	entries  map[[2]string]*Entry
+	keys     [][2]string
 	parents  map[string]map[string]struct{}
 	lockfile *lockfile.Lockfile
 	digest   hash.Hash
@@ -31,8 +31,8 @@ type Index struct {
 func NewIndex(pathname string) *Index {
 	return &Index{
 		pathname: pathname,
-		entries:  make(map[string]*Entry),
-		keys:     make([]string, 0),
+		entries:  make(map[[2]string]*Entry),
+		keys:     make([][2]string, 0),
 		parents:  make(map[string]map[string]struct{}),
 		lockfile: lockfile.NewLockfile(pathname),
 	}
@@ -111,13 +111,18 @@ func (i *Index) EachEntry() []database.EntryObject {
 	return entries
 }
 
-func (i *Index) IsTrackedFile(path string) bool {
-	_, existsInEntries := i.entries[path]
-	return existsInEntries
+func (i *Index) EntryForPath(path string) *Entry {
+	return i.entries[[2]string{path, "0"}]
 }
 
-func (i *Index) EntryForPath(path string) *Entry {
-	return i.entries[path]
+func (i *Index) IsTrackedFile(path string) bool {
+	for _, stage := range []string{"0", "1", "2"} {
+		_, existsInEntries := i.entries[[2]string{path, stage}]
+		if existsInEntries {
+			return true
+		}
+	}
+	return false
 }
 
 func (i *Index) IsTracked(path string) bool {
@@ -131,8 +136,8 @@ func (i *Index) UpdateEntryStat(entry database.EntryObject, stat fs.FileInfo) {
 }
 
 func (i *Index) clear() {
-	i.entries = make(map[string]*Entry)
-	i.keys = make([]string, 0)
+	i.entries = make(map[[2]string]*Entry)
+	i.keys = make([][2]string, 0)
 	i.changed = false
 }
 
@@ -140,11 +145,16 @@ func (i *Index) discardConflicts(entry *Entry) {
 	for _, parent := range entry.ParentDirectories() {
 		i.removeEntry(parent)
 	}
-	i.removeChildren(entry.Key())
+	i.removeChildren(entry.Path())
 }
 
 func (i *Index) removeEntry(pathname string) {
-	entry, ok := i.entries[pathname]
+	for _, stage := range []string{"0", "1", "2"} {
+		i.removeEntryWithStage(pathname, stage)
+	}
+}
+func (i *Index) removeEntryWithStage(pathname, stage string) {
+	entry, ok := i.entries[[2]string{pathname, stage}]
 	if !ok {
 		return
 	}
@@ -158,7 +168,7 @@ func (i *Index) removeEntry(pathname string) {
 	delete(i.entries, entry.Key())
 
 	for _, dirname := range entry.ParentDirectories() {
-		delete(i.parents[dirname], entry.Key())
+		delete(i.parents[dirname], entry.Path())
 		if len(i.parents[dirname]) == 0 {
 			delete(i.parents, dirname)
 		}
@@ -180,8 +190,14 @@ func (i *Index) storeEntry(entry *Entry) {
 
 	_, exists := i.entries[key]
 	if !exists {
-		index := sort.SearchStrings(i.keys, key)
-		i.keys = append(i.keys, "")
+		index := sort.Search(len(i.keys), func(n int) bool {
+			a, b := i.keys[n], key
+			if a[0] == b[0] {
+				return a[1] > b[1]
+			}
+			return a[0] > b[0]
+		})
+		i.keys = append(i.keys, [2]string{})
 		copy(i.keys[index+1:], i.keys[index:])
 		i.keys[index] = key
 	}
@@ -191,7 +207,7 @@ func (i *Index) storeEntry(entry *Entry) {
 		if i.parents[dirname] == nil {
 			i.parents[dirname] = make(map[string]struct{})
 		}
-		i.parents[dirname][entry.Key()] = struct{}{}
+		i.parents[dirname][entry.Path()] = struct{}{}
 	}
 }
 

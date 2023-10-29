@@ -28,7 +28,8 @@ type TreeObject interface {
 
 type EntryObject interface {
 	Oid() string
-	Key() string
+	Path() string
+	Key() [2]string
 	Mode() int
 	ParentDirectories() []string
 	Basename() string
