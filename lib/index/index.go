@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"sort"
+	"strconv"
 )
 
 const (
@@ -111,6 +112,16 @@ func (i *Index) EachEntry() []database.EntryObject {
 	return entries
 }
 
+func (i *Index) IsConflict() bool {
+	for _, entry := range i.entries {
+		stage, _ := strconv.Atoi(entry.Stage())
+		if stage > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func (i *Index) EntryForPath(path string) *Entry {
 	return i.entries[[2]string{path, "0"}]
 }
@@ -128,6 +139,19 @@ func (i *Index) IsTrackedFile(path string) bool {
 func (i *Index) IsTracked(path string) bool {
 	_, existsInParents := i.parents[path]
 	return i.IsTrackedFile(path) || existsInParents
+}
+
+func (i *Index) addConflictSet(pathname string, items []database.TreeObject) {
+	i.removeEntryWithStage(pathname, "0")
+
+	for n, item := range items {
+		if item == nil || item.IsNil() {
+			continue
+		}
+		entry := CreateEntryFromDB(pathname, item, n+1)
+		i.storeEntry(entry)
+	}
+	i.changed = true
 }
 
 func (i *Index) UpdateEntryStat(entry database.EntryObject, stat fs.FileInfo) {
@@ -153,6 +177,7 @@ func (i *Index) removeEntry(pathname string) {
 		i.removeEntryWithStage(pathname, stage)
 	}
 }
+
 func (i *Index) removeEntryWithStage(pathname, stage string) {
 	entry, ok := i.entries[[2]string{pathname, stage}]
 	if !ok {

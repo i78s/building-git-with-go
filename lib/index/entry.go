@@ -1,11 +1,13 @@
 package index
 
 import (
+	"building-git/lib/database"
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"io/fs"
+	"math"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -51,6 +53,28 @@ func CreateEntry(pathname string, oid string, stat os.FileInfo) *Entry {
 		size:      uint32(stat.Size()),
 		oid:       oid,
 		flags:     flags,
+		path:      pathname,
+	}
+}
+
+func CreateEntryFromDB(pathname string, item database.TreeObject, n int) *Entry {
+	minPathSize := int(math.Min(float64(len(pathname)), float64(MAX_PATH_SIZE)))
+	shiftedN := n << 12
+	flags := shiftedN | minPathSize
+
+	return &Entry{
+		ctime:     uint32(0),
+		ctimeNsec: uint32(0),
+		mtime:     uint32(0),
+		mtimeNsec: uint32(0),
+		dev:       uint32(0),
+		ino:       uint32(0),
+		mode:      uint32(item.Mode()),
+		uid:       uint32(0),
+		gid:       uint32(0),
+		size:      uint32(0),
+		oid:       item.Oid(),
+		flags:     uint16(flags),
 		path:      pathname,
 	}
 }
