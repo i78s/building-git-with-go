@@ -55,19 +55,25 @@ func (m *Merge) Run() int {
 		return 0
 	}
 
-	m.resolveMerge()
+	if err := m.resolveMerge(); err != nil {
+		return 1
+	}
 	m.commitMerge()
 
 	return 0
 }
 
-func (m *Merge) resolveMerge() {
+func (m *Merge) resolveMerge() error {
 	m.repo.Index.LoadForUpdate()
 
 	merge := merge.NewResolve(m.repo, m.inputs)
 	merge.Execute()
 
 	m.repo.Index.WriteUpdates()
+	if m.repo.Index.IsConflict() {
+		return fmt.Errorf("detect conflict")
+	}
+	return nil
 }
 
 func (m *Merge) commitMerge() {

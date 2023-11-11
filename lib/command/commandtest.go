@@ -170,9 +170,17 @@ func delete(t *testing.T, path, name string) {
 	t.Helper()
 
 	filePath := filepath.Join(path, name)
-	err := os.RemoveAll(filePath)
+	os.RemoveAll(filePath)
+}
+
+func assertExecutable(t *testing.T, path, name string) {
+	filePath := filepath.Join(path, name)
+	info, err := os.Stat(filePath)
 	if err != nil {
-		t.Fatalf("Failed to delete file or directory: %s", err)
+		t.Fatalf("Cannot stat file: %v", err)
+	}
+	if info.Mode().Perm()&0111 == 0 {
+		t.Fatalf("The file is NOT executable: %s", filePath)
 	}
 }
 

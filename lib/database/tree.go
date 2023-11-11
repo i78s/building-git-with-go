@@ -30,6 +30,7 @@ type EntryObject interface {
 	Oid() string
 	Path() string
 	Key() [2]string
+	Stage() string
 	Mode() int
 	ParentDirectories() []string
 	Basename() string

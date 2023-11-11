@@ -141,7 +141,7 @@ func (i *Index) IsTracked(path string) bool {
 	return i.IsTrackedFile(path) || existsInParents
 }
 
-func (i *Index) addConflictSet(pathname string, items []database.TreeObject) {
+func (i *Index) AddConflictSet(pathname string, items []database.TreeObject) {
 	i.removeEntryWithStage(pathname, "0")
 
 	for n, item := range items {

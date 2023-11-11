@@ -107,6 +107,21 @@ func (ws *Workspace) StatFile(filePath string) (fs.FileInfo, error) {
 	return info, nil
 }
 
+func (ws *Workspace) WriteFile(path string, data []byte) error {
+	fullPath := filepath.Join(ws.pathname, path)
+	file, err := os.OpenFile(fullPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = file.Write(data)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (ws *Workspace) ApplyMigration(migration *Migration) error {
 	ws.applyChangeList(migration, delete)
 
