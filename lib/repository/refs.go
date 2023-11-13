@@ -3,6 +3,7 @@ package repository
 import (
 	"building-git/lib/errors"
 	"building-git/lib/lockfile"
+	"building-git/lib/pathutils"
 	"io/fs"
 	"regexp"
 	"strings"
@@ -255,7 +256,7 @@ func (r *Refs) pathForName(name string) (string, error) {
 }
 
 func (r *Refs) deleteParentDirectories(path string) error {
-	dirs := ascend(path)
+	dirs := pathutils.Ascend(path)
 	for _, dir := range dirs {
 		if dir == r.headsPath {
 			break

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"building-git/lib/database"
+	"building-git/lib/pathutils"
 	"fmt"
 	"io/fs"
 	"path/filepath"
@@ -125,7 +126,7 @@ func (m *Migration) updateIndex() {
 }
 
 func (m *Migration) recordChange(path string, oldItem, newItem database.TreeObject) {
-	dirs := descend(filepath.Dir(path))
+	dirs := pathutils.Descend(filepath.Dir(path))
 
 	if oldItem == nil || oldItem != nil && oldItem.IsNil() {
 		for _, dir := range dirs {
@@ -201,7 +202,7 @@ func (m *Migration) indexDiffersFromTrees(entry, oldItem, newItem database.TreeO
 
 func (m *Migration) untrackedParent(path string) string {
 	dirname := filepath.Dir(path)
-	for _, parent := range ascend(dirname) {
+	for _, parent := range pathutils.Ascend(dirname) {
 		parentStat, err := m.repo.Workspace.StatFile(parent)
 		if err != nil || parentStat.IsDir() {
 			continue
@@ -236,26 +237,4 @@ func (m *Migration) collectErrors() error {
 		return nil
 	}
 	return fmt.Errorf("conflicts detected")
-}
-
-func ascend(path string) []string {
-	var dirs []string
-	for {
-		dirs = append(dirs, path)
-		parent := filepath.Dir(path)
-		if parent == path || parent == "." {
-			break
-		}
-		path = parent
-	}
-	return dirs
-}
-
-func descend(path string) []string {
-	var dirs []string
-	for path != "." && path != "/" {
-		dirs = append([]string{path}, dirs...)
-		path = filepath.Dir(path)
-	}
-	return dirs
 }

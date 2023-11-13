@@ -2,8 +2,10 @@ package merge
 
 import (
 	"building-git/lib/database"
+	"building-git/lib/pathutils"
 	"building-git/lib/repository"
 	"fmt"
+	"path/filepath"
 	"strings"
 )
 
@@ -14,6 +16,7 @@ type Resolve struct {
 	rightDiff map[string][2]database.TreeObject
 	cleanDiff map[string][2]database.TreeObject
 	conflicts map[string][3]database.TreeObject
+	untracked map[string]database.TreeObject
 }
 
 func NewResolve(repo *repository.Repository, inputs *Inputs) *Resolve {
@@ -29,6 +32,7 @@ func (r *Resolve) Execute() error {
 	}
 
 	r.addConflictsToIndex()
+	r.writeUntrackedFiles()
 	return nil
 }
 
@@ -42,13 +46,28 @@ func (r *Resolve) prepareTreeDiffs() {
 	r.rightDiff = r.repo.Database.TreeDiff(baseOid, r.inputs.RightOid, nil)
 	r.cleanDiff = map[string][2]database.TreeObject{}
 	r.conflicts = map[string][3]database.TreeObject{}
+	r.untracked = map[string]database.TreeObject{}
 
 	for path, images := range r.rightDiff {
-		r.samePathConflict(path, images[0], images[1])
+		oldItem, newItem := images[0], images[1]
+		if newItem != nil && !newItem.IsNil() {
+			r.fileDirConflict(path, r.leftDiff, r.inputs.LeftName)
+		}
+		r.samePathConflict(path, oldItem, newItem)
+	}
+	for path, images := range r.leftDiff {
+		newItem := images[1]
+		if newItem != nil && !newItem.IsNil() {
+			r.fileDirConflict(path, r.rightDiff, r.inputs.RightName)
+		}
 	}
 }
 
 func (r *Resolve) samePathConflict(path string, base, right database.TreeObject) {
+	if _, exists := r.conflicts[path]; exists {
+		return
+	}
+
 	if _, exists := r.leftDiff[path]; !exists {
 		r.cleanDiff[path] = [2]database.TreeObject{
 			base,
@@ -151,8 +170,35 @@ func (r *Resolve) merge3ForModes(base, left, right database.TreeObject) (merge3,
 	return merge3{}, fmt.Errorf("detect conflict")
 }
 
+func (r *Resolve) fileDirConflict(path string, diff map[string][2]database.TreeObject, name string) {
+	for _, parent := range pathutils.Ascend(filepath.Dir(path)) {
+		oldItem, newItem := diff[parent][0], diff[parent][1]
+		if newItem == nil || newItem.IsNil() {
+			continue
+		}
+
+		switch name {
+		case r.inputs.LeftName:
+			r.conflicts[parent] = [3]database.TreeObject{oldItem, newItem, nil}
+		case r.inputs.RightName:
+			r.conflicts[parent] = [3]database.TreeObject{oldItem, nil, newItem}
+		}
+
+		delete(r.cleanDiff, parent)
+		rename := fmt.Sprintf("%s~%s", parent, name)
+		r.untracked[rename] = newItem
+	}
+}
+
 func (r *Resolve) addConflictsToIndex() {
 	for path, items := range r.conflicts {
 		r.repo.Index.AddConflictSet(path, items[:])
+	}
+}
+
+func (r *Resolve) writeUntrackedFiles() {
+	for path, item := range r.untracked {
+		blob, _ := r.repo.Database.Load(item.Oid())
+		r.repo.Workspace.WriteFile(path, []byte(blob.String()))
 	}
 }

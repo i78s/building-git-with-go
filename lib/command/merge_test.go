@@ -610,6 +610,102 @@ func TestMergeConflictedMergeAddAddModeConflict(t *testing.T) {
 	})
 }
 
+func TestMergeConflictedMergeFileDirectoryAddition(t *testing.T) {
+	setUp := func(t *testing.T) (tmpDir string, stdout, stderr *bytes.Buffer) {
+		tmpDir, stdout, stderr = setupTestEnvironment(t)
+
+		merge3(t, tmpDir, map[string]interface{}{
+			"f.txt": "1",
+		}, map[string]interface{}{
+			"g.txt": "2",
+		}, map[string]interface{}{
+			"g.txt/nested.txt": "3",
+		}, stdout, stderr)
+
+		return
+	}
+
+	t.Run("puts a namespaced copy of the conflicted file in the workspace", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		assertWorkspace(t, tmpDir, map[string]string{
+			"f.txt":            "1",
+			"g.txt~HEAD":       "2",
+			"g.txt/nested.txt": "3",
+		})
+	})
+
+	t.Run("records the conflict in the index", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		assertIndexEntries(t, tmpDir, []struct {
+			path  string
+			stage string
+		}{
+			{"f.txt", "0"},
+			{"g.txt", "2"},
+			{"g.txt/nested.txt", "0"},
+		})
+	})
+
+	t.Run("does not write a merge commit", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		assertNoMerge(t, tmpDir)
+	})
+}
+
+func TestMergeConflictedMergeDirectoryFileAddition(t *testing.T) {
+	setUp := func(t *testing.T) (tmpDir string, stdout, stderr *bytes.Buffer) {
+		tmpDir, stdout, stderr = setupTestEnvironment(t)
+
+		merge3(t, tmpDir, map[string]interface{}{
+			"f.txt": "1",
+		}, map[string]interface{}{
+			"g.txt/nested.txt": "2",
+		}, map[string]interface{}{
+			"g.txt": "3",
+		}, stdout, stderr)
+
+		return
+	}
+
+	t.Run("puts a namespaced copy of the conflicted file in the workspace", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		assertWorkspace(t, tmpDir, map[string]string{
+			"f.txt":            "1",
+			"g.txt~topic":      "3",
+			"g.txt/nested.txt": "2",
+		})
+	})
+
+	t.Run("records the conflict in the index", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		assertIndexEntries(t, tmpDir, []struct {
+			path  string
+			stage string
+		}{
+			{"f.txt", "0"},
+			{"g.txt", "3"},
+			{"g.txt/nested.txt", "0"},
+		})
+	})
+
+	t.Run("does not write a merge commit", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		assertNoMerge(t, tmpDir)
+	})
+}
+
 func TestMergeConflictedMergeEditEdit(t *testing.T) {
 	setUp := func(t *testing.T) (tmpDir string, stdout, stderr *bytes.Buffer) {
 		tmpDir, stdout, stderr = setupTestEnvironment(t)
@@ -676,7 +772,7 @@ func TestMergeConflictedMergeEditDelete(t *testing.T) {
 		return
 	}
 
-	t.Run("puts the conflicted file in the workspace", func(t *testing.T) {
+	t.Run("puts the left version in the workspace", func(t *testing.T) {
 		tmpDir, _, _ := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
@@ -721,7 +817,7 @@ func TestMergeConflictedMergeDeleteEdit(t *testing.T) {
 		return
 	}
 
-	t.Run("puts the conflicted file in the workspace", func(t *testing.T) {
+	t.Run("puts the right version in the workspace", func(t *testing.T) {
 		tmpDir, _, _ := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
@@ -740,6 +836,100 @@ func TestMergeConflictedMergeDeleteEdit(t *testing.T) {
 		}{
 			{"f.txt", "1"},
 			{"f.txt", "3"},
+		})
+	})
+
+	t.Run("does not write a merge commit", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		assertNoMerge(t, tmpDir)
+	})
+}
+
+func TestMergeConflictedMergeEditAddParent(t *testing.T) {
+	setUp := func(t *testing.T) (tmpDir string, stdout, stderr *bytes.Buffer) {
+		tmpDir, stdout, stderr = setupTestEnvironment(t)
+
+		merge3(t, tmpDir, map[string]interface{}{
+			"nest/f.txt": "1",
+		}, map[string]interface{}{
+			"nest/f.txt": "2",
+		}, map[string]interface{}{
+			"nest": "3",
+		}, stdout, stderr)
+
+		return
+	}
+
+	t.Run("puts a namespaced copy of the conflicted file in the workspace", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		assertWorkspace(t, tmpDir, map[string]string{
+			"nest/f.txt": "2",
+			"nest~topic": "3",
+		})
+	})
+
+	t.Run("records the conflict in the index", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		assertIndexEntries(t, tmpDir, []struct {
+			path  string
+			stage string
+		}{
+			{"nest", "3"},
+			{"nest/f.txt", "1"},
+			{"nest/f.txt", "2"},
+		})
+	})
+
+	t.Run("does not write a merge commit", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		assertNoMerge(t, tmpDir)
+	})
+}
+
+func TestMergeConflictedMergeEditAddChild(t *testing.T) {
+	setUp := func(t *testing.T) (tmpDir string, stdout, stderr *bytes.Buffer) {
+		tmpDir, stdout, stderr = setupTestEnvironment(t)
+
+		merge3(t, tmpDir, map[string]interface{}{
+			"nest/f.txt": "1",
+		}, map[string]interface{}{
+			"nest/f.txt": "2",
+		}, map[string]interface{}{
+			"nest/f.txt": nil, "nest/f.txt/g.txt": "3",
+		}, stdout, stderr)
+
+		return
+	}
+
+	t.Run("puts a namespaced copy of the conflicted file in the workspace", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		assertWorkspace(t, tmpDir, map[string]string{
+			"nest/f.txt~HEAD":  "2",
+			"nest/f.txt/g.txt": "3",
+		})
+	})
+
+	t.Run("records the conflict in the index", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		assertIndexEntries(t, tmpDir, []struct {
+			path  string
+			stage string
+		}{
+			{"nest/f.txt", "1"},
+			{"nest/f.txt", "2"},
+			{"nest/f.txt/g.txt", "0"},
 		})
 	})
 
