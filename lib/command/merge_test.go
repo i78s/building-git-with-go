@@ -526,6 +526,18 @@ func TestMergeConflictedMergeAddAdd(t *testing.T) {
 		return
 	}
 
+	t.Run("prints the merge conflicts", func(t *testing.T) {
+		tmpDir, stdout, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `Auto-merging g.txt
+CONFLICT (add/add): Merge conflict in g.txt
+Automatic merge failed; fix conflicts and then commit the result.`
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
 	t.Run("puts the conflicted file in the workspace", func(t *testing.T) {
 		tmpDir, _, _ := setUp(t)
 		defer os.RemoveAll(tmpDir)
@@ -578,6 +590,18 @@ func TestMergeConflictedMergeAddAddModeConflict(t *testing.T) {
 		return
 	}
 
+	t.Run("prints the merge conflicts", func(t *testing.T) {
+		tmpDir, stdout, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `Auto-merging g.txt
+CONFLICT (add/add): Merge conflict in g.txt
+Automatic merge failed; fix conflicts and then commit the result.`
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
 	t.Run("puts the conflicted file in the workspace", func(t *testing.T) {
 		tmpDir, _, _ := setUp(t)
 		defer os.RemoveAll(tmpDir)
@@ -624,6 +648,18 @@ func TestMergeConflictedMergeFileDirectoryAddition(t *testing.T) {
 
 		return
 	}
+
+	t.Run("prints the merge conflicts", func(t *testing.T) {
+		tmpDir, stdout, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `Adding g.txt/nested.txt
+CONFLICT (file/directory): There is a directory with name g.txt in topic. Adding g.txt as g.txt~HEAD
+Automatic merge failed; fix conflicts and then commit the result.`
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
 
 	t.Run("puts a namespaced copy of the conflicted file in the workspace", func(t *testing.T) {
 		tmpDir, _, _ := setUp(t)
@@ -673,6 +709,18 @@ func TestMergeConflictedMergeDirectoryFileAddition(t *testing.T) {
 		return
 	}
 
+	t.Run("prints the merge conflicts", func(t *testing.T) {
+		tmpDir, stdout, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `Adding g.txt/nested.txt
+CONFLICT (directory/file): There is a directory with name g.txt in HEAD. Adding g.txt as g.txt~topic
+Automatic merge failed; fix conflicts and then commit the result.`
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
 	t.Run("puts a namespaced copy of the conflicted file in the workspace", func(t *testing.T) {
 		tmpDir, _, _ := setUp(t)
 		defer os.RemoveAll(tmpDir)
@@ -720,6 +768,18 @@ func TestMergeConflictedMergeEditEdit(t *testing.T) {
 
 		return
 	}
+
+	t.Run("prints the merge conflicts", func(t *testing.T) {
+		tmpDir, stdout, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `Auto-merging f.txt
+CONFLICT (content): Merge conflict in f.txt
+Automatic merge failed; fix conflicts and then commit the result.`
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
 
 	t.Run("puts the conflicted file in the workspace", func(t *testing.T) {
 		tmpDir, _, _ := setUp(t)
@@ -772,6 +832,17 @@ func TestMergeConflictedMergeEditDelete(t *testing.T) {
 		return
 	}
 
+	t.Run("prints the merge conflicts", func(t *testing.T) {
+		tmpDir, stdout, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `CONFLICT (modify/delete): f.txt deleted in topic and modified in HEAD. Version HEAD of f.txt left in tree.
+Automatic merge failed; fix conflicts and then commit the result.`
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
 	t.Run("puts the left version in the workspace", func(t *testing.T) {
 		tmpDir, _, _ := setUp(t)
 		defer os.RemoveAll(tmpDir)
@@ -817,6 +888,17 @@ func TestMergeConflictedMergeDeleteEdit(t *testing.T) {
 		return
 	}
 
+	t.Run("prints the merge conflicts", func(t *testing.T) {
+		tmpDir, stdout, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `CONFLICT (modify/delete): f.txt deleted in HEAD and modified in topic. Version topic of f.txt left in tree.
+Automatic merge failed; fix conflicts and then commit the result.`
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
 	t.Run("puts the right version in the workspace", func(t *testing.T) {
 		tmpDir, _, _ := setUp(t)
 		defer os.RemoveAll(tmpDir)
@@ -861,6 +943,18 @@ func TestMergeConflictedMergeEditAddParent(t *testing.T) {
 
 		return
 	}
+
+	t.Run("prints the merge conflicts", func(t *testing.T) {
+		tmpDir, stdout, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `CONFLICT (modify/delete): nest/f.txt deleted in topic and modified in HEAD. Version HEAD of nest/f.txt left in tree.
+CONFLICT (directory/file): There is a directory with name nest in HEAD. Adding nest as nest~topic
+Automatic merge failed; fix conflicts and then commit the result.`
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
 
 	t.Run("puts a namespaced copy of the conflicted file in the workspace", func(t *testing.T) {
 		tmpDir, _, _ := setUp(t)
@@ -908,6 +1002,18 @@ func TestMergeConflictedMergeEditAddChild(t *testing.T) {
 
 		return
 	}
+
+	t.Run("prints the merge conflicts", func(t *testing.T) {
+		tmpDir, stdout, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `Adding nest/f.txt/g.txt
+CONFLICT (modify/delete): nest/f.txt deleted in topic and modified in HEAD. Version HEAD of nest/f.txt left in tree at nest/f.txt~HEAD.
+Automatic merge failed; fix conflicts and then commit the result.`
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
 
 	t.Run("puts a namespaced copy of the conflicted file in the workspace", func(t *testing.T) {
 		tmpDir, _, _ := setUp(t)

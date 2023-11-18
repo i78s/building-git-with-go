@@ -56,6 +56,7 @@ func (m *Merge) Run() int {
 	}
 
 	if err := m.resolveMerge(); err != nil {
+		fmt.Fprintf(m.stdout, "Automatic merge failed; fix conflicts and then commit the result.")
 		return 1
 	}
 	m.commitMerge()
@@ -66,7 +67,14 @@ func (m *Merge) Run() int {
 func (m *Merge) resolveMerge() error {
 	m.repo.Index.LoadForUpdate()
 
-	merge := merge.NewResolve(m.repo, m.inputs)
+	merge := merge.NewResolve(
+		m.repo,
+		m.inputs,
+		func(fn func() string) {
+			info := fn()
+			fmt.Fprintf(m.stdout, info+"\n")
+		},
+	)
 	merge.Execute()
 
 	m.repo.Index.WriteUpdates()

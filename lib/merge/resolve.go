@@ -10,17 +10,22 @@ import (
 )
 
 type Resolve struct {
-	repo      *repository.Repository
-	inputs    *Inputs
-	leftDiff  map[string][2]database.TreeObject
-	rightDiff map[string][2]database.TreeObject
-	cleanDiff map[string][2]database.TreeObject
-	conflicts map[string][3]database.TreeObject
-	untracked map[string]database.TreeObject
+	repo       *repository.Repository
+	inputs     *Inputs
+	leftDiff   map[string][2]database.TreeObject
+	rightDiff  map[string][2]database.TreeObject
+	cleanDiff  map[string][2]database.TreeObject
+	conflicts  map[string][3]database.TreeObject
+	untracked  map[string]database.TreeObject
+	onProgress func(fn func() string)
 }
 
-func NewResolve(repo *repository.Repository, inputs *Inputs) *Resolve {
-	return &Resolve{repo: repo, inputs: inputs}
+func NewResolve(repo *repository.Repository, inputs *Inputs, onProgress func(fn func() string)) *Resolve {
+	return &Resolve{
+		repo:       repo,
+		inputs:     inputs,
+		onProgress: onProgress,
+	}
 }
 
 func (r *Resolve) Execute() error {
@@ -82,17 +87,26 @@ func (r *Resolve) samePathConflict(path string, base, right database.TreeObject)
 		return
 	}
 
+	if left != nil && right != nil {
+		r.onProgress(func() string {
+			return fmt.Sprintf("Auto-merging %s", path)
+		})
+	}
+
 	oidOk, oid := r.mergeBlobs(base, left, right)
 	modeOk, mode := r.mergedModes(base, left, right)
 
 	r.cleanDiff[path] = [2]database.TreeObject{left, database.NewEntry(oid, mode)}
-	if !(oidOk && modeOk) {
-		r.conflicts[path] = [3]database.TreeObject{
-			base,
-			left,
-			right,
-		}
+	if oidOk && modeOk {
+		return
 	}
+
+	r.conflicts[path] = [3]database.TreeObject{
+		base,
+		left,
+		right,
+	}
+	r.logConflict([]string{path})
 }
 
 func (r *Resolve) mergeBlobs(base, left, right database.TreeObject) (bool, string) {
@@ -187,6 +201,13 @@ func (r *Resolve) fileDirConflict(path string, diff map[string][2]database.TreeO
 		delete(r.cleanDiff, parent)
 		rename := fmt.Sprintf("%s~%s", parent, name)
 		r.untracked[rename] = newItem
+
+		if _, exsists := diff[path]; !exsists {
+			r.onProgress(func() string {
+				return fmt.Sprintf("Adding %s", path)
+			})
+		}
+		r.logConflict([]string{parent, rename})
 	}
 }
 
@@ -201,4 +222,73 @@ func (r *Resolve) writeUntrackedFiles() {
 		blob, _ := r.repo.Database.Load(item.Oid())
 		r.repo.Workspace.WriteFile(path, []byte(blob.String()))
 	}
+}
+
+func (r *Resolve) logConflict(args []string) {
+	path := args[0]
+	rename := ""
+	if len(args) > 1 {
+		rename = args[1]
+	}
+
+	conflict := r.conflicts[path]
+	base, left, right := conflict[0], conflict[1], conflict[2]
+
+	if left != nil && right != nil {
+		r.logLeftRightConflict(path)
+	} else if base != nil && (left != nil || right != nil) {
+		r.logModifyDeleteConflict(path, rename)
+	} else {
+		r.logFileDirectoryConflict(path, rename)
+	}
+}
+
+func (r *Resolve) logLeftRightConflict(path string) {
+	conflictType := "add/add"
+	if r.conflicts[path][0] != nil {
+		conflictType = "content"
+	}
+	r.onProgress(func() string {
+		return fmt.Sprintf("CONFLICT (%s): Merge conflict in %s", conflictType, path)
+	})
+}
+
+func (r *Resolve) logModifyDeleteConflict(path, rename string) {
+	names := r.logBranchNames(path)
+	deleted, modified := names[0], names[1]
+
+	if rename != "" {
+		rename = fmt.Sprintf(" at %s", rename)
+	}
+	r.onProgress(func() string {
+		return strings.Join([]string{
+			fmt.Sprintf("CONFLICT (modify/delete): %s", path),
+			fmt.Sprintf("deleted in %s and modified in %s.", deleted, modified),
+			fmt.Sprintf("Version %s of %s left in tree%s.", modified, path, rename),
+		}, " ")
+	})
+}
+
+func (r *Resolve) logFileDirectoryConflict(path, rename string) {
+	conflictType := "directory/file"
+	if r.conflicts[path][1] != nil {
+		conflictType = "file/directory"
+	}
+	branch := r.logBranchNames(path)[0]
+
+	r.onProgress(func() string {
+		return strings.Join([]string{
+			fmt.Sprintf("CONFLICT (%s): There is a directory", conflictType),
+			fmt.Sprintf("with name %s in %s.", path, branch),
+			fmt.Sprintf("Adding %s as %s", path, rename),
+		}, " ")
+	})
+}
+
+func (r *Resolve) logBranchNames(path string) [2]string {
+	a, b := r.inputs.LeftName, r.inputs.RightName
+	if r.conflicts[path][1] != nil {
+		return [2]string{b, a}
+	}
+	return [2]string{a, b}
 }
