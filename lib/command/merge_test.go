@@ -573,6 +573,15 @@ Automatic merge failed; fix conflicts and then commit the result.`
 
 		assertNoMerge(t, tmpDir)
 	})
+
+	t.Run("reports the conflict in the status", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `AA g.txt
+`
+		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), expected)
+	})
 }
 
 func TestMergeConflictedMergeAddAddModeConflict(t *testing.T) {
@@ -815,6 +824,15 @@ Automatic merge failed; fix conflicts and then commit the result.`
 
 		assertNoMerge(t, tmpDir)
 	})
+
+	t.Run("reports the conflict in the status", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `UU f.txt
+`
+		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), expected)
+	})
 }
 
 func TestMergeConflictedMergeEditDelete(t *testing.T) {
@@ -871,6 +889,15 @@ Automatic merge failed; fix conflicts and then commit the result.`
 
 		assertNoMerge(t, tmpDir)
 	})
+
+	t.Run("reports the conflict in the status", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `UD f.txt
+`
+		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), expected)
+	})
 }
 
 func TestMergeConflictedMergeDeleteEdit(t *testing.T) {
@@ -926,6 +953,15 @@ Automatic merge failed; fix conflicts and then commit the result.`
 		defer os.RemoveAll(tmpDir)
 
 		assertNoMerge(t, tmpDir)
+	})
+
+	t.Run("reports the conflict in the status", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `DU f.txt
+`
+		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), expected)
 	})
 }
 
@@ -986,6 +1022,17 @@ Automatic merge failed; fix conflicts and then commit the result.`
 
 		assertNoMerge(t, tmpDir)
 	})
+
+	t.Run("reports the conflict in the status", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `UA nest
+UD nest/f.txt
+?? nest~topic
+`
+		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), expected)
+	})
 }
 
 func TestMergeConflictedMergeEditAddChild(t *testing.T) {
@@ -1044,6 +1091,17 @@ Automatic merge failed; fix conflicts and then commit the result.`
 		defer os.RemoveAll(tmpDir)
 
 		assertNoMerge(t, tmpDir)
+	})
+
+	t.Run("reports the conflict in the status", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `UD nest/f.txt
+A  nest/f.txt/g.txt
+?? nest/f.txt~HEAD
+`
+		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), expected)
 	})
 }
 

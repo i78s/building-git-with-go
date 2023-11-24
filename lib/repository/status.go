@@ -24,6 +24,7 @@ type Status struct {
 	inspector        *Inspector
 	Changed          *sortedmap.SortedMap[struct{}]
 	IndexChanges     *sortedmap.SortedMap[ChangeType]
+	Conflicts        *sortedmap.SortedMap[[]string]
 	WorkspaceChanges *sortedmap.SortedMap[ChangeType]
 	Untracked        *sortedmap.SortedMap[struct{}]
 	HeadTree         map[string]*database.Entry
@@ -36,6 +37,7 @@ func NewStatus(repo *Repository) (*Status, error) {
 		inspector:        NewInspector(repo),
 		Changed:          sortedmap.NewSortedMap[struct{}](),
 		IndexChanges:     sortedmap.NewSortedMap[ChangeType](),
+		Conflicts:        sortedmap.NewSortedMap[[]string](),
 		WorkspaceChanges: sortedmap.NewSortedMap[ChangeType](),
 		Untracked:        sortedmap.NewSortedMap[struct{}](),
 		HeadTree:         make(map[string]*database.Entry),
@@ -131,8 +133,14 @@ func (s *Status) readTree(treeOid, pathname string) error {
 
 func (s *Status) checkIndexEntries() {
 	for _, entry := range s.repo.Index.EachEntry() {
-		s.checkIndexAgainstWorkspace(entry)
-		s.checkIndexAgainstHeadTree(entry)
+		if entry.Stage() == "0" {
+			s.checkIndexAgainstWorkspace(entry)
+			s.checkIndexAgainstHeadTree(entry)
+		} else {
+			s.Changed.Set(entry.Path(), struct{}{})
+			stgs, _ := s.Conflicts.Get(entry.Path())
+			s.Conflicts.Set(entry.Path(), append(stgs, entry.Stage()))
+		}
 	}
 }
 

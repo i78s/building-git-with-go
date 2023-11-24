@@ -6,9 +6,14 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/fatih/color"
 )
+
+const LABEL_WIDTH = 12
+const CONFLICT_LABEL_WIDTH = 17
 
 var SHORT_STATUS = map[repository.ChangeType]string{
 	repository.Added:    "A",
@@ -16,13 +21,39 @@ var SHORT_STATUS = map[repository.ChangeType]string{
 	repository.Modified: "M",
 }
 
-var LONG_STATUS = map[repository.ChangeType]string{
+var LONG_STATUS = map[any]string{
 	repository.Added:    "new file:   ",
 	repository.Deleted:  "deleted:    ",
 	repository.Modified: "modified:   ",
 }
 
-const LABEL_WIDTH = 12
+var CONFLICT_LONG_STATUS = map[any]string{
+	"123": "both modified:",
+	"12":  "deleted by them:",
+	"13":  "deleted by us:",
+	"23":  "both added:",
+	"2":   "added by us:",
+	"3":   "added by them:",
+}
+
+var CONFLICT_SHORT_STATUS = map[any]string{
+	"123": "UU",
+	"12":  "UD",
+	"13":  "DU",
+	"23":  "AA",
+	"2":   "AU",
+	"3":   "UA",
+}
+
+var UI_LABELS = map[string]map[any]string{
+	"normal":   LONG_STATUS,
+	"conflict": CONFLICT_LONG_STATUS,
+}
+
+var UI_WIDTHS = map[string]int{
+	"normal":   LABEL_WIDTH,
+	"conflict": CONFLICT_LABEL_WIDTH,
+}
 
 type StatusOption struct {
 	Porcelain bool
@@ -82,10 +113,10 @@ func (s *Status) printResults() {
 func (s *Status) printLongFormat() {
 	s.printBranchStatus()
 
-	s.printChanges("Changes to be committed", *s.status.IndexChanges, color.New(color.FgGreen))
-	s.printChanges("Changes not staged for commit", *s.status.WorkspaceChanges, color.New(color.FgRed))
-	s.printUntrackedChanges("Untracked files", *s.status.Untracked, color.New(color.FgRed))
-
+	s.printChanges("Changes to be committed", *s.status.IndexChanges, color.New(color.FgGreen), "normal")
+	s.printChanges("Unmerged paths", *s.status.Conflicts, color.New(color.FgRed), "conflict")
+	s.printChanges("Changes not staged for commit", *s.status.WorkspaceChanges, color.New(color.FgRed), "normal")
+	s.printChanges("Untracked files", *s.status.Untracked, color.New(color.FgRed), "normal")
 	s.printCommitStatus()
 }
 
@@ -100,32 +131,34 @@ func (s *Status) printBranchStatus() {
 	fmt.Fprintf(s.stdout, "On branch %s\n", short)
 }
 
-func (s *Status) printChanges(message string, changeset sortedmap.SortedMap[repository.ChangeType], color *color.Color) {
-	if changeset.Len() == 0 {
+func (s *Status) printChanges(message string, changeset interface{}, color *color.Color, labelSet string) {
+	cset, ok := changeset.(sortedmap.SortedMap[any])
+	if !ok {
+		panic("")
+	}
+	if cset.Len() == 0 {
 		return
 	}
+
+	labels := UI_LABELS[labelSet]
+	width := UI_WIDTHS[labelSet]
 
 	fmt.Fprintln(s.stdout, message)
 	fmt.Fprintln(s.stdout)
 
-	changeset.Iterate(func(path string, change repository.ChangeType) {
-		status := LONG_STATUS[change]
+	cset.Iterate(func(path string, change interface{}) {
+		status := ""
+		if ctype, ok := change.(repository.ChangeType); ok {
+			status = labels[ctype]
+		} else if statuses, ok := change.([]string); ok {
+			sort.Strings(statuses)
+			status = labels[strings.Join(statuses, "")]
+		}
+
+		if len(status) < width {
+			status += strings.Repeat(" ", width-len(status))
+		}
 		color.Fprintf(s.stdout, "\t%s%s\n", status, path)
-	})
-
-	fmt.Fprintln(s.stdout)
-}
-
-func (s *Status) printUntrackedChanges(message string, changeset sortedmap.SortedMap[struct{}], color *color.Color) {
-	if changeset.Len() == 0 {
-		return
-	}
-
-	fmt.Fprintln(s.stdout, message)
-	fmt.Fprintln(s.stdout)
-
-	changeset.Iterate(func(path string, _ struct{}) {
-		color.Fprintf(s.stdout, "\t%s\n", path)
 	})
 
 	fmt.Fprintln(s.stdout)
@@ -157,6 +190,11 @@ func (s *Status) printPorcelainFormat() {
 }
 
 func (s *Status) statusFor(path string) string {
+	if statuses, exists := s.status.Conflicts.Get(path); exists {
+		sort.Strings(statuses)
+		return CONFLICT_SHORT_STATUS[strings.Join(statuses, "")]
+	}
+
 	left := " "
 	if ctype, exists := s.status.IndexChanges.Get(path); exists {
 		if status, exists := SHORT_STATUS[ctype]; exists {
