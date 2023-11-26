@@ -96,14 +96,29 @@ func (d *Diff) diffIndexWorkspace() {
 	if !d.options.Patch {
 		return
 	}
-	d.status.WorkspaceChanges.Iterate(func(path string, state repository.ChangeType) {
-		switch state {
-		case repository.Modified:
-			d.prindDiff.PrintDiff(d.fromIndex(path), d.fromFile(path))
-		case repository.Deleted:
-			d.prindDiff.PrintDiff(d.fromIndex(path), d.prindDiff.FromNothing(path))
+
+	paths := append(d.status.Conflicts.Keys, d.status.WorkspaceChanges.Keys...)
+	for _, path := range paths {
+		if _, exists := d.status.Conflicts.Get(path); exists {
+			d.printConflictDiff(path)
+		} else {
+			d.printWorkspaceDiff(path)
 		}
-	})
+	}
+}
+
+func (d *Diff) printConflictDiff(path string) {
+	fmt.Fprintf(d.stdout, "* Unmerged path %v\n", path)
+}
+
+func (d *Diff) printWorkspaceDiff(path string) {
+
+	switch state, _ := d.status.WorkspaceChanges.Get(path); state {
+	case repository.Modified:
+		d.prindDiff.PrintDiff(d.fromIndex(path), d.fromFile(path))
+	case repository.Deleted:
+		d.prindDiff.PrintDiff(d.fromIndex(path), d.prindDiff.FromNothing(path))
+	}
 }
 
 func (d *Diff) fromHead(path string) *print_diff.Target {

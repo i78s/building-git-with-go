@@ -582,6 +582,15 @@ Automatic merge failed; fix conflicts and then commit the result.`
 `
 		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), expected)
 	})
+
+	t.Run("lists the file as unmerged in the diff", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `* Unmerged path g.txt
+`
+		assertDiff(t, tmpDir, []string{}, DiffOption{Patch: true}, new(bytes.Buffer), new(bytes.Buffer), expected)
+	})
 }
 
 func TestMergeConflictedMergeAddAddModeConflict(t *testing.T) {
@@ -701,6 +710,26 @@ Automatic merge failed; fix conflicts and then commit the result.`
 
 		assertNoMerge(t, tmpDir)
 	})
+
+	t.Run("reports the conflict in the status", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `AU g.txt
+A  g.txt/nested.txt
+?? g.txt~HEAD
+`
+		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), expected)
+	})
+
+	t.Run("lists the file as unmerged in the diff", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `* Unmerged path g.txt
+`
+		assertDiff(t, tmpDir, []string{}, DiffOption{Patch: true}, new(bytes.Buffer), new(bytes.Buffer), expected)
+	})
 }
 
 func TestMergeConflictedMergeDirectoryFileAddition(t *testing.T) {
@@ -760,6 +789,25 @@ Automatic merge failed; fix conflicts and then commit the result.`
 		defer os.RemoveAll(tmpDir)
 
 		assertNoMerge(t, tmpDir)
+	})
+
+	t.Run("reports the conflict in the status", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `UA g.txt
+?? g.txt~topic
+`
+		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), expected)
+	})
+
+	t.Run("lists the file as unmerged in the diff", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `* Unmerged path g.txt
+`
+		assertDiff(t, tmpDir, []string{}, DiffOption{Patch: true}, new(bytes.Buffer), new(bytes.Buffer), expected)
 	})
 }
 
@@ -833,6 +881,15 @@ Automatic merge failed; fix conflicts and then commit the result.`
 `
 		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), expected)
 	})
+
+	t.Run("lists the file as unmerged in the diff", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `* Unmerged path f.txt
+`
+		assertDiff(t, tmpDir, []string{}, DiffOption{Patch: true}, new(bytes.Buffer), new(bytes.Buffer), expected)
+	})
 }
 
 func TestMergeConflictedMergeEditDelete(t *testing.T) {
@@ -898,6 +955,15 @@ Automatic merge failed; fix conflicts and then commit the result.`
 `
 		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), expected)
 	})
+
+	t.Run("lists the file as unmerged in the diff", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `* Unmerged path f.txt
+`
+		assertDiff(t, tmpDir, []string{}, DiffOption{Patch: true}, new(bytes.Buffer), new(bytes.Buffer), expected)
+	})
 }
 
 func TestMergeConflictedMergeDeleteEdit(t *testing.T) {
@@ -962,6 +1028,15 @@ Automatic merge failed; fix conflicts and then commit the result.`
 		expected := `DU f.txt
 `
 		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), expected)
+	})
+
+	t.Run("lists the file as unmerged in the diff", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `* Unmerged path f.txt
+`
+		assertDiff(t, tmpDir, []string{}, DiffOption{Patch: true}, new(bytes.Buffer), new(bytes.Buffer), expected)
 	})
 }
 
@@ -1033,6 +1108,16 @@ UD nest/f.txt
 `
 		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), expected)
 	})
+
+	t.Run("lists the file as unmerged in the diff", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `* Unmerged path nest
+* Unmerged path nest/f.txt
+`
+		assertDiff(t, tmpDir, []string{}, DiffOption{Patch: true}, new(bytes.Buffer), new(bytes.Buffer), expected)
+	})
 }
 
 func TestMergeConflictedMergeEditAddChild(t *testing.T) {
@@ -1102,6 +1187,15 @@ A  nest/f.txt/g.txt
 ?? nest/f.txt~HEAD
 `
 		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), expected)
+	})
+
+	t.Run("lists the file as unmerged in the diff", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `* Unmerged path nest/f.txt
+`
+		assertDiff(t, tmpDir, []string{}, DiffOption{Patch: true}, new(bytes.Buffer), new(bytes.Buffer), expected)
 	})
 }
 

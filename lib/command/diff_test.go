@@ -7,26 +7,6 @@ import (
 	"time"
 )
 
-func assertDiff(
-	t *testing.T,
-	tmpDir string,
-	args []string,
-	options DiffOption,
-	stdout *bytes.Buffer,
-	stderr *bytes.Buffer,
-	expected string,
-) {
-	cmd, err := NewDiff(tmpDir, args, options, stdout, stderr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cmd.Run()
-
-	if got := stdout.String(); got != expected {
-		t.Errorf("want %q, but got %q", expected, got)
-	}
-}
-
 func TestDiffWithFileInTheIndex(t *testing.T) {
 	setup := func() (tmpDir string, stdout, stderr *bytes.Buffer) {
 		tmpDir, stdout, stderr = setupTestEnvironment(t)
