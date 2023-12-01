@@ -135,7 +135,7 @@ func (r *Resolve) mergedData(left, right database.TreeObject) string {
 		leftBlob.String(),
 		"=======\n",
 		rightBlob.String(),
-		fmt.Sprintf("<<<<<<< %s\n", r.inputs.RightName),
+		fmt.Sprintf(">>>>>>> %s\n", r.inputs.RightName),
 	}, "")
 }
 

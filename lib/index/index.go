@@ -122,8 +122,8 @@ func (i *Index) IsConflict() bool {
 	return false
 }
 
-func (i *Index) EntryForPath(path string) *Entry {
-	return i.entries[[2]string{path, "0"}]
+func (i *Index) EntryForPath(path, stage string) *Entry {
+	return i.entries[[2]string{path, stage}]
 }
 
 func (i *Index) IsTrackedFile(path string) bool {

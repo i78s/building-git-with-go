@@ -147,7 +147,7 @@ func (m *Migration) recordChange(path string, oldItem, newItem database.TreeObje
 }
 
 func (m *Migration) checkForConflict(path string, oldItem, newItem database.TreeObject) {
-	entry := m.repo.Index.EntryForPath(path)
+	entry := m.repo.Index.EntryForPath(path, "0")
 
 	if m.indexDiffersFromTrees(entry, oldItem, newItem) {
 		m.conflicts[staleFile] = append(m.conflicts[staleFile], path)

@@ -24,6 +24,7 @@ type Diff struct {
 type DiffOption struct {
 	Cached bool
 	Patch  bool
+	Stage  string
 }
 
 func NewDiff(dir string, args []string, options DiffOption, stdout, stderr io.Writer) (*Diff, error) {
@@ -83,9 +84,9 @@ func (d *Diff) diffHeadIndex() {
 	d.status.IndexChanges.Iterate(func(path string, state repository.ChangeType) {
 		switch state {
 		case repository.Added:
-			d.prindDiff.PrintDiff(d.prindDiff.FromNothing(path), d.fromIndex(path))
+			d.prindDiff.PrintDiff(d.prindDiff.FromNothing(path), d.fromIndex(path, "0"))
 		case repository.Modified:
-			d.prindDiff.PrintDiff(d.fromHead(path), d.fromIndex(path))
+			d.prindDiff.PrintDiff(d.fromHead(path), d.fromIndex(path, "0"))
 		case repository.Deleted:
 			d.prindDiff.PrintDiff(d.fromHead(path), d.prindDiff.FromNothing(path))
 		}
@@ -109,15 +110,22 @@ func (d *Diff) diffIndexWorkspace() {
 
 func (d *Diff) printConflictDiff(path string) {
 	fmt.Fprintf(d.stdout, "* Unmerged path %v\n", path)
+
+	target := d.fromIndex(path, d.options.Stage)
+	if target == nil {
+		return
+	}
+
+	d.prindDiff.PrintDiff(target, d.fromFile(path))
 }
 
 func (d *Diff) printWorkspaceDiff(path string) {
 
 	switch state, _ := d.status.WorkspaceChanges.Get(path); state {
 	case repository.Modified:
-		d.prindDiff.PrintDiff(d.fromIndex(path), d.fromFile(path))
+		d.prindDiff.PrintDiff(d.fromIndex(path, "0"), d.fromFile(path))
 	case repository.Deleted:
-		d.prindDiff.PrintDiff(d.fromIndex(path), d.prindDiff.FromNothing(path))
+		d.prindDiff.PrintDiff(d.fromIndex(path, "0"), d.prindDiff.FromNothing(path))
 	}
 }
 
@@ -130,8 +138,11 @@ func (d *Diff) fromHead(path string) *print_diff.Target {
 	return print_diff.NewTarget(path, aOid, aMode, blob.String())
 }
 
-func (d *Diff) fromIndex(path string) *print_diff.Target {
-	entry := d.repo.Index.EntryForPath(path)
+func (d *Diff) fromIndex(path, stage string) *print_diff.Target {
+	entry := d.repo.Index.EntryForPath(path, stage)
+	if entry == nil || entry.IsNil() {
+		return nil
+	}
 	return d.prindDiff.FromEntry(path, entry)
 }
 

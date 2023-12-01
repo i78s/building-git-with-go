@@ -548,7 +548,7 @@ Automatic merge failed; fix conflicts and then commit the result.`
 2
 =======
 3
-<<<<<<< topic
+>>>>>>> topic
 `,
 		})
 	})
@@ -590,6 +590,44 @@ Automatic merge failed; fix conflicts and then commit the result.`
 		expected := `* Unmerged path g.txt
 `
 		assertDiff(t, tmpDir, []string{}, DiffOption{Patch: true}, new(bytes.Buffer), new(bytes.Buffer), expected)
+	})
+
+	t.Run("shows the diff against our version", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `* Unmerged path g.txt
+diff --git a/g.txt b/g.txt
+index 0cfbf08..2603ab2 100644
+--- a/g.txt
++++ b/g.txt
+@@ -1,1 +1,5 @@
++<<<<<<< HEAD
+ 2
++=======
++3
++>>>>>>> topic
+`
+		assertDiff(t, tmpDir, []string{}, DiffOption{Patch: true, Stage: "2"}, new(bytes.Buffer), new(bytes.Buffer), expected)
+	})
+
+	t.Run("shows the diff against their version", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `* Unmerged path g.txt
+diff --git a/g.txt b/g.txt
+index 00750ed..2603ab2 100644
+--- a/g.txt
++++ b/g.txt
+@@ -1,1 +1,5 @@
++<<<<<<< HEAD
++2
++=======
+ 3
++>>>>>>> topic
+`
+		assertDiff(t, tmpDir, []string{}, DiffOption{Patch: true, Stage: "3"}, new(bytes.Buffer), new(bytes.Buffer), expected)
 	})
 }
 
@@ -649,6 +687,27 @@ Automatic merge failed; fix conflicts and then commit the result.`
 		defer os.RemoveAll(tmpDir)
 
 		assertNoMerge(t, tmpDir)
+	})
+
+	t.Run("lists the file as unmerged in the diff", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `* Unmerged path g.txt
+`
+		assertDiff(t, tmpDir, []string{}, DiffOption{Patch: true, Stage: "2"}, new(bytes.Buffer), new(bytes.Buffer), expected)
+	})
+
+	t.Run("reports the mode change in the appropriate diff", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		expected := `* Unmerged path g.txt
+diff --git a/g.txt b/g.txt
+old mode 100755
+new mode 100644
+`
+		assertDiff(t, tmpDir, []string{}, DiffOption{Patch: true, Stage: "3"}, new(bytes.Buffer), new(bytes.Buffer), expected)
 	})
 }
 
@@ -847,7 +906,7 @@ Automatic merge failed; fix conflicts and then commit the result.`
 2
 =======
 3
-<<<<<<< topic
+>>>>>>> topic
 `,
 		})
 	})
