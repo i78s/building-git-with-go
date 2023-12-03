@@ -92,6 +92,9 @@ func (i *Index) ReleaseLock() {
 }
 
 func (i *Index) Add(pathname, oid string, stat fs.FileInfo) {
+	for _, stage := range []string{"1", "2", "3"} {
+		i.removeEntryWithStage(pathname, stage)
+	}
 	entry := CreateEntry(pathname, oid, stat)
 	i.discardConflicts(entry)
 	i.storeEntry(entry)
