@@ -8,19 +8,21 @@ import (
 )
 
 type Repository struct {
-	Database  *database.Database
-	Index     *index.Index
-	Refs      *Refs
-	Workspace *Workspace
+	Database      *database.Database
+	Index         *index.Index
+	Refs          *Refs
+	Workspace     *Workspace
+	PendingCommit *PendingCommit
 }
 
 func NewRepository(rootPath string) *Repository {
 	gitPath := filepath.Join(rootPath, ".git")
 	return &Repository{
-		Database:  database.NewDatabase(filepath.Join(gitPath, "objects")),
-		Index:     index.NewIndex(filepath.Join(gitPath, "index")),
-		Refs:      NewRefs(gitPath),
-		Workspace: NewWorkspace(rootPath),
+		Database:      database.NewDatabase(filepath.Join(gitPath, "objects")),
+		Index:         index.NewIndex(filepath.Join(gitPath, "index")),
+		Refs:          NewRefs(gitPath),
+		Workspace:     NewWorkspace(rootPath),
+		PendingCommit: NewPendingCommit(rootPath),
 	}
 }
 
