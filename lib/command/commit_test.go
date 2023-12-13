@@ -14,7 +14,7 @@ func setUpForTestCommittingToBranches(t *testing.T) (tmpDir string, stdout, stde
 	for _, message := range messages {
 		writeFile(t, tmpDir, "file.txt", message)
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-		commit(t, tmpDir, message, time.Now())
+		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), message, time.Now())
 	}
 
 	brunchCmd, _ := NewBranch(tmpDir, []string{"topic"}, BranchOption{}, new(bytes.Buffer), new(bytes.Buffer))
@@ -27,7 +27,7 @@ func setUpForTestCommittingToBranches(t *testing.T) (tmpDir string, stdout, stde
 func commitChange(t *testing.T, tmpDir, content string) {
 	writeFile(t, tmpDir, "file.txt", content)
 	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-	commit(t, tmpDir, content, time.Now())
+	commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), content, time.Now())
 }
 
 func TestCommittingToBranchesOnBranch(t *testing.T) {

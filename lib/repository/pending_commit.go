@@ -7,6 +7,14 @@ import (
 	"strings"
 )
 
+type PendingCommitError struct {
+	Message string
+}
+
+func (e *PendingCommitError) Error() string {
+	return e.Message
+}
+
 type PendingCommit struct {
 	headPath    string
 	messagePath string
@@ -34,7 +42,7 @@ func (pc *PendingCommit) InProgress() bool {
 func (pc *PendingCommit) MergeOID() (string, error) {
 	data, err := os.ReadFile(pc.headPath)
 	if err != nil {
-		return "", fmt.Errorf("there is no merge in progress (%s missing): %w", filepath.Base(pc.headPath), err)
+		return "", &PendingCommitError{fmt.Sprintf("There is no merge in progress (%s missing).", filepath.Base(pc.headPath))}
 	}
 	return strings.TrimSpace(string(data)), nil
 }
@@ -49,7 +57,7 @@ func (pc *PendingCommit) MergeMessage() (string, error) {
 
 func (pc *PendingCommit) Clear() error {
 	if err := os.Remove(pc.headPath); err != nil {
-		return err
+		return &PendingCommitError{fmt.Sprintf("There is no merge to abort (%s missing).", filepath.Base(pc.headPath))}
 	}
 	return os.Remove(pc.messagePath)
 }

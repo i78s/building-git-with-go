@@ -22,7 +22,7 @@ func NewRepository(rootPath string) *Repository {
 		Index:         index.NewIndex(filepath.Join(gitPath, "index")),
 		Refs:          NewRefs(gitPath),
 		Workspace:     NewWorkspace(rootPath),
-		PendingCommit: NewPendingCommit(rootPath),
+		PendingCommit: NewPendingCommit(gitPath),
 	}
 }
 

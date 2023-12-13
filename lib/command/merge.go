@@ -12,17 +12,19 @@ import (
 )
 
 type MergeOption struct {
+	Mode string
 }
 
 type Merge struct {
-	rootPath string
-	args     []string
-	options  MergeOption
-	repo     *repository.Repository
-	inputs   *merge.Inputs
-	stdin    io.Reader
-	stdout   io.Writer
-	stderr   io.Writer
+	rootPath    string
+	args        []string
+	options     MergeOption
+	repo        *repository.Repository
+	writeCommit *write_commit.WriteCommit
+	inputs      *merge.Inputs
+	stdin       io.Reader
+	stdout      io.Writer
+	stderr      io.Writer
 }
 
 func NewMerge(dir string, args []string, options MergeOption, stdin io.Reader, stdout, stderr io.Writer) (*Merge, error) {
@@ -31,19 +33,40 @@ func NewMerge(dir string, args []string, options MergeOption, stdin io.Reader, s
 		return nil, err
 	}
 	repo := repository.NewRepository(rootPath)
+	writeCommit := write_commit.NewWriteCommit(repo)
 
 	return &Merge{
-		rootPath: rootPath,
-		args:     args,
-		options:  options,
-		repo:     repo,
-		stdin:    stdin,
-		stdout:   stdout,
-		stderr:   stderr,
+		rootPath:    rootPath,
+		args:        args,
+		options:     options,
+		repo:        repo,
+		writeCommit: writeCommit,
+		stdin:       stdin,
+		stdout:      stdout,
+		stderr:      stderr,
 	}, nil
 }
 
 func (m *Merge) Run() int {
+	if m.options.Mode == "continue" {
+		if err := m.handleContinue(); err != nil {
+			if _, ok := err.(*repository.PendingCommitError); ok {
+				fmt.Fprintf(m.stderr, "fatal: %s\n", err.Error())
+			} else {
+				fmt.Fprintf(m.stderr, "%s\n", err.Error())
+			}
+			return 128
+		}
+		return 0
+	}
+
+	if m.writeCommit.PendingCommit().InProgress() {
+		if err := m.handleInProgressMerge(); err != nil {
+			fmt.Fprintf(m.stderr, "%s\n", err.Error())
+			return 128
+		}
+	}
+
 	inputs, _ := merge.NewInputs(m.repo, repository.HEAD, m.args[0])
 	m.inputs = inputs
 	if m.inputs.IsAlreadyMerged() {
@@ -55,6 +78,12 @@ func (m *Merge) Run() int {
 		return 0
 	}
 
+	reader := bufio.NewReader(m.stdin)
+	message, _ := reader.ReadString('\n')
+	err := m.writeCommit.PendingCommit().Start(m.inputs.RightOid, message)
+	if err != nil {
+		return 1
+	}
 	if err := m.resolveMerge(); err != nil {
 		fmt.Fprintf(m.stdout, "Automatic merge failed; fix conflicts and then commit the result.")
 		return 1
@@ -86,10 +115,10 @@ func (m *Merge) resolveMerge() error {
 
 func (m *Merge) commitMerge() {
 	parents := []string{m.inputs.LeftOid, m.inputs.RightOid}
-	reader := bufio.NewReader(m.stdin)
-	message, _ := reader.ReadString('\n')
+	message, _ := m.writeCommit.PendingCommit().MergeMessage()
 
-	write_commit.WriteCommit(m.repo, parents, message, time.Now())
+	m.writeCommit.WriteCommit(parents, message, time.Now())
+	m.writeCommit.PendingCommit().Clear()
 }
 
 func (m *Merge) handleMergedAncestor() {
@@ -109,4 +138,20 @@ func (m *Merge) handleFastForward() {
 
 	m.repo.Index.WriteUpdates()
 	m.repo.Refs.UpdateHead(m.inputs.RightOid)
+}
+
+func (m *Merge) handleContinue() error {
+	m.repo.Index.Load()
+	err := m.writeCommit.ResumeMerge()
+
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Merge) handleInProgressMerge() error {
+	message := "Merging is not possible because you have unmerged files."
+	return fmt.Errorf(`error: %s
+%s`, message, write_commit.CONFLICT_MESSAGE)
 }

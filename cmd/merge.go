@@ -8,6 +8,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var mode = "run"
+
 var mergeCmd = &cobra.Command{
 	Use:   "merge",
 	Short: "git merge",
@@ -23,7 +25,9 @@ var mergeCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		options := command.MergeOption{}
+		options := command.MergeOption{
+			Mode: mode,
+		}
 		merge, _ := command.NewMerge(dir, args, options, stdin, stdout, stderr)
 		code := merge.Run()
 		os.Exit(code)
@@ -32,4 +36,5 @@ var mergeCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(mergeCmd)
+	diffCmd.Flags().StringVar(&mode, "continue", "continue", "Resume command execution from a saved state")
 }

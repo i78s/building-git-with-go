@@ -18,7 +18,7 @@ func TestBranchWithChainOfCommits(t *testing.T) {
 		for _, msg := range messages {
 			writeFile(t, tmpDir, "file.txt", msg)
 			Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-			commit(t, tmpDir, msg, time.Now())
+			commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), msg, time.Now())
 		}
 
 		return

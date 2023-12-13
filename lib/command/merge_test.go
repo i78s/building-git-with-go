@@ -31,7 +31,7 @@ func commitTreeHelper(t *testing.T, tmpDir, message string, files map[string]int
 	}
 	delete(t, tmpDir, ".git/index")
 	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-	commit(t, tmpDir, message, now)
+	commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), message, now)
 }
 
 // A   B   M
@@ -1348,5 +1348,170 @@ func TestMergeMultipleCommonAncestors(t *testing.T) {
 		})
 
 		assertGitStatus(t, tmpDir, stdout, stderr, "")
+	})
+}
+
+func TestMergeConflictResolution(t *testing.T) {
+	setUp := func(t *testing.T) (tmpDir string, stdout, stderr *bytes.Buffer) {
+		tmpDir, stdout, stderr = setupTestEnvironment(t)
+
+		merge3(t, tmpDir, map[string]interface{}{
+			"f.txt": "1\n",
+		}, map[string]interface{}{
+			"f.txt": "2\n",
+		}, map[string]interface{}{
+			"f.txt": "3\n",
+		}, stdout, stderr)
+
+		return
+	}
+
+	t.Run("prevents commits with unmerged entries", func(t *testing.T) {
+		tmpDir, stdout, stderr := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		status := commit(t, tmpDir, stdout, stderr, "commit", time.Now())
+
+		expectedError := `error: Committing is not possible because you have unmerged files.
+hint: Fix them up in the work tree, and then use 'jit add <file>'
+hint: as appropriate to mark resolution and make a commit.
+fatal: Exiting because of an unresolved conflict.`
+		if got := stderr.String(); got != expectedError {
+			t.Errorf("want %q, but got %q", expectedError, got)
+		}
+
+		if status != 128 {
+			t.Errorf("want %q, but got %q", status, 128)
+		}
+
+		commitObj, _ := loadCommit(t, tmpDir, "@")
+		commit := commitObj.(*database.Commit)
+		expected := []string{"B"}
+		if got := commit.Message(); got != expected[0] {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("prevents merge --continue with unmerged entries", func(t *testing.T) {
+		tmpDir, stdout, stderr := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		options := MergeOption{Mode: "continue"}
+		status := mergeCommit(t, tmpDir, "", "", options, stdout, stderr)
+
+		expectedError := `error: Committing is not possible because you have unmerged files.
+hint: Fix them up in the work tree, and then use 'jit add <file>'
+hint: as appropriate to mark resolution and make a commit.
+fatal: Exiting because of an unresolved conflict.
+`
+		if got := stderr.String(); got != expectedError {
+			t.Errorf("want %q, but got %q", expectedError, got)
+		}
+
+		if status != 128 {
+			t.Errorf("want %q, but got %q", status, 128)
+		}
+
+		commitObj, _ := loadCommit(t, tmpDir, "@")
+		commit := commitObj.(*database.Commit)
+		expected := []string{"B"}
+		if got := commit.Message(); got != expected[0] {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("commits a merge after resolving conflicts", func(t *testing.T) {
+		tmpDir, stdout, stderr := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		Add(tmpDir, []string{"f.txt"}, new(bytes.Buffer), new(bytes.Buffer))
+		status := commit(t, tmpDir, stdout, stderr, "commit", time.Now())
+		if status != 0 {
+			t.Errorf("want %q, but got %q", status, 0)
+		}
+
+		commitObj, _ := loadCommit(t, tmpDir, "@")
+		commit := commitObj.(*database.Commit)
+		expected := []string{"M"}
+		if got := commit.Message(); got != expected[0] {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+
+		parents := []string{}
+		for _, oid := range commit.Parents {
+			commitObj, _ := loadCommit(t, tmpDir, oid)
+			parents = append(parents, commitObj.(*database.Commit).Message())
+		}
+		expected = []string{"B", "C"}
+		if parents[0] != expected[0] || parents[1] != expected[1] {
+			t.Errorf("want %q, but got %q", expected, parents)
+		}
+	})
+
+	t.Run("allows merge --continue after resolving conflicts", func(t *testing.T) {
+		tmpDir, stdout, stderr := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		Add(tmpDir, []string{"f.txt"}, new(bytes.Buffer), new(bytes.Buffer))
+		options := MergeOption{Mode: "continue"}
+		status := mergeCommit(t, tmpDir, "", "", options, stdout, stderr)
+		if status != 0 {
+			t.Errorf("want %q, but got %q", status, 0)
+		}
+
+		commitObj, _ := loadCommit(t, tmpDir, "@")
+		commit := commitObj.(*database.Commit)
+		expected := []string{"M"}
+		if got := commit.Message(); got != expected[0] {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+
+		parents := []string{}
+		for _, oid := range commit.Parents {
+			commitObj, _ := loadCommit(t, tmpDir, oid)
+			parents = append(parents, commitObj.(*database.Commit).Message())
+		}
+		expected = []string{"B", "C"}
+		if parents[0] != expected[0] || parents[1] != expected[1] {
+			t.Errorf("want %q, but got %q", expected, parents)
+		}
+	})
+
+	t.Run("prevents merge --continue when none is in progress", func(t *testing.T) {
+		tmpDir, stdout, stderr := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		Add(tmpDir, []string{"f.txt"}, new(bytes.Buffer), new(bytes.Buffer))
+		options := MergeOption{Mode: "continue"}
+		mergeCommit(t, tmpDir, "", "", options, new(bytes.Buffer), new(bytes.Buffer))
+		status := mergeCommit(t, tmpDir, "", "", options, stdout, stderr)
+
+		expectedError := "fatal: There is no merge in progress (MERGE_HEAD missing).\n"
+		if got := stderr.String(); got != expectedError {
+			t.Errorf("want %q, but got %q", expectedError, got)
+		}
+		if status != 128 {
+			t.Errorf("want %q, but got %q", status, 128)
+		}
+	})
+
+	t.Run("prevents starting a new merge while one is in progress", func(t *testing.T) {
+		tmpDir, stdout, stderr := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		options := MergeOption{}
+		status := mergeCommit(t, tmpDir, "", "", options, stdout, stderr)
+
+		expectedError := `error: Merging is not possible because you have unmerged files.
+hint: Fix them up in the work tree, and then use 'jit add <file>'
+hint: as appropriate to mark resolution and make a commit.
+fatal: Exiting because of an unresolved conflict.
+`
+		if got := stderr.String(); got != expectedError {
+			t.Errorf("want %q, but got %q", expectedError, got)
+		}
+		if status != 128 {
+			t.Errorf("want %q, but got %q", status, 128)
+		}
 	})
 }

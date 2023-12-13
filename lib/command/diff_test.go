@@ -87,7 +87,7 @@ func TestDiffWithHeadCommit(t *testing.T) {
 
 		writeFile(t, tmpDir, "file.txt", "contents\n")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-		commit(t, tmpDir, "first commit", time.Now())
+		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "first commit", time.Now())
 
 		return
 	}

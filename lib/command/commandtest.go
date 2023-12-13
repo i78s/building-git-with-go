@@ -27,7 +27,7 @@ func setupTestEnvironment(t *testing.T) (string, *bytes.Buffer, *bytes.Buffer) {
 	return tmpDir, outStream, errStream
 }
 
-func commit(t *testing.T, dir string, message string, now time.Time) {
+func commit(t *testing.T, dir string, stdout, stderr *bytes.Buffer, message string, now time.Time) int {
 	t.Helper()
 
 	os.Setenv("GIT_AUTHOR_NAME", "A. U. Thor")
@@ -37,8 +37,8 @@ func commit(t *testing.T, dir string, message string, now time.Time) {
 
 	options := CommitOption{}
 	stdin := strings.NewReader(message)
-	c, _ := NewCommit(dir, []string{}, options, stdin, new(bytes.Buffer), new(bytes.Buffer))
-	c.Run(now)
+	c, _ := NewCommit(dir, []string{}, options, stdin, stdout, stderr)
+	return c.Run(now)
 }
 
 func commitTree(t *testing.T, tmpDir, message string, files map[string]string, now time.Time) {
@@ -48,7 +48,7 @@ func commitTree(t *testing.T, tmpDir, message string, files map[string]string, n
 		writeFile(t, tmpDir, path, contents)
 	}
 	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-	commit(t, tmpDir, message, now)
+	commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), message, now)
 }
 
 func checkout(tmpDir string, stdout, stderr *bytes.Buffer, revision string) {

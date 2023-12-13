@@ -43,7 +43,17 @@ func NewCommit(dir string, args []string, options CommitOption, stdin io.Reader,
 }
 
 func (c *Commit) Run(now time.Time) int {
+	writeCommit := write_commit.NewWriteCommit(c.repo)
 	c.repo.Index.Load()
+
+	if writeCommit.PendingCommit().InProgress() {
+		err := writeCommit.ResumeMerge()
+		if err != nil {
+			fmt.Fprintf(c.stderr, "%s", err.Error())
+			return 128
+		}
+		return 0
+	}
 
 	parent, _ := c.repo.Refs.ReadHead()
 	reader := bufio.NewReader(c.stdin)
@@ -54,7 +64,7 @@ func (c *Commit) Run(now time.Time) int {
 		parents = append(parents, parent)
 	}
 
-	commit := write_commit.WriteCommit(c.repo, parents, message, now)
+	commit := writeCommit.WriteCommit(parents, message, now)
 
 	messageLines := strings.Split(message, "\n")
 	isRoot := ""

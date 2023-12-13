@@ -70,7 +70,7 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 	commitAll := func(t *testing.T, tmpDir string) {
 		delete(t, tmpDir, ".git/index")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-		commit(t, tmpDir, "change", time.Now())
+		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "change", time.Now())
 	}
 
 	setup := func() (tmpDir string, stdout, stderr *bytes.Buffer, commitAndCheckout func(revision string)) {
@@ -81,7 +81,7 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		}
 
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-		commit(t, tmpDir, "first", time.Now())
+		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "first", time.Now())
 
 		commitAndCheckout = func(revision string) {
 			commitAll(t, tmpDir)
@@ -823,7 +823,7 @@ func setupForTestCheckOutWithChainOfCommits(t *testing.T) (tmpDir string, stdout
 	for _, message := range messages {
 		writeFile(t, tmpDir, "file.txt", message)
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-		commit(t, tmpDir, message, time.Now())
+		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), message, time.Now())
 	}
 
 	brunchCmd, _ := NewBranch(tmpDir, []string{"topic"}, BranchOption{}, new(bytes.Buffer), new(bytes.Buffer))
