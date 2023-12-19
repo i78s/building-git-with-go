@@ -29,13 +29,13 @@ func lines(s string) []*Line {
 }
 
 type Line struct {
-	number int
+	Number int
 	text   string
 }
 
 func NewLine(number int, text string) *Line {
 	return &Line{
-		number: number,
+		Number: number,
 		text:   text,
 	}
 }
@@ -50,15 +50,15 @@ const (
 
 type Edit struct {
 	Type  EditType
-	aLine *Line
-	bLine *Line
+	ALine *Line
+	BLine *Line
 }
 
 func NewEdit(etype EditType, aLine, bLine *Line) *Edit {
 	return &Edit{
 		Type:  etype,
-		aLine: aLine,
-		bLine: bLine,
+		ALine: aLine,
+		BLine: bLine,
 	}
 }
 
@@ -69,9 +69,9 @@ var symbols = map[EditType]string{
 }
 
 func (e Edit) String() string {
-	line := e.aLine
+	line := e.ALine
 	if line == nil {
-		line = e.bLine
+		line = e.BLine
 	}
 	return symbols[EditType(e.Type)] + line.text
 }

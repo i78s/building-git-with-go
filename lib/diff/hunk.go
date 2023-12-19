@@ -34,12 +34,12 @@ func HunkFilter(edits []*Edit) []*Hunk {
 
 		aStart := 0
 		if offset >= 0 {
-			aStart = edits[offset].aLine.number
+			aStart = edits[offset].ALine.Number
 		}
 
 		bStart := 0
 		if offset >= 0 {
-			bStart = edits[offset].bLine.number
+			bStart = edits[offset].BLine.Number
 		}
 
 		hunks = append(hunks, NewHunk(aStart, bStart, []*Edit{}))
@@ -81,21 +81,21 @@ func (h *Hunk) Header() string {
 	aLine := []*Line{}
 	bLine := []*Line{}
 	for _, e := range h.Edits {
-		if e.aLine != nil {
-			aLine = append(aLine, e.aLine)
+		if e.ALine != nil {
+			aLine = append(aLine, e.ALine)
 		}
-		if e.bLine != nil {
-			bLine = append(bLine, e.bLine)
+		if e.BLine != nil {
+			bLine = append(bLine, e.BLine)
 		}
 	}
 
 	aStart := h.aStart
 	if len(aLine) > 0 {
-		aStart = aLine[0].number
+		aStart = aLine[0].Number
 	}
 	bStart := h.bStart
 	if len(bLine) > 0 {
-		bStart = bLine[0].number
+		bStart = bLine[0].Number
 	}
 
 	aOffset := fmt.Sprintf("%v,%v", aStart, len(aLine))
