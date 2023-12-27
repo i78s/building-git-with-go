@@ -349,6 +349,38 @@ func TestMergeUnconflictedMergeSameEditOnBothSides(t *testing.T) {
 	})
 }
 
+func TestMergeUnconflictedMergeInFileMergePossible(t *testing.T) {
+	setUp := func(t *testing.T) (tmpDir string, stdout, stderr *bytes.Buffer) {
+		tmpDir, stdout, stderr = setupTestEnvironment(t)
+
+		merge3(t, tmpDir, map[string]interface{}{
+			"f.txt": "1\n2\n3\n",
+		}, map[string]interface{}{
+			"f.txt": "4\n2\n3\n",
+		}, map[string]interface{}{
+			"f.txt": "1\n2\n5\n",
+		}, stdout, stderr)
+
+		return
+	}
+
+	t.Run("puts the combined changes in the workspace", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		assertWorkspace(t, tmpDir, map[string]string{
+			"f.txt": "4\n2\n5\n",
+		})
+	})
+
+	t.Run("creates a clean merge", func(t *testing.T) {
+		tmpDir, _, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		assertCleanMerge(t, tmpDir)
+	})
+}
+
 func TestMergeUnconflictedMergeEditAndModeChange(t *testing.T) {
 	setUp := func(t *testing.T) (tmpDir string, stdout, stderr *bytes.Buffer) {
 		tmpDir, stdout, stderr = setupTestEnvironment(t)

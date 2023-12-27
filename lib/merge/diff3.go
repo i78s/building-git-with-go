@@ -100,7 +100,11 @@ func Merge(o, a, b interface{}) *Result {
 func convertToLines(input interface{}) []string {
 	switch v := input.(type) {
 	case string:
-		return strings.Split(v, "\n")
+		result := strings.SplitAfter(v, "\n")
+		if result[len(result)-1] == "" {
+			result = result[:len(result)-1]
+		}
+		return result
 	case []string:
 		return v
 	default:

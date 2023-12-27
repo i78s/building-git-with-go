@@ -111,32 +111,27 @@ func (r *Resolve) samePathConflict(path string, base, right database.TreeObject)
 
 func (r *Resolve) mergeBlobs(base, left, right database.TreeObject) (bool, string) {
 	result, err := r.merge3ForBlobs(base, left, right)
-	if err != nil {
-		blob := database.NewBlob(r.mergedData(left, right))
-		r.repo.Database.Store(blob)
-		return false, blob.Oid()
+	if err == nil {
+		return result.mergedCleanly, result.obj.Oid()
 	}
-	return result.mergedCleanly, result.obj.Oid()
-}
 
-func (r *Resolve) mergedData(left, right database.TreeObject) string {
-	var leftOid, rightOid string
-	if left != nil && !left.IsNil() {
-		leftOid = left.Oid()
+	oids := []database.TreeObject{base, left, right}
+	blobs := []string{}
+	for _, obj := range oids {
+		if obj == nil {
+			blobs = append(blobs, "")
+			continue
+		}
+		obj, _ := r.repo.Database.Load(obj.Oid())
+		blobs = append(blobs, obj.String())
 	}
-	if right != nil && !right.IsNil() {
-		rightOid = right.Oid()
-	}
-	leftBlob, _ := r.repo.Database.Load(leftOid)
-	rightBlob, _ := r.repo.Database.Load(rightOid)
 
-	return strings.Join([]string{
-		fmt.Sprintf("<<<<<<< %s\n", r.inputs.LeftName),
-		leftBlob.String(),
-		"=======\n",
-		rightBlob.String(),
-		fmt.Sprintf(">>>>>>> %s\n", r.inputs.RightName),
-	}, "")
+	merge := Merge(blobs[0], blobs[1], blobs[2])
+	data := merge.String(r.inputs.LeftName, r.inputs.RightName)
+	blob := database.NewBlob(data)
+	r.repo.Database.Store(blob)
+
+	return merge.isClean(), blob.Oid()
 }
 
 func (r *Resolve) mergedModes(base, left, right database.TreeObject) (bool, int) {
