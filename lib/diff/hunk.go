@@ -1,29 +1,40 @@
 package diff
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 const HUNK_CONTEXT = 3
 
 type Hunk struct {
-	aStart int
-	bStart int
-	Edits  []*Edit
+	aStarts []int
+	bStart  int
+	Edits   []Diffable
 }
 
-func NewHunk(aStart, bStart int, edits []*Edit) *Hunk {
+func NewHunk(aStarts []int, bStart int, edits []*Edit) *Hunk {
 	return &Hunk{
-		aStart: 0,
-		bStart: 0,
-		Edits:  []*Edit{},
+		aStarts: aStarts,
+		bStart:  0,
+		Edits:   []Diffable{},
 	}
 }
 
-func HunkFilter(edits []*Edit) []*Hunk {
+type Diffable interface {
+	Type() EditType
+	ALines() []*Line
+	ALine() *Line
+	BLine() *Line
+	String() string
+}
+
+func HunkFilter(edits []Diffable) []*Hunk {
 	hunks := []*Hunk{}
 	offset := 0
 
 	for {
-		for offset < len(edits) && edits[offset].Type == EQL {
+		for offset < len(edits) && edits[offset].Type() == EQL {
 			offset++
 		}
 		if offset >= len(edits) {
@@ -32,22 +43,24 @@ func HunkFilter(edits []*Edit) []*Hunk {
 
 		offset -= HUNK_CONTEXT + 1
 
-		aStart := 0
+		aStarts := []int{}
 		if offset >= 0 {
-			aStart = edits[offset].ALine.Number
+			for _, aline := range edits[offset].ALines() {
+				aStarts = append(aStarts, aline.Number)
+			}
 		}
 
-		bStart := 0
+		bStart := -1
 		if offset >= 0 {
-			bStart = edits[offset].BLine.Number
+			bStart = edits[offset].BLine().Number
 		}
 
-		hunks = append(hunks, NewHunk(aStart, bStart, []*Edit{}))
+		hunks = append(hunks, NewHunk(aStarts, bStart, []*Edit{}))
 		offset = HunkBuild(hunks[len(hunks)-1], edits, offset)
 	}
 }
 
-func HunkBuild(hunk *Hunk, edits []*Edit, offset int) int {
+func HunkBuild(hunk *Hunk, edits []Diffable, offset int) int {
 	counter := -1
 
 	for counter != 0 {
@@ -66,7 +79,7 @@ func HunkBuild(hunk *Hunk, edits []*Edit, offset int) int {
 			continue
 		}
 
-		switch edits[idx].Type {
+		switch edits[idx].Type() {
 		case INS, DEL:
 			counter = 2*HUNK_CONTEXT + 1
 		default:
@@ -78,28 +91,57 @@ func HunkBuild(hunk *Hunk, edits []*Edit, offset int) int {
 }
 
 func (h *Hunk) Header() string {
-	aLine := []*Line{}
-	bLine := []*Line{}
-	for _, e := range h.Edits {
-		if e.ALine != nil {
-			aLine = append(aLine, e.ALine)
+	aLines := transposeALines(h.Edits)
+	var offsets []string
+	for i, lines := range aLines {
+		start := 0
+		if i < len(h.aStarts) {
+			start = h.aStarts[i]
 		}
-		if e.BLine != nil {
-			bLine = append(bLine, e.BLine)
+		offsets = append(offsets, format("-", lines, start))
+	}
+
+	var bLines []*Line
+	for _, edit := range h.Edits {
+		bLines = append(bLines, edit.BLine())
+	}
+	offsets = append(offsets, format("+", bLines, h.bStart))
+
+	sep := strings.Repeat("@", len(offsets))
+
+	return strings.Join(append([]string{sep}, append(offsets, sep)...), " ")
+}
+
+func format(sign string, lines []*Line, start int) string {
+	compactLines := []*Line{}
+	for _, line := range lines {
+		if line != nil {
+			compactLines = append(compactLines, line)
+		}
+	}
+	if len(compactLines) > 0 && compactLines[0] != nil {
+		start = compactLines[0].Number
+	}
+	return fmt.Sprintf("%s%d,%d", sign, start, len(compactLines))
+}
+
+func transposeALines(edits []Diffable) [][]*Line {
+	maxLength := 0
+	for _, edit := range edits {
+		if len(edit.ALines()) > maxLength {
+			maxLength = len(edit.ALines())
 		}
 	}
 
-	aStart := h.aStart
-	if len(aLine) > 0 {
-		aStart = aLine[0].Number
-	}
-	bStart := h.bStart
-	if len(bLine) > 0 {
-		bStart = bLine[0].Number
+	transposed := make([][]*Line, maxLength)
+	for i := range transposed {
+		transposed[i] = make([]*Line, len(edits))
+		for j, edit := range edits {
+			if i < len(edit.ALines()) {
+				transposed[i][j] = edit.ALines()[i]
+			}
+		}
 	}
 
-	aOffset := fmt.Sprintf("%v,%v", aStart, len(aLine))
-	bOffset := fmt.Sprintf("%v,%v", bStart, len(bLine))
-
-	return fmt.Sprintf("@@ -%s +%s @@", aOffset, bOffset)
+	return transposed
 }

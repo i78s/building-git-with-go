@@ -143,8 +143,8 @@ func (d *Diff3) matchSet(file []string) map[int]int {
 	matches := make(map[int]int)
 	diffs := diff.Diff(strings.Join(d.O, "\n"), strings.Join(file, "\n"))
 	for _, edit := range diffs {
-		if edit.Type == diff.EQL {
-			matches[edit.ALine.Number] = edit.BLine.Number
+		if edit.Type() == diff.EQL {
+			matches[edit.ALine().Number] = edit.BLine().Number
 		}
 	}
 	return matches

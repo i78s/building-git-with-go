@@ -158,7 +158,7 @@ func (p *PrintDiff) printDiffHunk(hunk *diff.Hunk) {
 	for _, edit := range hunk.Edits {
 		text := strings.TrimRightFunc(edit.String(), unicode.IsSpace)
 
-		switch edit.Type {
+		switch edit.Type() {
 		case diff.EQL:
 			fmt.Fprintf(p.stdout, "%s\n", text)
 		case diff.INS:

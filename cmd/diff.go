@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var stage = "0"
+var stage = ""
 
 var diffCmd = &cobra.Command{
 	Use:   "diff",

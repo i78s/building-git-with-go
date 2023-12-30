@@ -2,16 +2,68 @@ package diff
 
 import "strings"
 
-func Diff(a, b string) []*Edit {
-	m := &Myers{
-		a: lines(a),
-		b: lines(b),
-	}
-	return m.diff()
+type Line struct {
+	Number int
+	Text   string
 }
 
-func DiffHunk(a, b string) []*Hunk {
-	return HunkFilter(Diff(a, b))
+func NewLine(number int, text string) *Line {
+	return &Line{
+		Number: number,
+		Text:   text,
+	}
+}
+
+type EditType string
+
+const (
+	EQL EditType = "eql"
+	INS EditType = "ins"
+	DEL EditType = "del"
+)
+
+var SYMBOLS = map[EditType]string{
+	EQL: " ",
+	INS: "+",
+	DEL: "-",
+}
+
+type Edit struct {
+	etype EditType
+	aLine *Line
+	bLine *Line
+}
+
+func NewEdit(etype EditType, aLine, bLine *Line) *Edit {
+	return &Edit{
+		etype: etype,
+		aLine: aLine,
+		bLine: bLine,
+	}
+}
+
+func (e Edit) Type() EditType {
+	return e.etype
+}
+
+func (e Edit) ALines() []*Line {
+	return []*Line{e.aLine}
+}
+
+func (e Edit) ALine() *Line {
+	return e.aLine
+}
+
+func (e Edit) BLine() *Line {
+	return e.bLine
+}
+
+func (e Edit) String() string {
+	line := e.aLine
+	if line == nil {
+		line = e.bLine
+	}
+	return SYMBOLS[EditType(e.etype)] + line.Text
 }
 
 func lines(s string) []*Line {
@@ -28,50 +80,26 @@ func lines(s string) []*Line {
 	return lines
 }
 
-type Line struct {
-	Number int
-	text   string
-}
-
-func NewLine(number int, text string) *Line {
-	return &Line{
-		Number: number,
-		text:   text,
+func Diff(a, b string) []Diffable {
+	m := &Myers{
+		a: lines(a),
+		b: lines(b),
 	}
+	return m.diff()
 }
 
-type EditType string
-
-const (
-	EQL EditType = "eql"
-	INS EditType = "ins"
-	DEL EditType = "del"
-)
-
-type Edit struct {
-	Type  EditType
-	ALine *Line
-	BLine *Line
+func DiffHunk(a, b string) []*Hunk {
+	return HunkFilter(Diff(a, b))
 }
 
-func NewEdit(etype EditType, aLine, bLine *Line) *Edit {
-	return &Edit{
-		Type:  etype,
-		ALine: aLine,
-		BLine: bLine,
+func DiffCombined(as []string, b string) []Diffable {
+	diffs := [][]Diffable{}
+	for _, a := range as {
+		diffs = append(diffs, Diff(a, b))
 	}
+	return NewCombined(diffs).ToSlice()
 }
 
-var symbols = map[EditType]string{
-	EQL: " ",
-	INS: "+",
-	DEL: "-",
-}
-
-func (e Edit) String() string {
-	line := e.ALine
-	if line == nil {
-		line = e.BLine
-	}
-	return symbols[EditType(e.Type)] + line.text
+func DiffCombinedHunks(as []string, b string) []*Hunk {
+	return HunkFilter(DiffCombined(as, b))
 }

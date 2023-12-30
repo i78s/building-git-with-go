@@ -5,8 +5,8 @@ type Myers struct {
 	b []*Line
 }
 
-func (m *Myers) diff() []*Edit {
-	diff := []*Edit{}
+func (m *Myers) diff() []Diffable {
+	diff := []Diffable{}
 
 	m.backtrack(func(prev_x, prev_y, x, y int) {
 		if x == prev_x {
@@ -83,7 +83,7 @@ func (s *Myers) shortestEdit() [][]int {
 
 			y := x - k
 
-			for x < n && y < m && s.a[x].text == s.b[y].text {
+			for x < n && y < m && s.a[x].Text == s.b[y].Text {
 				x, y = x+1, y+1
 			}
 
