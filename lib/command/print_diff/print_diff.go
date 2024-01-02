@@ -152,6 +152,44 @@ func (p *PrintDiff) printDiffContent(a, b *Target) {
 	}
 }
 
+func (p *PrintDiff) PrintCombinedDiff(as []*Target, b *Target) {
+	fmt.Fprintf(p.stdout, "diff --cc %s\n", b.path)
+
+	aOids := []string{}
+	for _, a := range as {
+		aOids = append(aOids, p.short(a.oid))
+	}
+	oidRange := fmt.Sprintf("index %s..%s", strings.Join(aOids, ","), p.short(b.oid))
+	fmt.Fprintf(p.stdout, "%s\n", oidRange)
+
+	allModesEqual := true
+	for _, a := range as {
+		if a.mode != b.mode {
+			allModesEqual = false
+			break
+		}
+	}
+	if !allModesEqual {
+		modes := make([]string, len(as))
+		for i, a := range as {
+			modes[i] = fmt.Sprint(a.mode)
+		}
+		fmt.Fprintf(p.stdout, "mode %s..%s\n", strings.Join(modes, ","), b.mode)
+	}
+
+	fmt.Fprintf(p.stdout, "--- a/%s\n", b.diffPath())
+	fmt.Fprintf(p.stdout, "+++ b/%s\n", b.diffPath())
+
+	datas := make([]string, len(as))
+	for i, a := range as {
+		datas[i] = fmt.Sprint(a.data)
+	}
+	hunks := diff.DiffCombinedHunks(datas, b.data)
+	for _, hunk := range hunks {
+		p.printDiffHunk(hunk)
+	}
+}
+
 func (p *PrintDiff) printDiffHunk(hunk *diff.Hunk) {
 	color.New(color.FgCyan).Fprintf(p.stdout, "%s\n", hunk.Header())
 

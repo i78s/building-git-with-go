@@ -615,11 +615,20 @@ Automatic merge failed; fix conflicts and then commit the result.`
 		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), expected)
 	})
 
-	t.Run("lists the file as unmerged in the diff", func(t *testing.T) {
+	t.Run("shows the combined diff against stages 2 and 3", func(t *testing.T) {
 		tmpDir, _, _ := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
-		expected := `* Unmerged path g.txt
+		expected := `diff --cc g.txt
+index 0cfbf08,00750ed..2603ab2
+--- a/g.txt
++++ b/g.txt
+@@@ -1,1 -1,1 +1,5 @@@
+++<<<<<<< HEAD
+ +2
+++=======
++ 3
+++>>>>>>> topic
 `
 		assertDiff(t, tmpDir, []string{}, DiffOption{Patch: true}, new(bytes.Buffer), new(bytes.Buffer), expected)
 	})
@@ -721,13 +730,17 @@ Automatic merge failed; fix conflicts and then commit the result.`
 		assertNoMerge(t, tmpDir)
 	})
 
-	t.Run("lists the file as unmerged in the diff", func(t *testing.T) {
+	t.Run("shows the combined diff against stages 2 and 3", func(t *testing.T) {
 		tmpDir, _, _ := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
-		expected := `* Unmerged path g.txt
+		expected := `diff --cc g.txt
+index d8263ee,d8263ee..d8263ee
+mode 100644,100755..100644
+--- a/g.txt
++++ b/g.txt
 `
-		assertDiff(t, tmpDir, []string{}, DiffOption{Patch: true, Stage: "2"}, new(bytes.Buffer), new(bytes.Buffer), expected)
+		assertDiff(t, tmpDir, []string{}, DiffOption{Patch: true}, new(bytes.Buffer), new(bytes.Buffer), expected)
 	})
 
 	t.Run("reports the mode change in the appropriate diff", func(t *testing.T) {
@@ -973,11 +986,20 @@ Automatic merge failed; fix conflicts and then commit the result.`
 		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), expected)
 	})
 
-	t.Run("lists the file as unmerged in the diff", func(t *testing.T) {
+	t.Run("shows the combined diff against stages 2 and 3", func(t *testing.T) {
 		tmpDir, _, _ := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
-		expected := `* Unmerged path f.txt
+		expected := `diff --cc f.txt
+index 0cfbf08,00750ed..2603ab2
+--- a/f.txt
++++ b/f.txt
+@@@ -1,1 -1,1 +1,5 @@@
+++<<<<<<< HEAD
+ +2
+++=======
++ 3
+++>>>>>>> topic
 `
 		assertDiff(t, tmpDir, []string{}, DiffOption{Patch: true}, new(bytes.Buffer), new(bytes.Buffer), expected)
 	})

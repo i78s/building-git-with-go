@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strconv"
 )
 
 type Diff struct {
@@ -109,14 +110,22 @@ func (d *Diff) diffIndexWorkspace() {
 }
 
 func (d *Diff) printConflictDiff(path string) {
-	fmt.Fprintf(d.stdout, "* Unmerged path %v\n", path)
-
-	target := d.fromIndex(path, d.options.Stage)
-	if target == nil {
-		return
+	targets := []*print_diff.Target{}
+	for stage := 0; stage <= 3; stage++ {
+		targets = append(targets, d.fromIndex(path, strconv.Itoa(stage)))
 	}
+	left, right := targets[2], targets[3]
 
-	d.prindDiff.PrintDiff(target, d.fromFile(path))
+	if d.options.Stage != "" {
+		fmt.Fprintf(d.stdout, "* Unmerged path %v\n", path)
+		stage, _ := strconv.Atoi(d.options.Stage)
+		ff := d.fromFile(path)
+		d.prindDiff.PrintDiff(targets[stage], ff)
+	} else if left != nil && right != nil {
+		d.prindDiff.PrintCombinedDiff([]*print_diff.Target{left, right}, d.fromFile(path))
+	} else {
+		fmt.Fprintf(d.stdout, "* Unmerged path %v\n", path)
+	}
 }
 
 func (d *Diff) printWorkspaceDiff(path string) {
