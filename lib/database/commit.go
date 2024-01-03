@@ -73,6 +73,10 @@ func ParseCommit(reader *bufio.Reader) (*Commit, error) {
 		message), nil
 }
 
+func (c *Commit) IsMerge() bool {
+	return len(c.Parents) > 1
+}
+
 func (c *Commit) TitleLine() string {
 	return strings.Split(c.message, "\n")[0]
 }

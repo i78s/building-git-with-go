@@ -18,6 +18,7 @@ type LogOption struct {
 	Decorate string
 	IsTty    bool
 	Patch    bool
+	Combined bool
 }
 
 type Log struct {
@@ -88,11 +89,17 @@ func (l *Log) showCommitMedium(blankLine bool, commit *database.Commit) {
 		fmt.Fprintf(l.stdout, "\n")
 	}
 	fmt.Fprintf(l.stdout,
-		color.New(color.FgYellow).Sprintf("commit %s", l.abbrev(commit))+
+		color.New(color.FgYellow).Sprintf("commit %s\n", l.abbrev(commit))+
 			l.decorate(commit),
 	)
 
-	fmt.Fprintf(l.stdout, "\n")
+	if commit.IsMerge() {
+		oids := []string{}
+		for _, oid := range commit.Parents {
+			oids = append(oids, l.repo.Database.ShortOid(oid))
+		}
+		fmt.Fprintf(l.stdout, "Merge: %s\n", strings.Join(oids, " "))
+	}
 
 	fmt.Fprintf(l.stdout, "Author: %s <%s>\n", author.Name, author.Email)
 	fmt.Fprintf(l.stdout, "Date:  %s\n", author.ReadableTime())
@@ -181,7 +188,11 @@ func (l *Log) refColor(ref *repository.SymRef) func(a ...interface{}) string {
 }
 
 func (l *Log) showPatch(blankLine bool, commit *database.Commit) {
-	if !(l.options.Patch && len(commit.Parents) <= 1) {
+	if !l.options.Patch {
+		return
+	}
+	if commit.IsMerge() {
+		l.showMergePatch(commit)
 		return
 	}
 
@@ -189,4 +200,38 @@ func (l *Log) showPatch(blankLine bool, commit *database.Commit) {
 		fmt.Fprintf(l.stdout, "\n")
 	}
 	l.prindDiff.PrintCommitDiff(commit.Parent(), commit.Oid(), l.revList)
+}
+
+func (l *Log) showMergePatch(commit *database.Commit) {
+	if !l.options.Combined {
+		return
+	}
+
+	diffs := []map[string][2]database.TreeObject{}
+	for _, oid := range commit.Parents {
+		diffs = append(diffs, l.revList.TreeDiff(oid, commit.Oid(), nil))
+	}
+
+	var paths []string
+	for path := range diffs[0] {
+		allHavePath := true
+		for _, diff := range diffs[1:] {
+			if _, exists := diff[path]; !exists {
+				allHavePath = false
+				break
+			}
+		}
+		if allHavePath {
+			paths = append(paths, path)
+		}
+	}
+
+	for _, path := range paths {
+		parents := []*print_diff.Target{}
+		for _, diff := range diffs {
+			parents = append(parents, l.prindDiff.FromEntry(path, diff[path][0]))
+		}
+		child := l.prindDiff.FromEntry(path, diffs[0][path][1])
+		l.prindDiff.PrintCombinedDiff(parents, child)
+	}
 }

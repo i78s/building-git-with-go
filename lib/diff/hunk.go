@@ -119,7 +119,7 @@ func format(sign string, lines []*Line, start int) string {
 			compactLines = append(compactLines, line)
 		}
 	}
-	if len(compactLines) > 0 && compactLines[0] != nil {
+	if len(compactLines) > 0 {
 		start = compactLines[0].Number
 	}
 	return fmt.Sprintf("%s%d,%d", sign, start, len(compactLines))

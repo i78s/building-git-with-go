@@ -55,6 +55,12 @@ var logCmd = &cobra.Command{
 			IsTty:    isTTY,
 		}
 
+		cc, _ := cmd.Flags().GetBool("cc")
+		if cc {
+			options.Combined = true
+			options.Patch = true
+		}
+
 		status, _ := command.NewLog(dir, args, options, writer, stderr)
 		code := status.Run()
 		os.Exit(code)
@@ -71,6 +77,7 @@ func init() {
 	logCmd.Flags().String("decorate", "auto", "Decorate log format")
 	logCmd.Flags().Lookup("decorate").NoOptDefVal = "short"
 	logCmd.Flags().Bool("no-decorate", false, "Disable decorate")
+	logCmd.Flags().Bool("cc", false, "Produce dense combined diff output for merge commits")
 
 	rootCmd.AddCommand(logCmd)
 }

@@ -93,17 +93,27 @@ func NewRow(edits []Diffable) *Row {
 }
 
 func (r Row) Type() EditType {
+	eTypes := []EditType{}
 	for _, e := range r.Edits {
-		if e.Type() == INS {
+		if e == nil {
+			continue
+		}
+		eType := e.Type()
+		if eType == INS {
 			return INS
 		}
+		eTypes = append(eTypes, e.Type())
 	}
-	return r.Edits[0].Type()
+	return eTypes[0]
 }
 
 func (r Row) ALines() []*Line {
 	lines := []*Line{}
 	for _, e := range r.Edits {
+		if e == nil {
+			lines = append(lines, nil)
+			continue
+		}
 		lines = append(lines, e.ALine())
 	}
 	return lines
@@ -114,6 +124,9 @@ func (r Row) ALine() *Line {
 }
 
 func (r Row) BLine() *Line {
+	if r.Edits[0] == nil {
+		return nil
+	}
 	return r.Edits[0].BLine()
 }
 
@@ -121,19 +134,25 @@ func (r Row) String() string {
 	symbols := make([]string, len(r.Edits))
 
 	for i, edit := range r.Edits {
+		if edit == nil {
+			symbols[i] = " "
+			continue
+		}
 		symbols[i] = SYMBOLS[edit.Type()]
 	}
 
 	var del Diffable
 	for _, edit := range r.Edits {
-		if edit.Type() == DEL {
+		if edit != nil && edit.Type() == DEL {
 			del = edit
 			break
 		}
 	}
-	line := r.Edits[0].BLine()
+	var line *Line
 	if del != nil {
 		line = del.ALine()
+	} else {
+		line = r.Edits[0].BLine()
 	}
 
 	return strings.Join(symbols, "") + line.Text

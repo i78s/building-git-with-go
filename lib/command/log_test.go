@@ -525,10 +525,22 @@ func TestLogWithGraphOfCommits(t *testing.T) {
 		tmpDir, stdout, stderr = setupTestEnvironment(t)
 
 		commitTree(t, tmpDir, "A", map[string]string{"f.txt": "0", "g.txt": "0"}, branchTime)
-		commitTree(t, tmpDir, "B", map[string]string{"f.txt": "B"}, branchTime)
+		commitTree(t, tmpDir, "B", map[string]string{
+			"f.txt": "B",
+			"h.txt": `one
+two
+three
+`,
+		}, branchTime)
 
 		for c := 'C'; c <= 'D'; c++ {
-			commitTree(t, tmpDir, string(c), map[string]string{"f.txt": string(c)}, branchTime.Add(time.Second))
+			commitTree(t, tmpDir, string(c), map[string]string{
+				"f.txt": string(c),
+				"h.txt": fmt.Sprintf(`%s
+two
+three
+`, string(c)),
+			}, branchTime.Add(time.Second))
 		}
 
 		brunchCmd, _ := NewBranch(tmpDir, []string{"topic", "master~2"}, BranchOption{}, new(bytes.Buffer), new(bytes.Buffer))
@@ -536,11 +548,17 @@ func TestLogWithGraphOfCommits(t *testing.T) {
 		checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "topic")
 
 		for c := 'E'; c <= 'H'; c++ {
-			commitTree(t, tmpDir, string(c), map[string]string{"g.txt": string(c)}, branchTime.Add(2*time.Second))
+			commitTree(t, tmpDir, string(c), map[string]string{
+				"g.txt": string(c),
+				"h.txt": fmt.Sprintf(`one
+two
+%s
+`, string(c)),
+			}, branchTime.Add(2*time.Second))
 		}
 
 		checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "master")
-		mergeCommit(t, tmpDir, "topic^", "J", MergeOption{}, stdout, stderr)
+		mergeCommit(t, tmpDir, "topic^", "J", MergeOption{}, new(bytes.Buffer), new(bytes.Buffer))
 
 		commitTree(t, tmpDir, "K", map[string]string{"f.txt": "K"}, branchTime.Add(3*time.Second))
 
@@ -670,6 +688,66 @@ index 96d80cd..02358d2 100644
 @@ -1,1 +1,1 @@
 -C
 +D
+diff --git a/h.txt b/h.txt
+index 4e5ce14..4139691 100644
+--- a/h.txt
++++ b/h.txt
+@@ -1,3 +1,3 @@
+-C
++D
+ two
+ three
+`, master[0],
+			master[1],
+			master[2])
+		if got := stdout.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("shows combined patches for merges", func(t *testing.T) {
+		tmpDir, stdout, stderr, master, _ := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		log, _ := NewLog(tmpDir, []string{"topic..master", "^master^^^"}, LogOption{Format: "oneline", IsTty: false, Decorate: "auto", Patch: true, Combined: true}, stdout, stderr)
+		log.Run()
+
+		expected := fmt.Sprintf(`%s K
+diff --git a/f.txt b/f.txt
+index 02358d2..449e49e 100644
+--- a/f.txt
++++ b/f.txt
+@@ -1,1 +1,1 @@
+-D
++K
+%s J
+diff --cc h.txt
+index 4139691,f3e97ee..4e78f4f
+--- a/h.txt
++++ b/h.txt
+@@@ -1,3 -1,3 +1,3 @@@
+ -one
+ +D
+  two
+- three
++ G
+%s D
+diff --git a/f.txt b/f.txt
+index 96d80cd..02358d2 100644
+--- a/f.txt
++++ b/f.txt
+@@ -1,1 +1,1 @@
+-C
++D
+diff --git a/h.txt b/h.txt
+index 4e5ce14..4139691 100644
+--- a/h.txt
++++ b/h.txt
+@@ -1,3 +1,3 @@
+-C
++D
+ two
+ three
 `, master[0],
 			master[1],
 			master[2])
