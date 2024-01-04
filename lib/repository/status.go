@@ -146,7 +146,7 @@ func (s *Status) checkIndexEntries() {
 
 func (s *Status) checkIndexAgainstWorkspace(entry database.EntryObject) {
 	stat := s.Stats[entry.Path()]
-	status := s.inspector.compareIndexToWorkspace(entry, stat)
+	status := s.inspector.CompareIndexToWorkspace(entry, stat)
 
 	if status != Unmodified {
 		s.recordChange(entry.Path(), s.WorkspaceChanges, status)
@@ -157,7 +157,7 @@ func (s *Status) checkIndexAgainstWorkspace(entry database.EntryObject) {
 
 func (s *Status) checkIndexAgainstHeadTree(entry database.EntryObject) {
 	item := s.HeadTree[entry.Path()]
-	status := s.inspector.compareTreeToIndex(item, entry)
+	status := s.inspector.CompareTreeToIndex(item, entry)
 
 	if status == Unmodified {
 		return

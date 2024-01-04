@@ -51,7 +51,7 @@ func (i *Inspector) isTrackableFile(path string, stat fs.FileInfo) bool {
 	return false
 }
 
-func (i *Inspector) compareIndexToWorkspace(entry database.EntryObject, stat fs.FileInfo) ChangeType {
+func (i *Inspector) CompareIndexToWorkspace(entry database.EntryObject, stat fs.FileInfo) ChangeType {
 	if entry.IsNil() {
 		return Untracked
 	}
@@ -75,7 +75,7 @@ func (i *Inspector) compareIndexToWorkspace(entry database.EntryObject, stat fs.
 	return Unmodified
 }
 
-func (i *Inspector) compareTreeToIndex(item, entry database.TreeObject) ChangeType {
+func (i *Inspector) CompareTreeToIndex(item, entry database.TreeObject) ChangeType {
 	if item == nil && entry == nil ||
 		item == nil && entry != nil && entry.IsNil() ||
 		item != nil && item.IsNil() && entry == nil ||

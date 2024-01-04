@@ -62,6 +62,23 @@ func (d *Database) HashObject(object GitObject) (string, error) {
 	return d.hashContent(d.serializeObject(object))
 }
 
+func (d *Database) LoadTreeEntry(oid string, pathname string) TreeObject {
+	commitObj, _ := d.Load(oid)
+	commit := commitObj.(*Commit)
+	root := NewEntry(commit.Tree(), TREE_MODE)
+
+	var entry TreeObject = root
+	for _, name := range strings.Split(pathname, "/") {
+		if entry != nil {
+			obj, _ := d.Load(entry.Oid())
+			entry = obj.(*Tree).Entries[name]
+		} else {
+			return nil
+		}
+	}
+	return entry
+}
+
 func (d *Database) ShortOid(oid string) string {
 	return oid[:7]
 }

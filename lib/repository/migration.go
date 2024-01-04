@@ -167,7 +167,7 @@ func (m *Migration) checkForConflict(path string, oldItem, newItem database.Tree
 			}
 		}
 	} else if stat.Mode().IsRegular() {
-		changed := m.inspector.compareIndexToWorkspace(entry, stat)
+		changed := m.inspector.CompareIndexToWorkspace(entry, stat)
 		if changed != Unmodified {
 			m.conflicts[etype] = append(m.conflicts[etype], path)
 		}
@@ -193,8 +193,8 @@ func (m *Migration) getErrorType(stat fs.FileInfo, entry, item database.TreeObje
 }
 
 func (m *Migration) indexDiffersFromTrees(entry, oldItem, newItem database.TreeObject) bool {
-	if m.inspector.compareTreeToIndex(oldItem, entry) != Unmodified &&
-		m.inspector.compareTreeToIndex(newItem, entry) != Unmodified {
+	if m.inspector.CompareTreeToIndex(oldItem, entry) != Unmodified &&
+		m.inspector.CompareTreeToIndex(newItem, entry) != Unmodified {
 		return true
 	}
 	return false
