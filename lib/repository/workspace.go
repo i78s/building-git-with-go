@@ -122,6 +122,10 @@ func (ws *Workspace) WriteFile(path string, data []byte) error {
 	return nil
 }
 
+func (ws *Workspace) Remove(path string) {
+	os.RemoveAll(filepath.Join(ws.pathname, path))
+}
+
 func (ws *Workspace) ApplyMigration(migration *Migration) error {
 	ws.applyChangeList(migration, delete)
 
