@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"building-git/lib/pathutils"
 	"fmt"
 	"io/fs"
 	"io/ioutil"
@@ -124,6 +125,9 @@ func (ws *Workspace) WriteFile(path string, data []byte) error {
 
 func (ws *Workspace) Remove(path string) {
 	os.RemoveAll(filepath.Join(ws.pathname, path))
+	for _, dirname := range pathutils.Ascend(path) {
+		ws.removeDirectory(dirname)
+	}
 }
 
 func (ws *Workspace) ApplyMigration(migration *Migration) error {

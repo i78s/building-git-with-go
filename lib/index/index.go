@@ -129,6 +129,18 @@ func (i *Index) EntryForPath(path, stage string) *Entry {
 	return i.entries[[2]string{path, stage}]
 }
 
+func (i *Index) ChildPaths(path string) []string {
+	children, exists := i.parents[path]
+	paths := []string{}
+	if !exists {
+		return paths
+	}
+	for path := range children {
+		paths = append(paths, path)
+	}
+	return paths
+}
+
 func (i *Index) IsTrackedFile(path string) bool {
 	for _, stage := range []string{"0", "1", "2"} {
 		_, existsInEntries := i.entries[[2]string{path, stage}]
@@ -139,9 +151,13 @@ func (i *Index) IsTrackedFile(path string) bool {
 	return false
 }
 
+func (i *Index) IsTrackedDirectory(path string) bool {
+	_, exists := i.parents[path]
+	return exists
+}
+
 func (i *Index) IsTracked(path string) bool {
-	_, existsInParents := i.parents[path]
-	return i.IsTrackedFile(path) || existsInParents
+	return i.IsTrackedFile(path) || i.IsTrackedDirectory(path)
 }
 
 func (i *Index) AddConflictSet(pathname string, items []database.TreeObject) {

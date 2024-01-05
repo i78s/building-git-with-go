@@ -22,7 +22,14 @@ var rmCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		options := command.RmOption{}
+		cached, _ := cmd.Flags().GetBool("cached")
+		force, _ := cmd.Flags().GetBool("force")
+		recursive, _ := cmd.Flags().GetBool("recursive")
+		options := command.RmOption{
+			Cached:    cached,
+			Force:     force,
+			Recursive: recursive,
+		}
 
 		rm, _ := command.NewRm(dir, args, options, stdout, stderr)
 		code := rm.Run()
@@ -32,4 +39,7 @@ var rmCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(rmCmd)
+	rmCmd.Flags().Bool("cached", false, "Remove files from the index only, leaving them in the working directory")
+	rmCmd.Flags().Bool("f", false, "Force removal of files, overriding checks for modifications or staging status")
+	rmCmd.Flags().Bool("r", false, "Allow recursive removal when a leading directory name is given")
 }
