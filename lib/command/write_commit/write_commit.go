@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const CONFLICT_MESSAGE = `hint: Fix them up in the work tree, and then use 'jit add <file>'
+const CONFLICT_MESSAGE = `hint: Fix them up in the work tree, and then use 'jit add/rm <file>'
 hint: as appropriate to mark resolution and make a commit.
 fatal: Exiting because of an unresolved conflict.`
 

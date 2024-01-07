@@ -3,7 +3,6 @@ package repository
 import (
 	"building-git/lib/database"
 	"building-git/lib/sortedmap"
-	"fmt"
 	"io/fs"
 	"path/filepath"
 )
@@ -43,11 +42,13 @@ func NewStatus(repo *Repository) (*Status, error) {
 		HeadTree:         make(map[string]*database.Entry),
 	}
 
+	head, _ := repo.Refs.ReadHead()
+	s.HeadTree = repo.Database.LoadTreeList(head, "")
+
 	err := s.scanWorkspace("")
 	if err != nil {
 		return nil, err
 	}
-	s.loadHeadTree()
 	s.checkIndexEntries()
 	s.collectDeletedHeadFiles()
 
@@ -81,53 +82,6 @@ func (s *Status) scanWorkspace(prefix string) error {
 			s.Untracked.Set(path, struct{}{})
 		}
 	}
-	return nil
-}
-
-func (s *Status) loadHeadTree() error {
-	s.HeadTree = make(map[string]*database.Entry)
-
-	headOid, err := s.repo.Refs.ReadHead()
-	if err != nil {
-		return err
-	}
-	if headOid == "" {
-		return nil
-	}
-	commitObj, _ := s.repo.Database.Load(headOid)
-
-	commit, ok := commitObj.(*database.Commit)
-	if !ok {
-		return fmt.Errorf("failed to cast to commit")
-	}
-
-	s.readTree(commit.Tree(), "")
-	return nil
-}
-
-func (s *Status) readTree(treeOid, pathname string) error {
-	treeObj, _ := s.repo.Database.Load(treeOid)
-	tree, ok := treeObj.(*database.Tree)
-	if !ok {
-		return fmt.Errorf("failed to cast to tree")
-	}
-
-	for name, e := range tree.Entries {
-		path := filepath.Join(pathname, name)
-		entry, ok := e.(*database.Entry)
-		if !ok {
-			return fmt.Errorf("failed to cast to entry")
-		}
-		if entry.IsTree() {
-			err := s.readTree(entry.Oid(), path)
-			if err != nil {
-				return err
-			}
-		} else {
-			s.HeadTree[path] = entry
-		}
-	}
-
 	return nil
 }
 

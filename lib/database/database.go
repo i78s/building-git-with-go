@@ -67,6 +67,10 @@ func (d *Database) LoadTreeEntry(oid string, pathname string) TreeObject {
 	commit := commitObj.(*Commit)
 	root := NewEntry(commit.Tree(), TREE_MODE)
 
+	if pathname == "" {
+		return root
+	}
+
 	var entry TreeObject = root
 	for _, name := range strings.Split(pathname, "/") {
 		if entry != nil {
@@ -77,6 +81,36 @@ func (d *Database) LoadTreeEntry(oid string, pathname string) TreeObject {
 		}
 	}
 	return entry
+}
+
+func (d *Database) LoadTreeList(oid, pathname string) map[string]*Entry {
+	list := make(map[string]*Entry)
+
+	if oid == "" {
+		return list
+	}
+
+	entry := d.LoadTreeEntry(oid, pathname)
+	d.BuildList(list, entry, pathname)
+
+	return list
+}
+
+func (d *Database) BuildList(list map[string]*Entry, entry TreeObject, prefix string) {
+	if entry == nil || entry.IsNil() {
+		return
+	}
+
+	e := entry.(*Entry)
+	if !e.IsTree() {
+		list[prefix] = e
+		return
+	}
+
+	obj, _ := d.Load(e.Oid())
+	for name, item := range obj.(*Tree).Entries {
+		d.BuildList(list, item.(*Entry), filepath.Join(prefix, name))
+	}
 }
 
 func (d *Database) ShortOid(oid string) string {

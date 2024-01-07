@@ -160,6 +160,11 @@ func (i *Index) IsTracked(path string) bool {
 	return i.IsTrackedFile(path) || i.IsTrackedDirectory(path)
 }
 
+func (i *Index) AddFromDb(pathname string, item *database.Entry) {
+	i.storeEntry(CreateEntryFromDB(pathname, item, 0))
+	i.changed = true
+}
+
 func (i *Index) AddConflictSet(pathname string, items []database.TreeObject) {
 	i.removeEntryWithStage(pathname, "0")
 

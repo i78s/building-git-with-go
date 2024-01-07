@@ -92,7 +92,7 @@ func assertNoMerge(t *testing.T, tmpDir string) {
 	}
 }
 
-func assertIndexEntries(t *testing.T, tmpDir string, entries []struct {
+func assertIndexEntriesPathWithStage(t *testing.T, tmpDir string, entries []struct {
 	path  string
 	stage string
 }) {
@@ -589,7 +589,7 @@ Automatic merge failed; fix conflicts and then commit the result.`
 		tmpDir, _, _ := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
-		assertIndexEntries(t, tmpDir, []struct {
+		assertIndexEntriesPathWithStage(t, tmpDir, []struct {
 			path  string
 			stage string
 		}{
@@ -713,7 +713,7 @@ Automatic merge failed; fix conflicts and then commit the result.`
 		tmpDir, _, _ := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
-		assertIndexEntries(t, tmpDir, []struct {
+		assertIndexEntriesPathWithStage(t, tmpDir, []struct {
 			path  string
 			stage string
 		}{
@@ -798,7 +798,7 @@ Automatic merge failed; fix conflicts and then commit the result.`
 		tmpDir, _, _ := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
-		assertIndexEntries(t, tmpDir, []struct {
+		assertIndexEntriesPathWithStage(t, tmpDir, []struct {
 			path  string
 			stage string
 		}{
@@ -878,7 +878,7 @@ Automatic merge failed; fix conflicts and then commit the result.`
 		tmpDir, _, _ := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
-		assertIndexEntries(t, tmpDir, []struct {
+		assertIndexEntriesPathWithStage(t, tmpDir, []struct {
 			path  string
 			stage string
 		}{
@@ -960,7 +960,7 @@ Automatic merge failed; fix conflicts and then commit the result.`
 		tmpDir, _, _ := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
-		assertIndexEntries(t, tmpDir, []struct {
+		assertIndexEntriesPathWithStage(t, tmpDir, []struct {
 			path  string
 			stage string
 		}{
@@ -1044,7 +1044,7 @@ Automatic merge failed; fix conflicts and then commit the result.`
 		tmpDir, _, _ := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
-		assertIndexEntries(t, tmpDir, []struct {
+		assertIndexEntriesPathWithStage(t, tmpDir, []struct {
 			path  string
 			stage string
 		}{
@@ -1118,7 +1118,7 @@ Automatic merge failed; fix conflicts and then commit the result.`
 		tmpDir, _, _ := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
-		assertIndexEntries(t, tmpDir, []struct {
+		assertIndexEntriesPathWithStage(t, tmpDir, []struct {
 			path  string
 			stage string
 		}{
@@ -1194,7 +1194,7 @@ Automatic merge failed; fix conflicts and then commit the result.`
 		tmpDir, _, _ := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
-		assertIndexEntries(t, tmpDir, []struct {
+		assertIndexEntriesPathWithStage(t, tmpDir, []struct {
 			path  string
 			stage string
 		}{
@@ -1274,7 +1274,7 @@ Automatic merge failed; fix conflicts and then commit the result.`
 		tmpDir, _, _ := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
-		assertIndexEntries(t, tmpDir, []struct {
+		assertIndexEntriesPathWithStage(t, tmpDir, []struct {
 			path  string
 			stage string
 		}{
@@ -1427,7 +1427,7 @@ func TestMergeConflictResolution(t *testing.T) {
 		status := commit(t, tmpDir, stdout, stderr, "commit", time.Now())
 
 		expectedError := `error: Committing is not possible because you have unmerged files.
-hint: Fix them up in the work tree, and then use 'jit add <file>'
+hint: Fix them up in the work tree, and then use 'jit add/rm <file>'
 hint: as appropriate to mark resolution and make a commit.
 fatal: Exiting because of an unresolved conflict.`
 		if got := stderr.String(); got != expectedError {
@@ -1454,7 +1454,7 @@ fatal: Exiting because of an unresolved conflict.`
 		status := mergeCommit(t, tmpDir, "", "", options, stdout, stderr)
 
 		expectedError := `error: Committing is not possible because you have unmerged files.
-hint: Fix them up in the work tree, and then use 'jit add <file>'
+hint: Fix them up in the work tree, and then use 'jit add/rm <file>'
 hint: as appropriate to mark resolution and make a commit.
 fatal: Exiting because of an unresolved conflict.
 `
@@ -1557,7 +1557,7 @@ fatal: Exiting because of an unresolved conflict.
 		status := mergeCommit(t, tmpDir, "", "", options, stdout, stderr)
 
 		expectedError := `error: Merging is not possible because you have unmerged files.
-hint: Fix them up in the work tree, and then use 'jit add <file>'
+hint: Fix them up in the work tree, and then use 'jit add/rm <file>'
 hint: as appropriate to mark resolution and make a commit.
 fatal: Exiting because of an unresolved conflict.
 `
