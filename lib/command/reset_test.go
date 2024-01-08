@@ -81,19 +81,23 @@ func TestResetWithHeadCommit(t *testing.T) {
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
 		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "first", time.Now())
 
+		writeFile(t, tmpDir, "outer/b.txt", "4")
+		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
+		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "second", time.Now())
+
 		rm, _ := NewRm(tmpDir, []string{"a.txt"}, RmOption{}, stdout, stderr)
 		rm.Run()
-		writeFile(t, tmpDir, "outer/d.txt", "4")
-		writeFile(t, tmpDir, "outer/inner/c.txt", "5")
+		writeFile(t, tmpDir, "outer/d.txt", "5")
+		writeFile(t, tmpDir, "outer/inner/c.txt", "6")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-		writeFile(t, tmpDir, "outer/e.txt", "6")
+		writeFile(t, tmpDir, "outer/e.txt", "7")
 
 		assertUnchangedWorkspace = func() {
 			assertWorkspace(t, tmpDir, map[string]string{
-				"outer/b.txt":       "2",
-				"outer/d.txt":       "4",
-				"outer/e.txt":       "6",
-				"outer/inner/c.txt": "5",
+				"outer/b.txt":       "4",
+				"outer/d.txt":       "5",
+				"outer/e.txt":       "7",
+				"outer/inner/c.txt": "6",
 			})
 		}
 
@@ -109,9 +113,9 @@ func TestResetWithHeadCommit(t *testing.T) {
 
 		assertIndexEntries(t, tmpDir, map[string]string{
 			"a.txt":             "1",
-			"outer/b.txt":       "2",
-			"outer/d.txt":       "4",
-			"outer/inner/c.txt": "5",
+			"outer/b.txt":       "4",
+			"outer/d.txt":       "5",
+			"outer/inner/c.txt": "6",
 		})
 		assertUnchangedWorkspace()
 	})
@@ -124,8 +128,8 @@ func TestResetWithHeadCommit(t *testing.T) {
 		reset.Run()
 
 		assertIndexEntries(t, tmpDir, map[string]string{
-			"outer/b.txt":       "2",
-			"outer/d.txt":       "4",
+			"outer/b.txt":       "4",
+			"outer/d.txt":       "5",
 			"outer/inner/c.txt": "3",
 		})
 		assertUnchangedWorkspace()
@@ -139,8 +143,23 @@ func TestResetWithHeadCommit(t *testing.T) {
 		reset.Run()
 
 		assertIndexEntries(t, tmpDir, map[string]string{
+			"outer/b.txt":       "4",
+			"outer/inner/c.txt": "6",
+		})
+		assertUnchangedWorkspace()
+	})
+
+	t.Run("resets a file to a specific commit", func(t *testing.T) {
+		tmpDir, stdout, stderr, assertUnchangedWorkspace := setup()
+		defer os.RemoveAll(tmpDir)
+
+		reset, _ := NewReset(tmpDir, []string{"@^", "outer/b.txt"}, ResetOption{}, stdout, stderr)
+		reset.Run()
+
+		assertIndexEntries(t, tmpDir, map[string]string{
 			"outer/b.txt":       "2",
-			"outer/inner/c.txt": "5",
+			"outer/d.txt":       "5",
+			"outer/inner/c.txt": "6",
 		})
 		assertUnchangedWorkspace()
 	})

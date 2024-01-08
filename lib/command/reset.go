@@ -10,13 +10,13 @@ type ResetOption struct {
 }
 
 type Reset struct {
-	rootPath string
-	args     []string
-	options  ResetOption
-	repo     *repository.Repository
-	headOid  string
-	stdout   io.Writer
-	stderr   io.Writer
+	rootPath  string
+	args      []string
+	options   ResetOption
+	repo      *repository.Repository
+	commitOid string
+	stdout    io.Writer
+	stderr    io.Writer
 }
 
 func NewReset(dir string, args []string, options ResetOption, stdout, stderr io.Writer) (*Reset, error) {
@@ -37,8 +37,7 @@ func NewReset(dir string, args []string, options ResetOption, stdout, stderr io.
 }
 
 func (r *Reset) Run() int {
-	headOid, _ := r.repo.Refs.ReadHead()
-	r.headOid = headOid
+	r.selectCommitOid()
 
 	r.repo.Index.LoadForUpdate()
 	for _, path := range r.args {
@@ -49,8 +48,25 @@ func (r *Reset) Run() int {
 	return 0
 }
 
+func (r *Reset) selectCommitOid() {
+	revision := repository.HEAD
+	if len(r.args) > 0 {
+		revision = r.args[0]
+	}
+	rev := repository.NewRevision(r.repo, revision)
+	oid, err := rev.Resolve(repository.COMMIT)
+
+	if err != nil {
+		headOid, _ := r.repo.Refs.ReadHead()
+		r.commitOid = headOid
+		return
+	}
+	r.args = r.args[1:]
+	r.commitOid = oid
+}
+
 func (r *Reset) resetPath(pathname string) {
-	listing := r.repo.Database.LoadTreeList(r.headOid, pathname)
+	listing := r.repo.Database.LoadTreeList(r.commitOid, pathname)
 	r.repo.Index.Remove(pathname)
 
 	for path, entry := range listing {
