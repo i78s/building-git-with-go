@@ -39,6 +39,11 @@ func NewIndex(pathname string) *Index {
 	}
 }
 
+func (i *Index) Clear() {
+	i.clear()
+	i.changed = true
+}
+
 func (i *Index) LoadForUpdate() error {
 	err := i.lockfile.HoldForUpdate()
 	i.Load()

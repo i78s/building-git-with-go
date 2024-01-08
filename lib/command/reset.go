@@ -6,7 +6,15 @@ import (
 	"path/filepath"
 )
 
+type ResetMode int
+
+const (
+	Mixed ResetMode = iota
+	Soft
+)
+
 type ResetOption struct {
+	Mode ResetMode
 }
 
 type Reset struct {
@@ -40,10 +48,12 @@ func (r *Reset) Run() int {
 	r.selectCommitOid()
 
 	r.repo.Index.LoadForUpdate()
-	for _, path := range r.args {
-		r.resetPath(path)
-	}
+	r.resetFiles()
 	r.repo.Index.WriteUpdates()
+
+	if len(r.args) == 0 {
+		r.repo.Refs.UpdateHead(r.commitOid)
+	}
 
 	return 0
 }
@@ -61,13 +71,32 @@ func (r *Reset) selectCommitOid() {
 		r.commitOid = headOid
 		return
 	}
-	r.args = r.args[1:]
+	if len(r.args) > 0 {
+		r.args = r.args[1:]
+	}
 	r.commitOid = oid
+}
+
+func (r *Reset) resetFiles() {
+	if r.options.Mode == Soft {
+		return
+	}
+
+	if len(r.args) == 0 {
+		r.repo.Index.Clear()
+		r.resetPath("")
+	} else {
+		for _, path := range r.args {
+			r.resetPath(path)
+		}
+	}
 }
 
 func (r *Reset) resetPath(pathname string) {
 	listing := r.repo.Database.LoadTreeList(r.commitOid, pathname)
-	r.repo.Index.Remove(pathname)
+	if pathname != "" {
+		r.repo.Index.Remove(pathname)
+	}
 
 	for path, entry := range listing {
 		r.repo.Index.AddFromDb(path, entry)
