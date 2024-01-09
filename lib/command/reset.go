@@ -53,7 +53,8 @@ func (r *Reset) Run() int {
 	r.repo.Index.WriteUpdates()
 
 	if len(r.args) == 0 {
-		r.repo.Refs.UpdateHead(r.commitOid)
+		headOid, _ := r.repo.Refs.UpdateHead(r.commitOid)
+		r.repo.Refs.UpateRef(repository.ORIG_HEAD, headOid)
 	}
 
 	return 0

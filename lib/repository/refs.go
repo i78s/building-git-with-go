@@ -14,6 +14,7 @@ import (
 )
 
 const HEAD = "HEAD"
+const ORIG_HEAD = "ORIG_HEAD"
 
 var symRefRegexp = regexp.MustCompile(`^ref: (.+)$`)
 
@@ -69,7 +70,7 @@ func (r *Refs) ReadHead() (string, error) {
 	return r.readSymRef(filepath.Join(r.pathname, HEAD))
 }
 
-func (r *Refs) UpdateHead(oid string) error {
+func (r *Refs) UpdateHead(oid string) (string, error) {
 	return r.updateSymRef(filepath.Join(r.pathname, HEAD), oid)
 }
 
@@ -149,6 +150,10 @@ func (r *Refs) ReadRef(name string) (string, error) {
 		return "", err
 	}
 	return r.readSymRef(path)
+}
+
+func (r *Refs) UpateRef(name, oid string) error {
+	return r.updateRefFile(filepath.Join(r.headsPath, name), oid)
 }
 
 func (r *Refs) CreateBranch(branchName, startOid string) error {
@@ -328,16 +333,16 @@ func (r *Refs) updateRefFile(path, oid string) error {
 	return r.writeLockFile(lockfile, oid)
 }
 
-func (r *Refs) updateSymRef(path, oid string) error {
+func (r *Refs) updateSymRef(path, oid string) (string, error) {
 	lockfile := lockfile.NewLockfile(path)
 	err := lockfile.HoldForUpdate()
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	ref, _ := r.readOidOrSymRef(path)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	switch v := ref.(type) {
@@ -345,7 +350,12 @@ func (r *Refs) updateSymRef(path, oid string) error {
 		defer lockfile.Rollback()
 		return r.updateSymRef(filepath.Join(r.pathname, v.Path), oid)
 	default:
-		return r.writeLockFile(lockfile, oid)
+		err := r.writeLockFile(lockfile, oid)
+		r, ok := v.(*Ref)
+		if err != nil || !ok {
+			return "", err
+		}
+		return r.oid, nil
 	}
 }
 

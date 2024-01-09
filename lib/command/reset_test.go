@@ -272,4 +272,27 @@ func TestResetWithHeadCommit(t *testing.T) {
 
 		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "?? outer/e.txt\n")
 	})
+
+	t.Run("lets you return to the previous state using ORIG_HEAD", func(t *testing.T) {
+		tmpDir, stdout, stderr, _, _, _ := setup()
+		defer os.RemoveAll(tmpDir)
+
+		reset, _ := NewReset(tmpDir, []string{"@^"}, ResetOption{Mode: Hard}, stdout, stderr)
+		reset.Run()
+
+		assertIndexEntries(t, tmpDir, map[string]string{
+			"a.txt":             "1",
+			"outer/b.txt":       "2",
+			"outer/inner/c.txt": "3",
+		})
+
+		reset, _ = NewReset(tmpDir, []string{"ORIG_HEAD"}, ResetOption{Mode: Hard}, stdout, stderr)
+		reset.Run()
+
+		assertIndexEntries(t, tmpDir, map[string]string{
+			"a.txt":             "1",
+			"outer/b.txt":       "4",
+			"outer/inner/c.txt": "3",
+		})
+	})
 }
