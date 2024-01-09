@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -1541,6 +1542,35 @@ fatal: Exiting because of an unresolved conflict.
 		status := mergeCommit(t, tmpDir, "", "", options, stdout, stderr)
 
 		expectedError := "fatal: There is no merge in progress (MERGE_HEAD missing).\n"
+		if got := stderr.String(); got != expectedError {
+			t.Errorf("want %q, but got %q", expectedError, got)
+		}
+		if status != 128 {
+			t.Errorf("want %q, but got %q", status, 128)
+		}
+	})
+
+	t.Run("aborts the merge", func(t *testing.T) {
+		tmpDir, stdout, stderr := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		stdin := strings.NewReader("")
+		mergeCmd, _ := NewMerge(tmpDir, []string{}, MergeOption{Mode: Abort}, stdin, stdout, stderr)
+		mergeCmd.Run()
+
+		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "")
+	})
+
+	t.Run("prevents aborting a merge when none is in progress", func(t *testing.T) {
+		tmpDir, stdout, stderr := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		stdin := strings.NewReader("")
+		mergeCmd, _ := NewMerge(tmpDir, []string{}, MergeOption{Mode: Abort}, stdin, stdout, stderr)
+		mergeCmd.Run()
+		status := mergeCmd.Run()
+
+		expectedError := "fatal: There is no merge to abort (MERGE_HEAD missing).\n"
 		if got := stderr.String(); got != expectedError {
 			t.Errorf("want %q, but got %q", expectedError, got)
 		}

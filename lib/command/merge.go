@@ -11,8 +11,16 @@ import (
 	"time"
 )
 
+type MergeMode string
+
+const (
+	Run      MergeMode = "run"
+	Continue MergeMode = "continue"
+	Abort    MergeMode = "abort"
+)
+
 type MergeOption struct {
-	Mode string
+	Mode MergeMode
 }
 
 type Merge struct {
@@ -48,7 +56,14 @@ func NewMerge(dir string, args []string, options MergeOption, stdin io.Reader, s
 }
 
 func (m *Merge) Run() int {
-	if m.options.Mode == "continue" {
+	if m.options.Mode == Abort {
+		if err := m.handleAbort(); err != nil {
+			fmt.Fprintf(m.stderr, "fatal: %s\n", err.Error())
+			return 128
+		}
+		return 0
+	}
+	if m.options.Mode == Continue {
 		if err := m.handleContinue(); err != nil {
 			if _, ok := err.(*repository.PendingCommitError); ok {
 				fmt.Fprintf(m.stderr, "fatal: %s\n", err.Error())
@@ -69,6 +84,8 @@ func (m *Merge) Run() int {
 
 	inputs, _ := merge.NewInputs(m.repo, repository.HEAD, m.args[0])
 	m.inputs = inputs
+	m.repo.Refs.UpateRef(repository.ORIG_HEAD, inputs.LeftOid)
+
 	if m.inputs.IsAlreadyMerged() {
 		m.handleMergedAncestor()
 		return 0
@@ -138,6 +155,20 @@ func (m *Merge) handleFastForward() {
 
 	m.repo.Index.WriteUpdates()
 	m.repo.Refs.UpdateHead(m.inputs.RightOid)
+}
+
+func (m *Merge) handleAbort() error {
+	err := m.repo.PendingCommit.Clear()
+
+	m.repo.Index.LoadForUpdate()
+	head, _ := m.repo.Refs.ReadHead()
+	m.repo.HardReset(head)
+	m.repo.Index.WriteUpdates()
+
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (m *Merge) handleContinue() error {

@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var mode = "run"
+var mergeMode = string(command.Run)
 
 var mergeCmd = &cobra.Command{
 	Use:   "merge",
@@ -25,8 +25,9 @@ var mergeCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		mode, _ := cmd.Flags().GetString("mode")
 		options := command.MergeOption{
-			Mode: mode,
+			Mode: command.MergeMode(mode),
 		}
 		merge, _ := command.NewMerge(dir, args, options, stdin, stdout, stderr)
 		code := merge.Run()
@@ -36,5 +37,6 @@ var mergeCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(mergeCmd)
-	diffCmd.Flags().StringVar(&mode, "continue", "continue", "Resume command execution from a saved state")
+	mergeCmd.Flags().StringVar(&mergeMode, "continue", string(command.Continue), "Resume command execution from a saved state")
+	mergeCmd.Flags().StringVar(&mergeMode, "abort", string(command.Abort), "Cancel the current operation and revert to the pre-operation state")
 }

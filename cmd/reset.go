@@ -37,6 +37,6 @@ var resetCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(resetCmd)
-	diffCmd.Flags().StringVar(&resetMode, "soft", string(command.Soft), "Perform a 'soft' reset, keeping changes in the working directory.")
-	diffCmd.Flags().StringVar(&resetMode, "hard", string(command.Hard), "Perform a 'hard' reset, discarding changes in the working directory.")
+	resetCmd.Flags().StringVar(&resetMode, "soft", string(command.Soft), "Perform a 'soft' reset, keeping changes in the working directory.")
+	resetCmd.Flags().StringVar(&resetMode, "hard", string(command.Hard), "Perform a 'hard' reset, discarding changes in the working directory.")
 }
