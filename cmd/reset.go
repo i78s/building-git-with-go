@@ -8,6 +8,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var resetMode = string(command.Mixed)
+
 var resetCmd = &cobra.Command{
 	Use:   "reset",
 	Short: "git reset",
@@ -22,7 +24,10 @@ var resetCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		options := command.ResetOption{}
+		mode, _ := cmd.Flags().GetString("mode")
+		options := command.ResetOption{
+			Mode: command.ResetMode(mode),
+		}
 
 		reset, _ := command.NewReset(dir, args, options, stdout, stderr)
 		code := reset.Run()
@@ -32,4 +37,6 @@ var resetCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(resetCmd)
+	diffCmd.Flags().StringVar(&resetMode, "soft", string(command.Soft), "Perform a 'soft' reset, keeping changes in the working directory.")
+	diffCmd.Flags().StringVar(&resetMode, "hard", string(command.Hard), "Perform a 'hard' reset, discarding changes in the working directory.")
 }

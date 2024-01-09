@@ -97,7 +97,7 @@ func TestResetWithHeadCommit(t *testing.T) {
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
 		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "second", time.Now())
 
-		rm, _ := NewRm(tmpDir, []string{"a.txt"}, RmOption{}, stdout, stderr)
+		rm, _ := NewRm(tmpDir, []string{"a.txt"}, RmOption{}, new(bytes.Buffer), new(bytes.Buffer))
 		rm.Run()
 		writeFile(t, tmpDir, "outer/d.txt", "5")
 		writeFile(t, tmpDir, "outer/inner/c.txt", "6")
@@ -250,5 +250,26 @@ func TestResetWithHeadCommit(t *testing.T) {
 		}
 
 		assertUnchangedWorkspace()
+	})
+
+	t.Run("resets the index and workspace", func(t *testing.T) {
+		tmpDir, stdout, stderr, _, assertUnchangedHead, _ := setup()
+		defer os.RemoveAll(tmpDir)
+
+		writeFile(t, tmpDir, "a.txt/nested", "remove me")
+		writeFile(t, tmpDir, "outer/b.txt", "10")
+		delete(t, tmpDir, "outer/inner")
+
+		reset, _ := NewReset(tmpDir, []string{}, ResetOption{Mode: Hard}, stdout, stderr)
+		reset.Run()
+
+		assertUnchangedHead()
+		assertIndexEntries(t, tmpDir, map[string]string{
+			"a.txt":             "1",
+			"outer/b.txt":       "4",
+			"outer/inner/c.txt": "3",
+		})
+
+		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "?? outer/e.txt\n")
 	})
 }

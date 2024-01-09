@@ -50,7 +50,7 @@ func NewDiff(dir string, args []string, options DiffOption, stdout, stderr io.Wr
 func (d *Diff) Run() int {
 	d.repo.Index.Load()
 
-	status, err := d.repo.Status()
+	status, err := d.repo.Status("")
 	d.status = status
 	if err != nil {
 		fmt.Fprintf(d.stderr, "fatal: %v", err)

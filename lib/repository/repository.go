@@ -26,8 +26,12 @@ func NewRepository(rootPath string) *Repository {
 	}
 }
 
-func (r *Repository) Status() (*Status, error) {
-	status, err := NewStatus(r)
+func (r *Repository) HardReset(oid string) {
+	NewHardReset(r, oid).Execute()
+}
+
+func (r *Repository) Status(commitOid string) (*Status, error) {
+	status, err := NewStatus(r, commitOid)
 	return status, err
 }
 

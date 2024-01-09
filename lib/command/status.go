@@ -89,7 +89,7 @@ func NewStatus(dir string, args []string, options StatusOption, stdout, stderr i
 func (s *Status) Run() int {
 	s.repo.Index.LoadForUpdate()
 
-	status, err := s.repo.Status()
+	status, err := s.repo.Status("")
 	s.status = status
 	if err != nil {
 		fmt.Fprintf(s.stderr, "fatal: %v", err)

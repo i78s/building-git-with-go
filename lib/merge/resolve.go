@@ -215,7 +215,7 @@ func (r *Resolve) addConflictsToIndex() {
 func (r *Resolve) writeUntrackedFiles() {
 	for path, item := range r.untracked {
 		blob, _ := r.repo.Database.Load(item.Oid())
-		r.repo.Workspace.WriteFile(path, []byte(blob.String()))
+		r.repo.Workspace.WriteFile(path, []byte(blob.String()), 0, false)
 	}
 }
 

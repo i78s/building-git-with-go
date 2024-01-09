@@ -6,11 +6,12 @@ import (
 	"path/filepath"
 )
 
-type ResetMode int
+type ResetMode string
 
 const (
-	Mixed ResetMode = iota
-	Soft
+	Mixed ResetMode = "mixed"
+	Soft  ResetMode = "soft"
+	Hard  ResetMode = "hard"
 )
 
 type ResetOption struct {
@@ -79,6 +80,10 @@ func (r *Reset) selectCommitOid() {
 
 func (r *Reset) resetFiles() {
 	if r.options.Mode == Soft {
+		return
+	}
+	if r.options.Mode == Hard {
+		r.repo.HardReset(r.commitOid)
 		return
 	}
 

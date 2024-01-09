@@ -108,8 +108,14 @@ func (ws *Workspace) StatFile(filePath string) (fs.FileInfo, error) {
 	return info, nil
 }
 
-func (ws *Workspace) WriteFile(path string, data []byte) error {
+func (ws *Workspace) WriteFile(path string, data []byte, mode int, mkdir bool) error {
 	fullPath := filepath.Join(ws.pathname, path)
+	if mkdir {
+		if err := os.MkdirAll(filepath.Dir(fullPath), os.ModePerm); err != nil {
+			return err
+		}
+	}
+
 	file, err := os.OpenFile(fullPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
@@ -119,6 +125,12 @@ func (ws *Workspace) WriteFile(path string, data []byte) error {
 	_, err = file.Write(data)
 	if err != nil {
 		return err
+	}
+
+	if mode != 0 {
+		if err := os.Chmod(fullPath, fs.FileMode(mode)); err != nil {
+			return err
+		}
 	}
 	return nil
 }

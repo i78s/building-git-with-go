@@ -29,7 +29,7 @@ type Status struct {
 	HeadTree         map[string]*database.Entry
 }
 
-func NewStatus(repo *Repository) (*Status, error) {
+func NewStatus(repo *Repository, commitOid string) (*Status, error) {
 	s := &Status{
 		repo:             repo,
 		Stats:            map[string]fs.FileInfo{},
@@ -42,8 +42,10 @@ func NewStatus(repo *Repository) (*Status, error) {
 		HeadTree:         make(map[string]*database.Entry),
 	}
 
-	head, _ := repo.Refs.ReadHead()
-	s.HeadTree = repo.Database.LoadTreeList(head, "")
+	if commitOid == "" {
+		commitOid, _ = repo.Refs.ReadHead()
+	}
+	s.HeadTree = repo.Database.LoadTreeList(commitOid, "")
 
 	err := s.scanWorkspace("")
 	if err != nil {
