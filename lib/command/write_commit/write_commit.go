@@ -4,8 +4,10 @@ import (
 	"building-git/lib/database"
 	"building-git/lib/repository"
 	"fmt"
+	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -21,6 +23,25 @@ func NewWriteCommit(repo *repository.Repository) *WriteCommit {
 	return &WriteCommit{
 		repo: repo,
 	}
+}
+
+type ReadOption struct {
+	Message string
+	File    string
+}
+
+func (wc *WriteCommit) ReadMessage(option ReadOption) (string, error) {
+	if option.Message != "" {
+		return fmt.Sprintf("%s\n", option.Message), nil
+	} else if option.File != "" {
+		path, err := filepath.Abs(option.File)
+		if err != nil {
+			return "", fmt.Errorf("")
+		}
+		msg, err := os.ReadFile(path)
+		return string(msg), err
+	}
+	return "", fmt.Errorf("")
 }
 
 func (wc *WriteCommit) WriteCommit(parents []string, message string, now time.Time) *database.Commit {
@@ -55,6 +76,22 @@ func (wc *WriteCommit) writeTree() *database.Tree {
 		}
 	})
 	return root
+}
+
+func (wc *WriteCommit) PrintCommit(commit *database.Commit, w io.Writer) {
+	ref, _ := wc.repo.Refs.CurrentRef("")
+	info, _ := ref.ShortName()
+	if ref.IsHead() {
+		info = "detached HEAD"
+	}
+	oid := wc.repo.Database.ShortOid(commit.Oid())
+
+	if commit.Parent() == "" {
+		info += " (root-commit)"
+	}
+	info += fmt.Sprintf(" %s", oid)
+
+	fmt.Fprintf(w, "[%s] %s\n", info, commit.TitleLine())
 }
 
 func (wc *WriteCommit) PendingCommit() *repository.PendingCommit {

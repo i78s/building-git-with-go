@@ -1,6 +1,7 @@
 package command
 
 import (
+	"building-git/lib/command/write_commit"
 	"building-git/lib/database"
 	"building-git/lib/repository"
 	"bytes"
@@ -10,7 +11,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 )
@@ -35,9 +35,12 @@ func commit(t *testing.T, dir string, stdout, stderr *bytes.Buffer, message stri
 	defer os.Unsetenv("GIT_AUTHOR_NAME")
 	defer os.Unsetenv("GIT_AUTHOR_EMAIL")
 
-	options := CommitOption{}
-	stdin := strings.NewReader(message)
-	c, _ := NewCommit(dir, []string{}, options, stdin, stdout, stderr)
+	options := CommitOption{
+		ReadOption: write_commit.ReadOption{
+			Message: message,
+		},
+	}
+	c, _ := NewCommit(dir, []string{}, options, stdout, stderr)
 	return c.Run(now)
 }
 
@@ -57,15 +60,14 @@ func checkout(tmpDir string, stdout, stderr *bytes.Buffer, revision string) {
 	checkout.Run()
 }
 
-func mergeCommit(t *testing.T, tmpDir, branch, message string, options MergeOption, stdout, stderr *bytes.Buffer) int {
+func mergeCommit(t *testing.T, tmpDir, branch string, options MergeOption, stdout, stderr *bytes.Buffer) int {
 	t.Helper()
 
 	os.Setenv("GIT_AUTHOR_NAME", "A. U. Thor")
 	os.Setenv("GIT_AUTHOR_EMAIL", "author@example.com")
 	defer os.Unsetenv("GIT_AUTHOR_NAME")
 	defer os.Unsetenv("GIT_AUTHOR_EMAIL")
-	stdin := strings.NewReader(message)
-	mergeCmd, _ := NewMerge(tmpDir, []string{branch}, options, stdin, stdout, stderr)
+	mergeCmd, _ := NewMerge(tmpDir, []string{branch}, options, stdout, stderr)
 	return mergeCmd.Run()
 }
 

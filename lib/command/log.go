@@ -104,7 +104,12 @@ func (l *Log) showCommitMedium(blankLine bool, commit *database.Commit) {
 	fmt.Fprintf(l.stdout, "Author: %s <%s>\n", author.Name, author.Email)
 	fmt.Fprintf(l.stdout, "Date:  %s\n", author.ReadableTime())
 	fmt.Fprintf(l.stdout, "\n")
-	for _, line := range strings.Split(commit.Message(), "\n") {
+
+	lines := strings.Split(commit.Message(), "\n")
+	if lines[len(lines)-1] == "" { // Replicate Ruby's String#lines
+		lines = lines[:len(lines)-1]
+	}
+	for _, line := range lines {
 		fmt.Fprintf(l.stdout, "    %s\n", line)
 	}
 }

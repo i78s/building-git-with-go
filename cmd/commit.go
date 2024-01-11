@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"building-git/lib/command"
+	"building-git/lib/command/write_commit"
 	"fmt"
 	"os"
 	"time"
@@ -15,7 +16,6 @@ var commitCmd = &cobra.Command{
 	Long:  ``,
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		stdin := cmd.InOrStdin()
 		stdout := cmd.OutOrStdout()
 		stderr := cmd.ErrOrStderr()
 		dir, err := os.Getwd()
@@ -24,8 +24,15 @@ var commitCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		options := command.CommitOption{}
-		commit, _ := command.NewCommit(dir, args, options, stdin, stdout, stderr)
+		message, _ := cmd.Flags().GetString("message")
+		file, _ := cmd.Flags().GetString("file")
+		options := command.CommitOption{
+			ReadOption: write_commit.ReadOption{
+				Message: message,
+				File:    file,
+			},
+		}
+		commit, _ := command.NewCommit(dir, args, options, stdout, stderr)
 		code := commit.Run(time.Now())
 		os.Exit(code)
 	},
@@ -33,4 +40,6 @@ var commitCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(commitCmd)
+	commitCmd.Flags().StringP("message", "m", "", "Specify a message to associate with the command execution")
+	commitCmd.Flags().StringP("file", "F", "", "Specify a file to be used with the command")
 }

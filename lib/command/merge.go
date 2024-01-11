@@ -1,7 +1,6 @@
 package command
 
 import (
-	"bufio"
 	"building-git/lib/command/write_commit"
 	"building-git/lib/merge"
 	"building-git/lib/repository"
@@ -20,6 +19,7 @@ const (
 )
 
 type MergeOption struct {
+	write_commit.ReadOption
 	Mode MergeMode
 }
 
@@ -30,12 +30,11 @@ type Merge struct {
 	repo        *repository.Repository
 	writeCommit *write_commit.WriteCommit
 	inputs      *merge.Inputs
-	stdin       io.Reader
 	stdout      io.Writer
 	stderr      io.Writer
 }
 
-func NewMerge(dir string, args []string, options MergeOption, stdin io.Reader, stdout, stderr io.Writer) (*Merge, error) {
+func NewMerge(dir string, args []string, options MergeOption, stdout, stderr io.Writer) (*Merge, error) {
 	rootPath, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, err
@@ -49,7 +48,6 @@ func NewMerge(dir string, args []string, options MergeOption, stdin io.Reader, s
 		options:     options,
 		repo:        repo,
 		writeCommit: writeCommit,
-		stdin:       stdin,
 		stdout:      stdout,
 		stderr:      stderr,
 	}, nil
@@ -95,9 +93,12 @@ func (m *Merge) Run() int {
 		return 0
 	}
 
-	reader := bufio.NewReader(m.stdin)
-	message, _ := reader.ReadString('\n')
-	err := m.writeCommit.PendingCommit().Start(m.inputs.RightOid, message)
+	message, err := m.writeCommit.ReadMessage(m.options.ReadOption)
+	if err != nil {
+		return 1
+	}
+
+	err = m.writeCommit.PendingCommit().Start(m.inputs.RightOid, message)
 	if err != nil {
 		return 1
 	}

@@ -67,9 +67,8 @@ func (e Edit) String() string {
 }
 
 func lines(s string) []*Line {
-	// Replicate Ruby's String#lines
 	a := strings.SplitAfter(s, "\n")
-	if a[len(a)-1] == "" { // Remove trailing empty string if present
+	if a[len(a)-1] == "" { // Replicate Ruby's String#lines
 		a = a[:len(a)-1]
 	}
 

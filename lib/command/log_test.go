@@ -1,6 +1,7 @@
 package command
 
 import (
+	"building-git/lib/command/write_commit"
 	"building-git/lib/database"
 	"bytes"
 	"fmt"
@@ -558,7 +559,7 @@ two
 		}
 
 		checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "master")
-		mergeCommit(t, tmpDir, "topic^", "J", MergeOption{}, new(bytes.Buffer), new(bytes.Buffer))
+		mergeCommit(t, tmpDir, "topic^", MergeOption{ReadOption: write_commit.ReadOption{Message: "J"}}, new(bytes.Buffer), new(bytes.Buffer))
 
 		commitTree(t, tmpDir, "K", map[string]string{"f.txt": "K"}, branchTime.Add(3*time.Second))
 
@@ -789,7 +790,7 @@ index 4e5ce14..4139691 100644
 				commitTree(t, tmpDir, n, map[string]string{"g.txt": n}, branchTime.Add(time.Second))
 			}
 
-			mergeCommit(t, tmpDir, "topic^", "J", MergeOption{}, stdout, stderr)
+			mergeCommit(t, tmpDir, "topic^", MergeOption{ReadOption: write_commit.ReadOption{Message: "J"}}, stdout, stderr)
 
 			commitTree(t, tmpDir, "K", map[string]string{"f.txt": "K"}, branchTime.Add(3*time.Second))
 

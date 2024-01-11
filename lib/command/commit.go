@@ -1,17 +1,16 @@
 package command
 
 import (
-	"bufio"
 	"building-git/lib/command/write_commit"
 	"building-git/lib/repository"
 	"fmt"
 	"io"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
 type CommitOption struct {
+	write_commit.ReadOption
 }
 
 type Commit struct {
@@ -19,12 +18,11 @@ type Commit struct {
 	args     []string
 	options  CommitOption
 	repo     *repository.Repository
-	stdin    io.Reader
 	stdout   io.Writer
 	stderr   io.Writer
 }
 
-func NewCommit(dir string, args []string, options CommitOption, stdin io.Reader, stdout, stderr io.Writer) (*Commit, error) {
+func NewCommit(dir string, args []string, options CommitOption, stdout, stderr io.Writer) (*Commit, error) {
 	rootPath, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, err
@@ -36,7 +34,6 @@ func NewCommit(dir string, args []string, options CommitOption, stdin io.Reader,
 		args:     args,
 		options:  options,
 		repo:     repo,
-		stdin:    stdin,
 		stdout:   stdout,
 		stderr:   stderr,
 	}, nil
@@ -56,8 +53,10 @@ func (c *Commit) Run(now time.Time) int {
 	}
 
 	parent, _ := c.repo.Refs.ReadHead()
-	reader := bufio.NewReader(c.stdin)
-	message, _ := reader.ReadString('\n')
+	message, err := writeCommit.ReadMessage(c.options.ReadOption)
+	if err != nil {
+		return 1
+	}
 
 	parents := []string{}
 	if parent != "" {
@@ -65,13 +64,7 @@ func (c *Commit) Run(now time.Time) int {
 	}
 
 	commit := writeCommit.WriteCommit(parents, message, now)
-
-	messageLines := strings.Split(message, "\n")
-	isRoot := ""
-	if parent == "" {
-		isRoot = "[(root-commit)]"
-	}
-	fmt.Fprintf(c.stdout, "%s%s %s\n", isRoot, commit.Oid(), messageLines[0])
+	writeCommit.PrintCommit(commit, c.stdout)
 
 	return 0
 }

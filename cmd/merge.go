@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"building-git/lib/command"
+	"building-git/lib/command/write_commit"
 	"fmt"
 	"os"
 
@@ -16,7 +17,6 @@ var mergeCmd = &cobra.Command{
 	Long:  ``,
 	Args:  cobra.ExactArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
-		stdin := cmd.InOrStdin()
 		stdout := cmd.OutOrStdout()
 		stderr := cmd.ErrOrStderr()
 		dir, err := os.Getwd()
@@ -26,10 +26,16 @@ var mergeCmd = &cobra.Command{
 		}
 
 		mode, _ := cmd.Flags().GetString("mode")
+		message, _ := cmd.Flags().GetString("message")
+		file, _ := cmd.Flags().GetString("file")
 		options := command.MergeOption{
 			Mode: command.MergeMode(mode),
+			ReadOption: write_commit.ReadOption{
+				Message: message,
+				File:    file,
+			},
 		}
-		merge, _ := command.NewMerge(dir, args, options, stdin, stdout, stderr)
+		merge, _ := command.NewMerge(dir, args, options, stdout, stderr)
 		code := merge.Run()
 		os.Exit(code)
 	},
@@ -39,4 +45,7 @@ func init() {
 	rootCmd.AddCommand(mergeCmd)
 	mergeCmd.Flags().StringVar(&mergeMode, "continue", string(command.Continue), "Resume command execution from a saved state")
 	mergeCmd.Flags().StringVar(&mergeMode, "abort", string(command.Abort), "Cancel the current operation and revert to the pre-operation state")
+
+	mergeCmd.Flags().StringP("message", "m", "", "Specify a message to associate with the command execution")
+	mergeCmd.Flags().StringP("file", "F", "", "Specify a file to be used with the command")
 }

@@ -1,12 +1,12 @@
 package command
 
 import (
+	"building-git/lib/command/write_commit"
 	"building-git/lib/database"
 	"bytes"
 	"fmt"
 	"os"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 )
@@ -56,8 +56,12 @@ func merge3(
 	commitTreeHelper(t, tmpDir, "C", right, time.Now())
 
 	checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "master")
-	options := MergeOption{}
-	mergeCommit(t, tmpDir, "topic", "M", options, stdout, stderr)
+	options := MergeOption{
+		ReadOption: write_commit.ReadOption{
+			Message: "M",
+		},
+	}
+	mergeCommit(t, tmpDir, "topic", options, stdout, stderr)
 }
 
 func assertCleanMerge(t *testing.T, tmpDir string) {
@@ -68,7 +72,7 @@ func assertCleanMerge(t *testing.T, tmpDir string) {
 	oldHead, _ := loadCommit(t, tmpDir, "@^")
 	mergeHead, _ := loadCommit(t, tmpDir, "topic")
 
-	expected := []string{"M"}
+	expected := []string{"M\n"}
 	if got := commit.Message(); got != expected[0] {
 		t.Errorf("want %q, but got %q", expected, got)
 	}
@@ -83,7 +87,7 @@ func assertNoMerge(t *testing.T, tmpDir string) {
 	commitObj, _ := loadCommit(t, tmpDir, "@")
 	commit := commitObj.(*database.Commit)
 
-	expected := []string{"B"}
+	expected := []string{"B\n"}
 	if got := commit.Message(); got != expected[0] {
 		t.Errorf("want %q, but got %q", expected, got)
 	}
@@ -131,8 +135,12 @@ func TestMergeMergingAncestor(t *testing.T) {
 			"f.txt": "3",
 		}, now)
 
-		options := MergeOption{}
-		mergeCommit(t, tmpDir, "@^", "D", options, stdout, stderr)
+		options := MergeOption{
+			ReadOption: write_commit.ReadOption{
+				Message: "D",
+			},
+		}
+		mergeCommit(t, tmpDir, "@^", options, stdout, stderr)
 
 		return
 	}
@@ -153,7 +161,7 @@ func TestMergeMergingAncestor(t *testing.T) {
 
 		gitObj, _ := loadCommit(t, tmpDir, "@")
 
-		expected := "C"
+		expected := "C\n"
 		if got := gitObj.(*database.Commit).Message(); got != expected {
 			t.Errorf("want %q, but got %q", expected, got)
 		}
@@ -181,8 +189,12 @@ func TestMergeFastForwardMerge(t *testing.T) {
 		brunchCmd.Run()
 		checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "topic")
 
-		options := MergeOption{}
-		mergeCommit(t, tmpDir, "master", "M", options, stdout, stderr)
+		options := MergeOption{
+			ReadOption: write_commit.ReadOption{
+				Message: "M",
+			},
+		}
+		mergeCommit(t, tmpDir, "master", options, stdout, stderr)
 
 		return
 	}
@@ -211,7 +223,7 @@ func TestMergeFastForwardMerge(t *testing.T) {
 
 		gitObj, _ := loadCommit(t, tmpDir, "@")
 
-		expected := "C"
+		expected := "C\n"
 		if got := gitObj.(*database.Commit).Message(); got != expected {
 			t.Errorf("want %q, but got %q", expected, got)
 		}
@@ -1364,8 +1376,10 @@ func TestMergeMultipleCommonAncestors(t *testing.T) {
 		tmpDir, stdout, stderr := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
-		options := MergeOption{}
-		status := mergeCommit(t, tmpDir, "joiner", "merge joiner", options, stdout, stderr)
+		options := MergeOption{
+			ReadOption: write_commit.ReadOption{Message: "merge joiner"},
+		}
+		status := mergeCommit(t, tmpDir, "joiner", options, stdout, stderr)
 
 		if status != 0 {
 			t.Errorf("want %q, but got %q", 0, status)
@@ -1384,14 +1398,19 @@ func TestMergeMultipleCommonAncestors(t *testing.T) {
 		tmpDir, stdout, stderr := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
-		options := MergeOption{}
-		mergeCommit(t, tmpDir, "joiner", "merge joiner", options, stdout, stderr)
+		options := MergeOption{
+			ReadOption: write_commit.ReadOption{Message: "merge joiner"},
+		}
+		mergeCommit(t, tmpDir, "joiner", options, stdout, stderr)
 
 		commitTree(t, tmpDir, "H", map[string]string{
 			"f.txt": "4",
 		}, time.Now())
 
-		status := mergeCommit(t, tmpDir, "topic", "merge topic", options, stdout, stderr)
+		options = MergeOption{
+			ReadOption: write_commit.ReadOption{Message: "merge topic"},
+		}
+		status := mergeCommit(t, tmpDir, "topic", options, stdout, stderr)
 		if status != 0 {
 			t.Errorf("want %q, but got %q", 0, status)
 		}
@@ -1441,7 +1460,7 @@ fatal: Exiting because of an unresolved conflict.`
 
 		commitObj, _ := loadCommit(t, tmpDir, "@")
 		commit := commitObj.(*database.Commit)
-		expected := []string{"B"}
+		expected := []string{"B\n"}
 		if got := commit.Message(); got != expected[0] {
 			t.Errorf("want %q, but got %q", expected, got)
 		}
@@ -1451,8 +1470,13 @@ fatal: Exiting because of an unresolved conflict.`
 		tmpDir, stdout, stderr := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
-		options := MergeOption{Mode: "continue"}
-		status := mergeCommit(t, tmpDir, "", "", options, stdout, stderr)
+		options := MergeOption{
+			Mode: "continue",
+			ReadOption: write_commit.ReadOption{
+				Message: "",
+			},
+		}
+		status := mergeCommit(t, tmpDir, "", options, stdout, stderr)
 
 		expectedError := `error: Committing is not possible because you have unmerged files.
 hint: Fix them up in the work tree, and then use 'jit add/rm <file>'
@@ -1469,7 +1493,7 @@ fatal: Exiting because of an unresolved conflict.
 
 		commitObj, _ := loadCommit(t, tmpDir, "@")
 		commit := commitObj.(*database.Commit)
-		expected := []string{"B"}
+		expected := []string{"B\n"}
 		if got := commit.Message(); got != expected[0] {
 			t.Errorf("want %q, but got %q", expected, got)
 		}
@@ -1487,7 +1511,7 @@ fatal: Exiting because of an unresolved conflict.
 
 		commitObj, _ := loadCommit(t, tmpDir, "@")
 		commit := commitObj.(*database.Commit)
-		expected := []string{"M"}
+		expected := []string{"M\n"}
 		if got := commit.Message(); got != expected[0] {
 			t.Errorf("want %q, but got %q", expected, got)
 		}
@@ -1497,7 +1521,7 @@ fatal: Exiting because of an unresolved conflict.
 			commitObj, _ := loadCommit(t, tmpDir, oid)
 			parents = append(parents, commitObj.(*database.Commit).Message())
 		}
-		expected = []string{"B", "C"}
+		expected = []string{"B\n", "C\n"}
 		if parents[0] != expected[0] || parents[1] != expected[1] {
 			t.Errorf("want %q, but got %q", expected, parents)
 		}
@@ -1508,15 +1532,20 @@ fatal: Exiting because of an unresolved conflict.
 		defer os.RemoveAll(tmpDir)
 
 		Add(tmpDir, []string{"f.txt"}, new(bytes.Buffer), new(bytes.Buffer))
-		options := MergeOption{Mode: "continue"}
-		status := mergeCommit(t, tmpDir, "", "", options, stdout, stderr)
+		options := MergeOption{
+			Mode: "continue",
+			ReadOption: write_commit.ReadOption{
+				Message: "",
+			},
+		}
+		status := mergeCommit(t, tmpDir, "", options, stdout, stderr)
 		if status != 0 {
 			t.Errorf("want %q, but got %q", status, 0)
 		}
 
 		commitObj, _ := loadCommit(t, tmpDir, "@")
 		commit := commitObj.(*database.Commit)
-		expected := []string{"M"}
+		expected := []string{"M\n"}
 		if got := commit.Message(); got != expected[0] {
 			t.Errorf("want %q, but got %q", expected, got)
 		}
@@ -1526,7 +1555,7 @@ fatal: Exiting because of an unresolved conflict.
 			commitObj, _ := loadCommit(t, tmpDir, oid)
 			parents = append(parents, commitObj.(*database.Commit).Message())
 		}
-		expected = []string{"B", "C"}
+		expected = []string{"B\n", "C\n"}
 		if parents[0] != expected[0] || parents[1] != expected[1] {
 			t.Errorf("want %q, but got %q", expected, parents)
 		}
@@ -1537,9 +1566,14 @@ fatal: Exiting because of an unresolved conflict.
 		defer os.RemoveAll(tmpDir)
 
 		Add(tmpDir, []string{"f.txt"}, new(bytes.Buffer), new(bytes.Buffer))
-		options := MergeOption{Mode: "continue"}
-		mergeCommit(t, tmpDir, "", "", options, new(bytes.Buffer), new(bytes.Buffer))
-		status := mergeCommit(t, tmpDir, "", "", options, stdout, stderr)
+		options := MergeOption{
+			Mode: "continue",
+			ReadOption: write_commit.ReadOption{
+				Message: "",
+			},
+		}
+		mergeCommit(t, tmpDir, "", options, new(bytes.Buffer), new(bytes.Buffer))
+		status := mergeCommit(t, tmpDir, "", options, stdout, stderr)
 
 		expectedError := "fatal: There is no merge in progress (MERGE_HEAD missing).\n"
 		if got := stderr.String(); got != expectedError {
@@ -1554,8 +1588,11 @@ fatal: Exiting because of an unresolved conflict.
 		tmpDir, stdout, stderr := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
-		stdin := strings.NewReader("")
-		mergeCmd, _ := NewMerge(tmpDir, []string{}, MergeOption{Mode: Abort}, stdin, stdout, stderr)
+		option := MergeOption{
+			Mode:       Abort,
+			ReadOption: write_commit.ReadOption{Message: ""},
+		}
+		mergeCmd, _ := NewMerge(tmpDir, []string{}, option, stdout, stderr)
 		mergeCmd.Run()
 
 		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "")
@@ -1565,8 +1602,11 @@ fatal: Exiting because of an unresolved conflict.
 		tmpDir, stdout, stderr := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
-		stdin := strings.NewReader("")
-		mergeCmd, _ := NewMerge(tmpDir, []string{}, MergeOption{Mode: Abort}, stdin, stdout, stderr)
+		option := MergeOption{
+			Mode:       Abort,
+			ReadOption: write_commit.ReadOption{Message: ""},
+		}
+		mergeCmd, _ := NewMerge(tmpDir, []string{}, option, stdout, stderr)
 		mergeCmd.Run()
 		status := mergeCmd.Run()
 
@@ -1583,8 +1623,12 @@ fatal: Exiting because of an unresolved conflict.
 		tmpDir, stdout, stderr := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
-		options := MergeOption{}
-		status := mergeCommit(t, tmpDir, "", "", options, stdout, stderr)
+		options := MergeOption{
+			ReadOption: write_commit.ReadOption{
+				Message: "",
+			},
+		}
+		status := mergeCommit(t, tmpDir, "", options, stdout, stderr)
 
 		expectedError := `error: Merging is not possible because you have unmerged files.
 hint: Fix them up in the work tree, and then use 'jit add/rm <file>'
