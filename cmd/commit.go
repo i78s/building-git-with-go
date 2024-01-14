@@ -26,11 +26,13 @@ var commitCmd = &cobra.Command{
 
 		message, _ := cmd.Flags().GetString("message")
 		file, _ := cmd.Flags().GetString("file")
+		edit, _ := cmd.Flags().GetBool("edit")
 		options := command.CommitOption{
 			ReadOption: write_commit.ReadOption{
 				Message: message,
 				File:    file,
 			},
+			Edit: edit,
 		}
 		commit, _ := command.NewCommit(dir, args, options, stdout, stderr)
 		code := commit.Run(time.Now())
@@ -42,4 +44,5 @@ func init() {
 	rootCmd.AddCommand(commitCmd)
 	commitCmd.Flags().StringP("message", "m", "", "Specify a message to associate with the command execution")
 	commitCmd.Flags().StringP("file", "F", "", "Specify a file to be used with the command")
+	commitCmd.Flags().BoolP("edit", "e", false, "Edit the message taken from file, message or commit object")
 }

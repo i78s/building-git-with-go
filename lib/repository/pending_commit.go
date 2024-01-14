@@ -17,21 +17,21 @@ func (e *PendingCommitError) Error() string {
 
 type PendingCommit struct {
 	headPath    string
-	messagePath string
+	MessagePath string
 }
 
 func NewPendingCommit(pathname string) *PendingCommit {
 	return &PendingCommit{
 		headPath:    filepath.Join(pathname, "MERGE_HEAD"),
-		messagePath: filepath.Join(pathname, "MERGE_MSG"),
+		MessagePath: filepath.Join(pathname, "MERGE_MSG"),
 	}
 }
 
-func (pc *PendingCommit) Start(oid, message string) error {
+func (pc *PendingCommit) Start(oid string) error {
 	if err := os.WriteFile(pc.headPath, []byte(oid+"\n"), 0666); err != nil {
 		return err
 	}
-	return os.WriteFile(pc.messagePath, []byte(message), 0666)
+	return nil
 }
 
 func (pc *PendingCommit) InProgress() bool {
@@ -48,7 +48,7 @@ func (pc *PendingCommit) MergeOID() (string, error) {
 }
 
 func (pc *PendingCommit) MergeMessage() (string, error) {
-	data, err := os.ReadFile(pc.messagePath)
+	data, err := os.ReadFile(pc.MessagePath)
 	if err != nil {
 		return "", err
 	}
@@ -59,5 +59,5 @@ func (pc *PendingCommit) Clear() error {
 	if err := os.Remove(pc.headPath); err != nil {
 		return &PendingCommitError{fmt.Sprintf("There is no merge to abort (%s missing).", filepath.Base(pc.headPath))}
 	}
-	return os.Remove(pc.messagePath)
+	return os.Remove(pc.MessagePath)
 }

@@ -8,6 +8,7 @@ import (
 )
 
 type Repository struct {
+	GitPath       string
 	Database      *database.Database
 	Index         *index.Index
 	Refs          *Refs
@@ -18,6 +19,7 @@ type Repository struct {
 func NewRepository(rootPath string) *Repository {
 	gitPath := filepath.Join(rootPath, ".git")
 	return &Repository{
+		GitPath:       gitPath,
 		Database:      database.NewDatabase(filepath.Join(gitPath, "objects")),
 		Index:         index.NewIndex(filepath.Join(gitPath, "index")),
 		Refs:          NewRefs(gitPath),

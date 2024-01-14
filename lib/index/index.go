@@ -130,6 +130,17 @@ func (i *Index) IsConflict() bool {
 	return false
 }
 
+func (i *Index) ConflictPaths() map[string]struct{} {
+	paths := make(map[string]struct{})
+	for _, entry := range i.EachEntry() {
+		if entry.Stage() == "0" {
+			continue
+		}
+		paths[entry.Path()] = struct{}{}
+	}
+	return paths
+}
+
 func (i *Index) EntryForPath(path, stage string) *Entry {
 	return i.entries[[2]string{path, stage}]
 }

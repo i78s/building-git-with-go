@@ -2,6 +2,7 @@ package write_commit
 
 import (
 	"building-git/lib/database"
+	"building-git/lib/editor"
 	"building-git/lib/repository"
 	"fmt"
 	"io"
@@ -11,12 +12,25 @@ import (
 	"time"
 )
 
+const COMMIT_NOTES = `Please enter a commit message to explain why this merge is necessary,
+especially if it merges an updated upstream into a topic branch.
+Lines starting with '#' will be ignored, and an empty message aborts
+the commit.`
+
 const CONFLICT_MESSAGE = `hint: Fix them up in the work tree, and then use 'jit add/rm <file>'
 hint: as appropriate to mark resolution and make a commit.
 fatal: Exiting because of an unresolved conflict.`
 
+const MERGE_NOTES = `
+
+It looks like you may be committing a merge.
+If this is not correct, please remove the file
+\t.git/MERGE_HEAD
+and try again.`
+
 type WriteCommit struct {
-	repo *repository.Repository
+	repo   *repository.Repository
+	editor *editor.Editor
 }
 
 func NewWriteCommit(repo *repository.Repository) *WriteCommit {
@@ -44,7 +58,11 @@ func (wc *WriteCommit) ReadMessage(option ReadOption) (string, error) {
 	return "", fmt.Errorf("")
 }
 
-func (wc *WriteCommit) WriteCommit(parents []string, message string, now time.Time) *database.Commit {
+func (wc *WriteCommit) WriteCommit(parents []string, message string, now time.Time) (*database.Commit, error) {
+	if message == "" {
+		return nil, fmt.Errorf("Aborting commit due to empty commit message.\n")
+	}
+
 	tree := wc.writeTree()
 	name, exists := os.LookupEnv("GIT_AUTHOR_NAME")
 	if !exists {
@@ -61,7 +79,7 @@ func (wc *WriteCommit) WriteCommit(parents []string, message string, now time.Ti
 	wc.repo.Database.Store(commit)
 	wc.repo.Refs.UpdateHead(commit.Oid())
 
-	return commit
+	return commit, nil
 }
 
 func (wc *WriteCommit) writeTree() *database.Tree {
@@ -98,7 +116,7 @@ func (wc *WriteCommit) PendingCommit() *repository.PendingCommit {
 	return wc.repo.PendingCommit
 }
 
-func (wc *WriteCommit) ResumeMerge() error {
+func (wc *WriteCommit) ResumeMerge(isTTY bool) error {
 	err := wc.HandleConflictedIndex()
 	if err != nil {
 		return err
@@ -109,13 +127,28 @@ func (wc *WriteCommit) ResumeMerge() error {
 		return err
 	}
 	parants := []string{head, mergeOid}
-	message, err := wc.PendingCommit().MergeMessage()
-	if err != nil {
-		return err
-	}
+
+	message := wc.composeMergeMessage(MERGE_NOTES, isTTY)
 	wc.WriteCommit(parants, message, time.Now())
 	wc.PendingCommit().Clear()
 	return nil
+}
+
+func (wc *WriteCommit) composeMergeMessage(notes string, isTTY bool) string {
+	return editor.EditFile(wc.CommitMessagePath(), isTTY, func(e *editor.Editor) {
+		message, _ := wc.PendingCommit().MergeMessage()
+
+		e.Puts(message)
+		if notes != "" {
+			e.Note(notes)
+		}
+		e.Puts("")
+		e.Note(COMMIT_NOTES)
+	})
+}
+
+func (wc *WriteCommit) CommitMessagePath() string {
+	return filepath.Join(wc.repo.GitPath, "COMMIT_EDITMSG")
 }
 
 func (wc *WriteCommit) HandleConflictedIndex() error {

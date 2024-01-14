@@ -2,6 +2,7 @@ package command
 
 import (
 	"building-git/lib/command/write_commit"
+	"building-git/lib/editor"
 	"building-git/lib/repository"
 	"fmt"
 	"io"
@@ -11,15 +12,18 @@ import (
 
 type CommitOption struct {
 	write_commit.ReadOption
+	Edit  bool
+	IsTTY bool
 }
 
 type Commit struct {
-	rootPath string
-	args     []string
-	options  CommitOption
-	repo     *repository.Repository
-	stdout   io.Writer
-	stderr   io.Writer
+	rootPath    string
+	args        []string
+	options     CommitOption
+	repo        *repository.Repository
+	writeCommit *write_commit.WriteCommit
+	stdout      io.Writer
+	stderr      io.Writer
 }
 
 func NewCommit(dir string, args []string, options CommitOption, stdout, stderr io.Writer) (*Commit, error) {
@@ -28,23 +32,23 @@ func NewCommit(dir string, args []string, options CommitOption, stdout, stderr i
 		return nil, err
 	}
 	repo := repository.NewRepository(rootPath)
-
+	writeCommit := write_commit.NewWriteCommit(repo)
 	return &Commit{
-		rootPath: rootPath,
-		args:     args,
-		options:  options,
-		repo:     repo,
-		stdout:   stdout,
-		stderr:   stderr,
+		rootPath:    rootPath,
+		args:        args,
+		options:     options,
+		repo:        repo,
+		writeCommit: writeCommit,
+		stdout:      stdout,
+		stderr:      stderr,
 	}, nil
 }
 
 func (c *Commit) Run(now time.Time) int {
-	writeCommit := write_commit.NewWriteCommit(c.repo)
 	c.repo.Index.Load()
 
-	if writeCommit.PendingCommit().InProgress() {
-		err := writeCommit.ResumeMerge()
+	if c.writeCommit.PendingCommit().InProgress() {
+		err := c.writeCommit.ResumeMerge(c.options.IsTTY)
 		if err != nil {
 			fmt.Fprintf(c.stderr, "%s", err.Error())
 			return 128
@@ -53,18 +57,34 @@ func (c *Commit) Run(now time.Time) int {
 	}
 
 	parent, _ := c.repo.Refs.ReadHead()
-	message, err := writeCommit.ReadMessage(c.options.ReadOption)
+	message, err := c.writeCommit.ReadMessage(c.options.ReadOption)
 	if err != nil {
 		return 1
 	}
-
+	message = c.composeMessage(message)
 	parents := []string{}
 	if parent != "" {
 		parents = append(parents, parent)
 	}
 
-	commit := writeCommit.WriteCommit(parents, message, now)
-	writeCommit.PrintCommit(commit, c.stdout)
+	commit, err := c.writeCommit.WriteCommit(parents, message, now)
+	if err != nil {
+		fmt.Fprintf(c.stderr, "%s", err.Error())
+		return 1
+	}
+	c.writeCommit.PrintCommit(commit, c.stdout)
 
 	return 0
+}
+
+func (c *Commit) composeMessage(message string) string {
+	return editor.EditFile(c.writeCommit.CommitMessagePath(), c.options.IsTTY, func(e *editor.Editor) {
+		e.Puts(message)
+		e.Puts("")
+		e.Note(write_commit.COMMIT_NOTES)
+
+		if !c.options.Edit {
+			e.Close()
+		}
+	})
 }

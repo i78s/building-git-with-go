@@ -2,6 +2,7 @@ package command
 
 import (
 	"building-git/lib/command/write_commit"
+	"building-git/lib/editor"
 	"building-git/lib/merge"
 	"building-git/lib/repository"
 	"fmt"
@@ -20,7 +21,9 @@ const (
 
 type MergeOption struct {
 	write_commit.ReadOption
-	Mode MergeMode
+	Mode  MergeMode
+	Edit  bool
+	IsTTY bool
 }
 
 type Merge struct {
@@ -93,12 +96,7 @@ func (m *Merge) Run() int {
 		return 0
 	}
 
-	message, err := m.writeCommit.ReadMessage(m.options.ReadOption)
-	if err != nil {
-		return 1
-	}
-
-	err = m.writeCommit.PendingCommit().Start(m.inputs.RightOid, message)
+	err := m.writeCommit.PendingCommit().Start(m.inputs.RightOid)
 	if err != nil {
 		return 1
 	}
@@ -126,17 +124,56 @@ func (m *Merge) resolveMerge() error {
 
 	m.repo.Index.WriteUpdates()
 	if m.repo.Index.IsConflict() {
-		return fmt.Errorf("detect conflict")
+		if err := m.failOnConflict(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
+func (m *Merge) failOnConflict() error {
+	editor.EditFile(m.writeCommit.PendingCommit().MessagePath, m.options.IsTTY, func(e *editor.Editor) {
+		message, err := m.writeCommit.ReadMessage(m.options.ReadOption)
+		if err != nil {
+			message = m.defaultCommitMessage()
+		}
+		e.Puts(message)
+		e.Puts("")
+		e.Note("Conflicts:")
+		for name := range m.repo.Index.ConflictPaths() {
+			e.Note("\t" + name)
+		}
+		e.Close()
+	})
+	return fmt.Errorf("detect conflict")
+}
+
 func (m *Merge) commitMerge() {
 	parents := []string{m.inputs.LeftOid, m.inputs.RightOid}
-	message, _ := m.writeCommit.PendingCommit().MergeMessage()
+	message := m.composeMessage()
 
 	m.writeCommit.WriteCommit(parents, message, time.Now())
 	m.writeCommit.PendingCommit().Clear()
+}
+
+func (m *Merge) composeMessage() string {
+	return editor.EditFile(m.writeCommit.PendingCommit().MessagePath, m.options.IsTTY, func(e *editor.Editor) {
+		message, err := m.writeCommit.ReadMessage(m.options.ReadOption)
+		if err != nil {
+			message = m.defaultCommitMessage()
+		}
+		e.Puts(message)
+		e.Puts("")
+		e.Note(write_commit.COMMIT_NOTES)
+
+		if !m.options.Edit {
+			e.Close()
+		}
+	})
+}
+
+func (m *Merge) defaultCommitMessage() string {
+	return fmt.Sprintf("Merge commit %s", m.inputs.RightName)
 }
 
 func (m *Merge) handleMergedAncestor() {
@@ -174,7 +211,7 @@ func (m *Merge) handleAbort() error {
 
 func (m *Merge) handleContinue() error {
 	m.repo.Index.Load()
-	err := m.writeCommit.ResumeMerge()
+	err := m.writeCommit.ResumeMerge(m.options.IsTTY)
 
 	if err != nil {
 		return err

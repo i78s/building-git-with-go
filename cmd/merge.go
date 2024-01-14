@@ -28,12 +28,14 @@ var mergeCmd = &cobra.Command{
 		mode, _ := cmd.Flags().GetString("mode")
 		message, _ := cmd.Flags().GetString("message")
 		file, _ := cmd.Flags().GetString("file")
+		edit, _ := cmd.Flags().GetBool("edit")
 		options := command.MergeOption{
 			Mode: command.MergeMode(mode),
 			ReadOption: write_commit.ReadOption{
 				Message: message,
 				File:    file,
 			},
+			Edit: edit,
 		}
 		merge, _ := command.NewMerge(dir, args, options, stdout, stderr)
 		code := merge.Run()
@@ -48,4 +50,5 @@ func init() {
 
 	mergeCmd.Flags().StringP("message", "m", "", "Specify a message to associate with the command execution")
 	mergeCmd.Flags().StringP("file", "F", "", "Specify a file to be used with the command")
+	mergeCmd.Flags().BoolP("edit", "e", false, "Invoke an editor before committing successful mechanical merge to further edit the auto-generated merge message")
 }
