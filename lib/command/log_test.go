@@ -13,7 +13,12 @@ import (
 func commitFile(t *testing.T, tmpDir, message string, now time.Time) {
 	writeFile(t, tmpDir, "file.txt", message)
 	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-	commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), message, now)
+	options := CommitOption{
+		ReadOption: write_commit.ReadOption{
+			Message: message,
+		},
+	}
+	commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), options, now)
 }
 
 func TestLogWithChainOfCommits(t *testing.T) {

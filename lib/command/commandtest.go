@@ -3,6 +3,7 @@ package command
 import (
 	"building-git/lib/command/write_commit"
 	"building-git/lib/database"
+	"building-git/lib/editor"
 	"building-git/lib/repository"
 	"bytes"
 	"fmt"
@@ -27,7 +28,33 @@ func setupTestEnvironment(t *testing.T) (string, *bytes.Buffer, *bytes.Buffer) {
 	return tmpDir, outStream, errStream
 }
 
-func commit(t *testing.T, dir string, stdout, stderr *bytes.Buffer, message string, now time.Time) int {
+type MockEditor struct {
+	path string
+	edit string
+}
+
+func NewMockEditor(path, edit string) *MockEditor {
+	return &MockEditor{
+		path: path,
+		edit: edit,
+	}
+}
+
+func (m *MockEditor) Run() error {
+	file, err := os.OpenFile(m.path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	if _, err = file.Write([]byte(m.edit)); err != nil {
+		fmt.Println("Error writing to file:", err)
+		return err
+	}
+	return nil
+}
+
+func commit(t *testing.T, dir string, stdout, stderr *bytes.Buffer, options CommitOption, now time.Time) int {
 	t.Helper()
 
 	os.Setenv("GIT_AUTHOR_NAME", "A. U. Thor")
@@ -35,11 +62,12 @@ func commit(t *testing.T, dir string, stdout, stderr *bytes.Buffer, message stri
 	defer os.Unsetenv("GIT_AUTHOR_NAME")
 	defer os.Unsetenv("GIT_AUTHOR_EMAIL")
 
-	options := CommitOption{
-		ReadOption: write_commit.ReadOption{
-			Message: message,
-		},
+	if options.EditorCmd == nil {
+		options.EditorCmd = func(path string) editor.Executable {
+			return &MockEditor{path: path}
+		}
 	}
+
 	c, _ := NewCommit(dir, []string{}, options, stdout, stderr)
 	return c.Run(now)
 }
@@ -51,7 +79,12 @@ func commitTree(t *testing.T, tmpDir, message string, files map[string]string, n
 		writeFile(t, tmpDir, path, contents)
 	}
 	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-	commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), message, now)
+	options := CommitOption{
+		ReadOption: write_commit.ReadOption{
+			Message: message,
+		},
+	}
+	commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), options, now)
 }
 
 func checkout(tmpDir string, stdout, stderr *bytes.Buffer, revision string) {
@@ -67,6 +100,9 @@ func mergeCommit(t *testing.T, tmpDir, branch string, options MergeOption, stdou
 	os.Setenv("GIT_AUTHOR_EMAIL", "author@example.com")
 	defer os.Unsetenv("GIT_AUTHOR_NAME")
 	defer os.Unsetenv("GIT_AUTHOR_EMAIL")
+	options.EditorCmd = func(path string) editor.Executable {
+		return &MockEditor{path: path}
+	}
 	mergeCmd, _ := NewMerge(tmpDir, []string{branch}, options, stdout, stderr)
 	return mergeCmd.Run()
 }

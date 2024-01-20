@@ -1,6 +1,7 @@
 package command
 
 import (
+	"building-git/lib/command/write_commit"
 	"building-git/lib/database"
 	"bytes"
 	"fmt"
@@ -15,10 +16,15 @@ func TestBranchWithChainOfCommits(t *testing.T) {
 		tmpDir, stdout, stderr = setupTestEnvironment(t)
 
 		messages := []string{"first", "second", "third"}
-		for _, msg := range messages {
-			writeFile(t, tmpDir, "file.txt", msg)
+		for _, message := range messages {
+			writeFile(t, tmpDir, "file.txt", message)
 			Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-			commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), msg, time.Now())
+			options := CommitOption{
+				ReadOption: write_commit.ReadOption{
+					Message: message,
+				},
+			}
+			commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), options, time.Now())
 		}
 
 		return

@@ -1,6 +1,7 @@
 package command
 
 import (
+	"building-git/lib/command/write_commit"
 	"bytes"
 	"os"
 	"testing"
@@ -14,7 +15,12 @@ func TestStatusListFilesAsUntrackedIfTheyAreNotInTheIndex(t *testing.T) {
 	writeFile(t, tmpDir, "committed.txt", "")
 
 	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-	commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "commit message", time.Now())
+	options := CommitOption{
+		ReadOption: write_commit.ReadOption{
+			Message: "commit message",
+		},
+	}
+	commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), options, time.Now())
 
 	writeFile(t, tmpDir, "file.txt", "")
 
@@ -65,7 +71,12 @@ func TestStatusListUntrackedFilesInsideTrackedDirectories(t *testing.T) {
 
 	writeFile(t, tmpDir, "a/b/inner.txt", "")
 	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-	commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "commit message", time.Now())
+	options := CommitOption{
+		ReadOption: write_commit.ReadOption{
+			Message: "commit message",
+		},
+	}
+	commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), options, time.Now())
 
 	filesToAdd := []*filesToAdd{
 		{name: "a/outer.txt", content: ""},
@@ -116,7 +127,12 @@ func TestStatusIndexWorkspaceChanges(t *testing.T) {
 		}
 
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "commit message", time.Now())
+		options := CommitOption{
+			ReadOption: write_commit.ReadOption{
+				Message: "commit message",
+			},
+		}
+		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), options, time.Now())
 
 		return
 	}
@@ -206,7 +222,12 @@ func TestStatusHeadIndexChanges(t *testing.T) {
 		}
 
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "commit message", time.Now())
+		options := CommitOption{
+			ReadOption: write_commit.ReadOption{
+				Message: "commit message",
+			},
+		}
+		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), options, time.Now())
 
 		return
 	}

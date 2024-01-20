@@ -8,21 +8,40 @@ import (
 
 const DEFAULT_EDITOR = "vi"
 
+type Executable interface {
+	Run() error
+}
+
+func EditorCmdFactory() func(path string) Executable {
+	return func(path string) Executable {
+		if editor := os.Getenv("GIT_EDITOR"); editor != "" {
+			return exec.Command(editor, path)
+		}
+		if editor := os.Getenv("VISUAL"); editor != "" {
+			return exec.Command(editor, path)
+		}
+		if editor := os.Getenv("EDITOR"); editor != "" {
+			return exec.Command(editor, path)
+		}
+		return exec.Command(DEFAULT_EDITOR, path)
+	}
+}
+
 type Editor struct {
 	path    string
-	command string
+	command Executable
 	closed  bool
 	file    *os.File
 }
 
-func Edit(path, command string, fn func(e *Editor)) string {
+func Edit(path string, command Executable, fn func(e *Editor)) string {
 	editor := NewEditor(path, command)
 	fn(editor)
 	return editor.EditFile()
 }
 
-func EditFile(path string, isTTY bool, fn func(e *Editor)) string {
-	return Edit(path, editorCommand(), func(e *Editor) {
+func EditFile(path string, command Executable, isTTY bool, fn func(e *Editor)) string {
+	return Edit(path, command, func(e *Editor) {
 		fn(e)
 		if !isTTY {
 			e.Close()
@@ -30,23 +49,7 @@ func EditFile(path string, isTTY bool, fn func(e *Editor)) string {
 	})
 }
 
-func editorCommand() string {
-	if editor := os.Getenv("GIT_EDITOR"); editor != "" {
-		return editor
-	}
-	if editor := os.Getenv("VISUAL"); editor != "" {
-		return editor
-	}
-	if editor := os.Getenv("EDITOR"); editor != "" {
-		return editor
-	}
-	return ""
-}
-
-func NewEditor(path, command string) *Editor {
-	if command == "" {
-		command = DEFAULT_EDITOR
-	}
+func NewEditor(path string, command Executable) *Editor {
 	return &Editor{
 		path:    path,
 		command: command,
@@ -77,10 +80,9 @@ func (e *Editor) EditFile() string {
 	if e.file != nil {
 		_ = e.file.Close()
 	}
-	cmd := exec.Command(e.command, e.path)
 	if !e.closed {
-		if err := cmd.Run(); err != nil {
-			panic("There was a problem with the editor '" + e.command + "'.")
+		if err := e.command.Run(); err != nil {
+			panic("There was a problem with the editor.")
 		}
 	}
 

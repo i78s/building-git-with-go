@@ -1,6 +1,7 @@
 package command
 
 import (
+	"building-git/lib/command/write_commit"
 	"bytes"
 	"os"
 	"testing"
@@ -87,7 +88,12 @@ func TestDiffWithHeadCommit(t *testing.T) {
 
 		writeFile(t, tmpDir, "file.txt", "contents\n")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "first commit", time.Now())
+		options := CommitOption{
+			ReadOption: write_commit.ReadOption{
+				Message: "first commit",
+			},
+		}
+		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), options, time.Now())
 
 		return
 	}

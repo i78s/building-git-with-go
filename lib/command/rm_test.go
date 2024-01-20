@@ -1,6 +1,7 @@
 package command
 
 import (
+	"building-git/lib/command/write_commit"
 	"bytes"
 	"os"
 	"reflect"
@@ -14,7 +15,12 @@ func TestRmWithSingleFile(t *testing.T) {
 
 		writeFile(t, tmpDir, "f.txt", "1")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "first", time.Now())
+		options := CommitOption{
+			ReadOption: write_commit.ReadOption{
+				Message: "first",
+			},
+		}
+		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), options, time.Now())
 
 		return
 	}
@@ -304,7 +310,12 @@ func TestRmWithTree(t *testing.T) {
 		writeFile(t, tmpDir, "outer/g.txt", "2")
 		writeFile(t, tmpDir, "outer/inner/h.txt", "3")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "first", time.Now())
+		options := CommitOption{
+			ReadOption: write_commit.ReadOption{
+				Message: "first",
+			},
+		}
+		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), options, time.Now())
 
 		return
 	}

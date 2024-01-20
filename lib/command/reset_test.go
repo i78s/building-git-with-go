@@ -1,6 +1,7 @@
 package command
 
 import (
+	"building-git/lib/command/write_commit"
 	"building-git/lib/database"
 	"bytes"
 	"os"
@@ -91,11 +92,21 @@ func TestResetWithHeadCommit(t *testing.T) {
 		writeFile(t, tmpDir, "outer/b.txt", "2")
 		writeFile(t, tmpDir, "outer/inner/c.txt", "3")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "first", time.Now())
+		options := CommitOption{
+			ReadOption: write_commit.ReadOption{
+				Message: "first",
+			},
+		}
+		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), options, time.Now())
 
 		writeFile(t, tmpDir, "outer/b.txt", "4")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "second", time.Now())
+		options = CommitOption{
+			ReadOption: write_commit.ReadOption{
+				Message: "second",
+			},
+		}
+		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), options, time.Now())
 
 		rm, _ := NewRm(tmpDir, []string{"a.txt"}, RmOption{}, new(bytes.Buffer), new(bytes.Buffer))
 		rm.Run()

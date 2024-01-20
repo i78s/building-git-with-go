@@ -32,7 +32,12 @@ func commitTreeHelper(t *testing.T, tmpDir, message string, files map[string]int
 	}
 	delete(t, tmpDir, ".git/index")
 	Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-	commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), message, now)
+	options := CommitOption{
+		ReadOption: write_commit.ReadOption{
+			Message: message,
+		},
+	}
+	commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), options, now)
 }
 
 // A   B   M
@@ -1444,7 +1449,12 @@ func TestMergeConflictResolution(t *testing.T) {
 		tmpDir, stdout, stderr := setUp(t)
 		defer os.RemoveAll(tmpDir)
 
-		status := commit(t, tmpDir, stdout, stderr, "commit", time.Now())
+		options := CommitOption{
+			ReadOption: write_commit.ReadOption{
+				Message: "commit",
+			},
+		}
+		status := commit(t, tmpDir, stdout, stderr, options, time.Now())
 
 		expectedError := `error: Committing is not possible because you have unmerged files.
 hint: Fix them up in the work tree, and then use 'jit add/rm <file>'
@@ -1504,7 +1514,12 @@ fatal: Exiting because of an unresolved conflict.
 		defer os.RemoveAll(tmpDir)
 
 		Add(tmpDir, []string{"f.txt"}, new(bytes.Buffer), new(bytes.Buffer))
-		status := commit(t, tmpDir, stdout, stderr, "commit", time.Now())
+		options := CommitOption{
+			ReadOption: write_commit.ReadOption{
+				Message: "commit",
+			},
+		}
+		status := commit(t, tmpDir, stdout, stderr, options, time.Now())
 		if status != 0 {
 			t.Errorf("want %q, but got %q", status, 0)
 		}

@@ -21,9 +21,10 @@ const (
 
 type MergeOption struct {
 	write_commit.ReadOption
-	Mode  MergeMode
-	Edit  bool
-	IsTTY bool
+	Mode      MergeMode
+	Edit      bool
+	IsTTY     bool
+	EditorCmd func(path string) editor.Executable
 }
 
 type Merge struct {
@@ -43,7 +44,7 @@ func NewMerge(dir string, args []string, options MergeOption, stdout, stderr io.
 		return nil, err
 	}
 	repo := repository.NewRepository(rootPath)
-	writeCommit := write_commit.NewWriteCommit(repo)
+	writeCommit := write_commit.NewWriteCommit(repo, options.EditorCmd)
 
 	return &Merge{
 		rootPath:    rootPath,
@@ -132,7 +133,8 @@ func (m *Merge) resolveMerge() error {
 }
 
 func (m *Merge) failOnConflict() error {
-	editor.EditFile(m.writeCommit.PendingCommit().MessagePath, m.options.IsTTY, func(e *editor.Editor) {
+	path := m.writeCommit.PendingCommit().MessagePath
+	editor.EditFile(path, m.options.EditorCmd(path), m.options.IsTTY, func(e *editor.Editor) {
 		message, err := m.writeCommit.ReadMessage(m.options.ReadOption)
 		if err != nil {
 			message = m.defaultCommitMessage()
@@ -157,7 +159,8 @@ func (m *Merge) commitMerge() {
 }
 
 func (m *Merge) composeMessage() string {
-	return editor.EditFile(m.writeCommit.PendingCommit().MessagePath, m.options.IsTTY, func(e *editor.Editor) {
+	path := m.writeCommit.PendingCommit().MessagePath
+	return editor.EditFile(path, m.options.EditorCmd(path), m.options.IsTTY, func(e *editor.Editor) {
 		message, err := m.writeCommit.ReadMessage(m.options.ReadOption)
 		if err != nil {
 			message = m.defaultCommitMessage()

@@ -29,13 +29,17 @@ If this is not correct, please remove the file
 and try again.`
 
 type WriteCommit struct {
-	repo   *repository.Repository
-	editor *editor.Editor
+	repo      *repository.Repository
+	editorCmd func(path string) editor.Executable
 }
 
-func NewWriteCommit(repo *repository.Repository) *WriteCommit {
+func NewWriteCommit(
+	repo *repository.Repository,
+	editorCmd func(path string) editor.Executable,
+) *WriteCommit {
 	return &WriteCommit{
-		repo: repo,
+		repo:      repo,
+		editorCmd: editorCmd,
 	}
 }
 
@@ -63,7 +67,7 @@ func (wc *WriteCommit) WriteCommit(parents []string, message string, now time.Ti
 		return nil, fmt.Errorf("Aborting commit due to empty commit message.\n")
 	}
 
-	tree := wc.writeTree()
+	tree := wc.WriteTree()
 	name, exists := os.LookupEnv("GIT_AUTHOR_NAME")
 	if !exists {
 		log.Fatalf("GIT_AUTHOR_NAME is not set")
@@ -82,7 +86,7 @@ func (wc *WriteCommit) WriteCommit(parents []string, message string, now time.Ti
 	return commit, nil
 }
 
-func (wc *WriteCommit) writeTree() *database.Tree {
+func (wc *WriteCommit) WriteTree() *database.Tree {
 	root := database.BuildTree(wc.repo.Index.EachEntry())
 	root.Traverse(func(t database.TreeObject) {
 		if gitObj, ok := t.(database.GitObject); ok {
@@ -135,7 +139,8 @@ func (wc *WriteCommit) ResumeMerge(isTTY bool) error {
 }
 
 func (wc *WriteCommit) composeMergeMessage(notes string, isTTY bool) string {
-	return editor.EditFile(wc.CommitMessagePath(), isTTY, func(e *editor.Editor) {
+	path := wc.CommitMessagePath()
+	return editor.EditFile(path, wc.editorCmd(path), isTTY, func(e *editor.Editor) {
 		message, _ := wc.PendingCommit().MergeMessage()
 
 		e.Puts(message)

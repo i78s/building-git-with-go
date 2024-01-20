@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 var mergeMode = string(command.Run)
@@ -29,13 +30,15 @@ var mergeCmd = &cobra.Command{
 		message, _ := cmd.Flags().GetString("message")
 		file, _ := cmd.Flags().GetString("file")
 		edit, _ := cmd.Flags().GetBool("edit")
+		isTTY := term.IsTerminal(int(os.Stdout.Fd()))
 		options := command.MergeOption{
 			Mode: command.MergeMode(mode),
 			ReadOption: write_commit.ReadOption{
 				Message: message,
 				File:    file,
 			},
-			Edit: edit,
+			Edit:  edit,
+			IsTTY: isTTY,
 		}
 		merge, _ := command.NewMerge(dir, args, options, stdout, stderr)
 		code := merge.Run()

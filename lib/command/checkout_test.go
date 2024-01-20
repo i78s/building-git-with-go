@@ -1,6 +1,7 @@
 package command
 
 import (
+	"building-git/lib/command/write_commit"
 	"bytes"
 	"fmt"
 	"os"
@@ -70,7 +71,12 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 	commitAll := func(t *testing.T, tmpDir string) {
 		delete(t, tmpDir, ".git/index")
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "change", time.Now())
+		options := CommitOption{
+			ReadOption: write_commit.ReadOption{
+				Message: "change",
+			},
+		}
+		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), options, time.Now())
 	}
 
 	setup := func() (tmpDir string, stdout, stderr *bytes.Buffer, commitAndCheckout func(revision string)) {
@@ -81,7 +87,12 @@ func TestCheckOutWithSetOfFiles(t *testing.T) {
 		}
 
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "first", time.Now())
+		options := CommitOption{
+			ReadOption: write_commit.ReadOption{
+				Message: "first",
+			},
+		}
+		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), options, time.Now())
 
 		commitAndCheckout = func(revision string) {
 			commitAll(t, tmpDir)
@@ -823,7 +834,12 @@ func setupForTestCheckOutWithChainOfCommits(t *testing.T) (tmpDir string, stdout
 	for _, message := range messages {
 		writeFile(t, tmpDir, "file.txt", message)
 		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
-		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), message, time.Now())
+		options := CommitOption{
+			ReadOption: write_commit.ReadOption{
+				Message: message,
+			},
+		}
+		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), options, time.Now())
 	}
 
 	brunchCmd, _ := NewBranch(tmpDir, []string{"topic"}, BranchOption{}, new(bytes.Buffer), new(bytes.Buffer))
