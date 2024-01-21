@@ -26,7 +26,7 @@ var setUp = func(t *testing.T) (
 		}
 
 		author := database.NewAuthor("A. U. Thor", "author@example.com", now)
-		c := database.NewCommit(parents, "'0' *  40", author, message)
+		c := database.NewCommit(parents, "'0' *  40", author, author, message)
 		db.Store(c)
 		commits[message] = c.Oid()
 	}

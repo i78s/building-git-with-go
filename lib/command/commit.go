@@ -125,8 +125,9 @@ func (c *Commit) handleAmend() {
 	tree := c.writeCommit.WriteTree()
 
 	message := c.composeMessage(old.Message())
+	committer := c.writeCommit.CurrentAuthor(time.Now())
 
-	new := database.NewCommit(old.Parents, tree.Oid(), old.Author(), message)
+	new := database.NewCommit(old.Parents, tree.Oid(), old.Author(), committer, message)
 	c.repo.Database.Store(new)
 	c.repo.Refs.UpdateHead(new.Oid())
 

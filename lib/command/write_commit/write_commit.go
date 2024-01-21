@@ -68,18 +68,8 @@ func (wc *WriteCommit) WriteCommit(parents []string, message string, now time.Ti
 	}
 
 	tree := wc.WriteTree()
-	name, exists := os.LookupEnv("GIT_AUTHOR_NAME")
-	if !exists {
-		log.Fatalf("GIT_AUTHOR_NAME is not set")
-	}
-	email, exists := os.LookupEnv("GIT_AUTHOR_EMAIL")
-	if !exists {
-		log.Fatalf("GIT_AUTHOR_EMAIL is not set")
-	}
-
-	author := database.NewAuthor(name, email, now)
-
-	commit := database.NewCommit(parents, tree.Oid(), author, message)
+	author := wc.CurrentAuthor(now)
+	commit := database.NewCommit(parents, tree.Oid(), author, author, message)
 	wc.repo.Database.Store(commit)
 	wc.repo.Refs.UpdateHead(commit.Oid())
 
@@ -98,6 +88,18 @@ func (wc *WriteCommit) WriteTree() *database.Tree {
 		}
 	})
 	return root
+}
+
+func (wc *WriteCommit) CurrentAuthor(now time.Time) *database.Author {
+	name, exists := os.LookupEnv("GIT_AUTHOR_NAME")
+	if !exists {
+		log.Fatalf("GIT_AUTHOR_NAME is not set")
+	}
+	email, exists := os.LookupEnv("GIT_AUTHOR_EMAIL")
+	if !exists {
+		log.Fatalf("GIT_AUTHOR_EMAIL is not set")
+	}
+	return database.NewAuthor(name, email, now)
 }
 
 func (wc *WriteCommit) PrintCommit(commit *database.Commit, w io.Writer) {
