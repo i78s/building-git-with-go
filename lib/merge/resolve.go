@@ -11,7 +11,7 @@ import (
 
 type Resolve struct {
 	repo       *repository.Repository
-	inputs     *Inputs
+	inputs     ResolveInputs
 	leftDiff   map[string][2]database.TreeObject
 	rightDiff  map[string][2]database.TreeObject
 	cleanDiff  map[string][2]database.TreeObject
@@ -20,7 +20,15 @@ type Resolve struct {
 	onProgress func(fn func() string)
 }
 
-func NewResolve(repo *repository.Repository, inputs *Inputs, onProgress func(fn func() string)) *Resolve {
+type ResolveInputs interface {
+	LeftName() string
+	RightName() string
+	LeftOid() string
+	RightOid() string
+	BaseOids() []string
+}
+
+func NewResolve(repo *repository.Repository, inputs ResolveInputs, onProgress func(fn func() string)) *Resolve {
 	return &Resolve{
 		repo:       repo,
 		inputs:     inputs,
@@ -43,12 +51,12 @@ func (r *Resolve) Execute() error {
 
 func (r *Resolve) prepareTreeDiffs() {
 	baseOid := ""
-	if len(r.inputs.BaseOids) > 0 {
-		baseOid = r.inputs.BaseOids[0]
+	if len(r.inputs.BaseOids()) > 0 {
+		baseOid = r.inputs.BaseOids()[0]
 	}
 
-	r.leftDiff = r.repo.Database.TreeDiff(baseOid, r.inputs.LeftOid, nil)
-	r.rightDiff = r.repo.Database.TreeDiff(baseOid, r.inputs.RightOid, nil)
+	r.leftDiff = r.repo.Database.TreeDiff(baseOid, r.inputs.LeftOid(), nil)
+	r.rightDiff = r.repo.Database.TreeDiff(baseOid, r.inputs.RightOid(), nil)
 	r.cleanDiff = map[string][2]database.TreeObject{}
 	r.conflicts = map[string][3]database.TreeObject{}
 	r.untracked = map[string]database.TreeObject{}
@@ -56,14 +64,14 @@ func (r *Resolve) prepareTreeDiffs() {
 	for path, images := range r.rightDiff {
 		oldItem, newItem := images[0], images[1]
 		if newItem != nil && !newItem.IsNil() {
-			r.fileDirConflict(path, r.leftDiff, r.inputs.LeftName)
+			r.fileDirConflict(path, r.leftDiff, r.inputs.LeftName())
 		}
 		r.samePathConflict(path, oldItem, newItem)
 	}
 	for path, images := range r.leftDiff {
 		newItem := images[1]
 		if newItem != nil && !newItem.IsNil() {
-			r.fileDirConflict(path, r.rightDiff, r.inputs.RightName)
+			r.fileDirConflict(path, r.rightDiff, r.inputs.RightName())
 		}
 	}
 }
@@ -127,7 +135,7 @@ func (r *Resolve) mergeBlobs(base, left, right database.TreeObject) (bool, strin
 	}
 
 	merge := Merge(blobs[0], blobs[1], blobs[2])
-	data := merge.String(r.inputs.LeftName, r.inputs.RightName)
+	data := merge.String(r.inputs.LeftName(), r.inputs.RightName())
 	blob := database.NewBlob(data)
 	r.repo.Database.Store(blob)
 
@@ -187,9 +195,9 @@ func (r *Resolve) fileDirConflict(path string, diff map[string][2]database.TreeO
 		}
 
 		switch name {
-		case r.inputs.LeftName:
+		case r.inputs.LeftName():
 			r.conflicts[parent] = [3]database.TreeObject{oldItem, newItem, nil}
-		case r.inputs.RightName:
+		case r.inputs.RightName():
 			r.conflicts[parent] = [3]database.TreeObject{oldItem, nil, newItem}
 		}
 
@@ -281,7 +289,7 @@ func (r *Resolve) logFileDirectoryConflict(path, rename string) {
 }
 
 func (r *Resolve) logBranchNames(path string) [2]string {
-	a, b := r.inputs.LeftName, r.inputs.RightName
+	a, b := r.inputs.LeftName(), r.inputs.RightName()
 	if r.conflicts[path][1] != nil {
 		return [2]string{b, a}
 	}

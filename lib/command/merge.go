@@ -86,7 +86,7 @@ func (m *Merge) Run() int {
 
 	inputs, _ := merge.NewInputs(m.repo, repository.HEAD, m.args[0])
 	m.inputs = inputs
-	m.repo.Refs.UpateRef(repository.ORIG_HEAD, inputs.LeftOid)
+	m.repo.Refs.UpateRef(repository.ORIG_HEAD, inputs.LeftOid())
 
 	if m.inputs.IsAlreadyMerged() {
 		m.handleMergedAncestor()
@@ -97,7 +97,7 @@ func (m *Merge) Run() int {
 		return 0
 	}
 
-	err := m.writeCommit.PendingCommit().Start(m.inputs.RightOid)
+	err := m.writeCommit.PendingCommit().Start(m.inputs.RightOid())
 	if err != nil {
 		return 1
 	}
@@ -151,7 +151,7 @@ func (m *Merge) failOnConflict() error {
 }
 
 func (m *Merge) commitMerge() {
-	parents := []string{m.inputs.LeftOid, m.inputs.RightOid}
+	parents := []string{m.inputs.LeftOid(), m.inputs.RightOid()}
 	message := m.composeMessage()
 
 	m.writeCommit.WriteCommit(parents, message, time.Now())
@@ -176,7 +176,7 @@ func (m *Merge) composeMessage() string {
 }
 
 func (m *Merge) defaultCommitMessage() string {
-	return fmt.Sprintf("Merge commit %s", m.inputs.RightName)
+	return fmt.Sprintf("Merge commit %s", m.inputs.RightName())
 }
 
 func (m *Merge) handleMergedAncestor() {
@@ -184,18 +184,18 @@ func (m *Merge) handleMergedAncestor() {
 }
 
 func (m *Merge) handleFastForward() {
-	a := m.repo.Database.ShortOid(m.inputs.LeftOid)
-	b := m.repo.Database.ShortOid(m.inputs.RightOid)
+	a := m.repo.Database.ShortOid(m.inputs.LeftOid())
+	b := m.repo.Database.ShortOid(m.inputs.RightOid())
 
 	fmt.Fprintf(m.stdout, "Updating %s..%s\n", a, b)
 	fmt.Fprintf(m.stdout, "Fast-forward\n")
 
 	m.repo.Index.LoadForUpdate()
-	treeDiff := m.repo.Database.TreeDiff(m.inputs.LeftOid, m.inputs.RightOid, nil)
+	treeDiff := m.repo.Database.TreeDiff(m.inputs.LeftOid(), m.inputs.RightOid(), nil)
 	m.repo.Migration(treeDiff).ApplyChanges()
 
 	m.repo.Index.WriteUpdates()
-	m.repo.Refs.UpdateHead(m.inputs.RightOid)
+	m.repo.Refs.UpdateHead(m.inputs.RightOid())
 }
 
 func (m *Merge) handleAbort() error {

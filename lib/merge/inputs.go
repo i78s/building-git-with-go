@@ -3,45 +3,65 @@ package merge
 import "building-git/lib/repository"
 
 type Inputs struct {
-	LeftName  string
-	RightName string
-	LeftOid   string
-	RightOid  string
-	BaseOids  []string
+	leftName  string
+	rightName string
+	leftOid   string
+	rightOid  string
+	baseOids  []string
 	repo      *repository.Repository
 }
 
 func NewInputs(repo *repository.Repository, leftName, rightName string) (*Inputs, error) {
 	inputs := &Inputs{
 		repo:      repo,
-		LeftName:  leftName,
-		RightName: rightName,
+		leftName:  leftName,
+		rightName: rightName,
 	}
 
-	LeftOid, err := inputs.resolveRev(leftName)
+	leftOid, err := inputs.resolveRev(leftName)
 	if err != nil {
 		return nil, err
 	}
-	inputs.LeftOid = LeftOid
+	inputs.leftOid = leftOid
 
 	rightOid, err := inputs.resolveRev(rightName)
 	if err != nil {
 		return nil, err
 	}
-	inputs.RightOid = rightOid
+	inputs.rightOid = rightOid
 
-	common := NewBases(repo.Database, LeftOid, rightOid)
-	inputs.BaseOids = common.Find()
+	common := NewBases(repo.Database, leftOid, rightOid)
+	inputs.baseOids = common.Find()
 
 	return inputs, nil
 }
 
+func (i *Inputs) LeftName() string {
+	return i.leftName
+}
+
+func (i *Inputs) RightName() string {
+	return i.rightName
+}
+
+func (i *Inputs) LeftOid() string {
+	return i.leftOid
+}
+
+func (i *Inputs) RightOid() string {
+	return i.rightOid
+}
+
+func (i *Inputs) BaseOids() []string {
+	return i.baseOids
+}
+
 func (i *Inputs) IsAlreadyMerged() bool {
-	return len(i.BaseOids) == 1 && i.BaseOids[0] == i.RightOid
+	return len(i.baseOids) == 1 && i.baseOids[0] == i.rightOid
 }
 
 func (i *Inputs) IsFastForward() bool {
-	return len(i.BaseOids) == 1 && i.BaseOids[0] == i.LeftOid
+	return len(i.baseOids) == 1 && i.baseOids[0] == i.leftOid
 }
 
 func (i *Inputs) resolveRev(rev string) (string, error) {
@@ -50,4 +70,44 @@ func (i *Inputs) resolveRev(rev string) (string, error) {
 		return "", err
 	}
 	return oid, nil
+}
+
+type CherryPick struct {
+	leftName  string
+	rightName string
+	leftOid   string
+	rightOid  string
+	baseOids  []string
+	repo      *repository.Repository
+}
+
+func NewCherryPick(repo *repository.Repository, leftName, rightName, leftOid, rightOid string, baseOids []string) *CherryPick {
+	return &CherryPick{
+		repo:      repo,
+		leftName:  leftName,
+		rightName: rightName,
+		leftOid:   leftOid,
+		rightOid:  rightOid,
+		baseOids:  baseOids,
+	}
+}
+
+func (c *CherryPick) LeftName() string {
+	return c.leftName
+}
+
+func (c *CherryPick) RightName() string {
+	return c.rightName
+}
+
+func (c *CherryPick) LeftOid() string {
+	return c.leftOid
+}
+
+func (c *CherryPick) RightOid() string {
+	return c.rightOid
+}
+
+func (c *CherryPick) BaseOids() []string {
+	return c.baseOids
 }

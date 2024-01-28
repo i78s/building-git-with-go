@@ -72,6 +72,24 @@ func commit(t *testing.T, dir string, stdout, stderr *bytes.Buffer, options Comm
 	return c.Run(now)
 }
 
+func cherryPick(t *testing.T, dir string, stdout, stderr *bytes.Buffer, args []string, options CherryPickOption) int {
+	t.Helper()
+
+	os.Setenv("GIT_AUTHOR_NAME", "A. U. Thor")
+	os.Setenv("GIT_AUTHOR_EMAIL", "author@example.com")
+	defer os.Unsetenv("GIT_AUTHOR_NAME")
+	defer os.Unsetenv("GIT_AUTHOR_EMAIL")
+
+	if options.EditorCmd == nil {
+		options.EditorCmd = func(path string) editor.Executable {
+			return &MockEditor{path: path}
+		}
+	}
+
+	c, _ := NewCherryPick(dir, args, options, stdout, stderr)
+	return c.Run()
+}
+
 func commitTree(t *testing.T, tmpDir, message string, files map[string]string, now time.Time) {
 	t.Helper()
 
