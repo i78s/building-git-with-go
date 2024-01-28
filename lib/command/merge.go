@@ -97,7 +97,7 @@ func (m *Merge) Run() int {
 		return 0
 	}
 
-	err := m.writeCommit.PendingCommit().Start(m.inputs.RightOid())
+	err := m.writeCommit.PendingCommit().Start(m.inputs.RightOid(), repository.Merge)
 	if err != nil {
 		return 1
 	}
@@ -155,7 +155,7 @@ func (m *Merge) commitMerge() {
 	message := m.composeMessage()
 
 	m.writeCommit.WriteCommit(parents, message, time.Now())
-	m.writeCommit.PendingCommit().Clear()
+	m.writeCommit.PendingCommit().Clear(repository.Merge)
 }
 
 func (m *Merge) composeMessage() string {
@@ -199,7 +199,7 @@ func (m *Merge) handleFastForward() {
 }
 
 func (m *Merge) handleAbort() error {
-	err := m.repo.PendingCommit.Clear()
+	err := m.repo.PendingCommit.Clear(repository.Merge)
 
 	m.repo.Index.LoadForUpdate()
 	head, _ := m.repo.Refs.ReadHead()
@@ -214,7 +214,7 @@ func (m *Merge) handleAbort() error {
 
 func (m *Merge) handleContinue() error {
 	m.repo.Index.Load()
-	err := m.writeCommit.ResumeMerge(m.options.IsTTY)
+	err := m.writeCommit.ResumeMerge(repository.Merge, m.options.IsTTY)
 
 	if err != nil {
 		return err

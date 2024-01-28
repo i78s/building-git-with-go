@@ -55,8 +55,9 @@ func (c *Commit) Run(now time.Time) int {
 		c.handleAmend()
 		return 0
 	}
-	if c.writeCommit.PendingCommit().InProgress() {
-		err := c.writeCommit.ResumeMerge(c.options.IsTTY)
+	mergeType := c.writeCommit.PendingCommit().MergeType()
+	if mergeType != -1 {
+		err := c.writeCommit.ResumeMerge(mergeType, c.options.IsTTY)
 		if err != nil {
 			fmt.Fprintf(c.stderr, "%s", err.Error())
 			return 128

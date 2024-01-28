@@ -122,13 +122,21 @@ func (wc *WriteCommit) PendingCommit() *repository.PendingCommit {
 	return wc.repo.PendingCommit
 }
 
-func (wc *WriteCommit) ResumeMerge(isTTY bool) error {
+func (wc *WriteCommit) ResumeMerge(mtype repository.MergeType, isTTY bool) error {
+	switch mtype {
+	case repository.Merge:
+		return wc.WriteMergeCommit(isTTY)
+	}
+	return nil
+}
+
+func (wc *WriteCommit) WriteMergeCommit(isTTY bool) error {
 	err := wc.HandleConflictedIndex()
 	if err != nil {
 		return err
 	}
 	head, _ := wc.repo.Refs.ReadHead()
-	mergeOid, err := wc.PendingCommit().MergeOID()
+	mergeOid, err := wc.PendingCommit().MergeOID(repository.Merge)
 	if err != nil {
 		return err
 	}
@@ -136,7 +144,7 @@ func (wc *WriteCommit) ResumeMerge(isTTY bool) error {
 
 	message := wc.composeMergeMessage(MERGE_NOTES, isTTY)
 	wc.WriteCommit(parants, message, time.Now())
-	wc.PendingCommit().Clear()
+	wc.PendingCommit().Clear(repository.Merge)
 	return nil
 }
 

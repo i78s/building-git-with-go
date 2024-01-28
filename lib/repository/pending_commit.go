@@ -15,34 +15,58 @@ func (e *PendingCommitError) Error() string {
 	return e.Message
 }
 
+type MergeType int
+
+const (
+	Merge MergeType = iota
+	CherryPick
+)
+
+var HEAD_FILES = map[MergeType]string{
+	Merge:      "MERGE_HEAD",
+	CherryPick: "CHERRY_PICK_HEAD",
+}
+
 type PendingCommit struct {
-	headPath    string
+	pathname    string
 	MessagePath string
 }
 
 func NewPendingCommit(pathname string) *PendingCommit {
 	return &PendingCommit{
-		headPath:    filepath.Join(pathname, "MERGE_HEAD"),
+		pathname:    pathname,
 		MessagePath: filepath.Join(pathname, "MERGE_MSG"),
 	}
 }
 
-func (pc *PendingCommit) Start(oid string) error {
-	if err := os.WriteFile(pc.headPath, []byte(oid+"\n"), 0666); err != nil {
+func (pc *PendingCommit) Start(oid string, mtype MergeType) error {
+	path := filepath.Join(pc.pathname, HEAD_FILES[mtype])
+	if err := os.WriteFile(path, []byte(oid+"\n"), 0666); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (pc *PendingCommit) InProgress() bool {
-	_, err := os.Stat(pc.headPath)
-	return !os.IsNotExist(err)
+	return pc.MergeType() != -1
 }
 
-func (pc *PendingCommit) MergeOID() (string, error) {
-	data, err := os.ReadFile(pc.headPath)
+func (pc *PendingCommit) MergeType() MergeType {
+	for mtype, name := range HEAD_FILES {
+		path := filepath.Join(pc.pathname, name)
+		_, err := os.Stat(path)
+		if !os.IsNotExist(err) {
+			return mtype
+		}
+	}
+	return -1
+}
+
+func (pc *PendingCommit) MergeOID(mtype MergeType) (string, error) {
+	headPath := filepath.Join(pc.pathname, HEAD_FILES[mtype])
+	data, err := os.ReadFile(headPath)
 	if err != nil {
-		return "", &PendingCommitError{fmt.Sprintf("There is no merge in progress (%s missing).", filepath.Base(pc.headPath))}
+		return "", &PendingCommitError{fmt.Sprintf("There is no merge in progress (%s missing).", filepath.Base(headPath))}
 	}
 	return strings.TrimSpace(string(data)), nil
 }
@@ -55,9 +79,10 @@ func (pc *PendingCommit) MergeMessage() (string, error) {
 	return string(data), nil
 }
 
-func (pc *PendingCommit) Clear() error {
-	if err := os.Remove(pc.headPath); err != nil {
-		return &PendingCommitError{fmt.Sprintf("There is no merge to abort (%s missing).", filepath.Base(pc.headPath))}
+func (pc *PendingCommit) Clear(mtype MergeType) error {
+	headPath := filepath.Join(pc.pathname, HEAD_FILES[mtype])
+	if err := os.Remove(headPath); err != nil {
+		return &PendingCommitError{fmt.Sprintf("There is no merge to abort (%s missing).", filepath.Base(headPath))}
 	}
 	return os.Remove(pc.MessagePath)
 }
