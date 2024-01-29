@@ -17,6 +17,10 @@ especially if it merges an updated upstream into a topic branch.
 Lines starting with '#' will be ignored, and an empty message aborts
 the commit.`
 
+const CONFLICT_NOTES = `after resolving the conflicts, mark the corrected paths
+with 'jit add <paths>' or 'jit rm <paths>'
+and commit the result with 'jit commit'`
+
 const CONFLICT_MESSAGE = `hint: Fix them up in the work tree, and then use 'jit add/rm <file>'
 hint: as appropriate to mark resolution and make a commit.
 fatal: Exiting because of an unresolved conflict.`
@@ -26,6 +30,13 @@ const MERGE_NOTES = `
 It looks like you may be committing a merge.
 If this is not correct, please remove the file
 \t.git/MERGE_HEAD
+and try again.`
+
+const CHERRY_PICK_NOTES = `
+
+It looks like you may be committing a cherry-pick.
+If this is not correct, please remove the file
+\t.git/CHERRY_PICK_HEAD
 and try again.`
 
 type WriteCommit struct {
@@ -126,6 +137,8 @@ func (wc *WriteCommit) ResumeMerge(mtype repository.MergeType, isTTY bool) error
 	switch mtype {
 	case repository.Merge:
 		return wc.WriteMergeCommit(isTTY)
+	case repository.CherryPick:
+		return wc.WriteCherryPickCommit(isTTY)
 	}
 	return nil
 }
@@ -145,6 +158,35 @@ func (wc *WriteCommit) WriteMergeCommit(isTTY bool) error {
 	message := wc.composeMergeMessage(MERGE_NOTES, isTTY)
 	wc.WriteCommit(parants, message, time.Now())
 	wc.PendingCommit().Clear(repository.Merge)
+	return nil
+}
+
+func (wc *WriteCommit) WriteCherryPickCommit(isTTY bool) error {
+	err := wc.HandleConflictedIndex()
+	if err != nil {
+		return err
+	}
+
+	head, _ := wc.repo.Refs.ReadHead()
+	parants := []string{head}
+	message := wc.composeMergeMessage(CHERRY_PICK_NOTES, isTTY)
+
+	pickOid, err := wc.PendingCommit().MergeOID(repository.CherryPick)
+	if err != nil {
+		return err
+	}
+	commitObj, _ := wc.repo.Database.Load(pickOid)
+	commit := commitObj.(*database.Commit)
+	picked := database.NewCommit(
+		parants,
+		wc.WriteTree().Oid(),
+		commit.Author(),
+		wc.CurrentAuthor(time.Now()),
+		message,
+	)
+	wc.repo.Database.Store(picked)
+	wc.repo.Refs.UpdateHead(picked.Oid())
+	wc.PendingCommit().Clear(repository.CherryPick)
 	return nil
 }
 

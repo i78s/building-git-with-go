@@ -1,8 +1,10 @@
 package command
 
 import (
+	"building-git/lib/command/write_commit"
 	"building-git/lib/repository"
 	"bytes"
+	"fmt"
 	"os"
 	"reflect"
 	"strings"
@@ -47,7 +49,7 @@ func TestCherryPickWithTwoBranches(t *testing.T) {
 		status := cherryPick(t, tmpDir, stdout, stderr, []string{"topic~3"}, CherryPickOption{})
 
 		if status != 0 {
-			t.Errorf("want %q, but got %q", 0, status)
+			t.Errorf("want %d, but got %d", 0, status)
 		}
 
 		revs := repository.NewRevList(repo(t, tmpDir), []string{"@~3.."})
@@ -72,5 +74,107 @@ func TestCherryPickWithTwoBranches(t *testing.T) {
 			"f.txt": "four",
 			"g.txt": "five",
 		})
+	})
+
+	t.Run("fails to apply a content conflict", func(t *testing.T) {
+		tmpDir, stdout, stderr := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		status := cherryPick(t, tmpDir, stdout, stderr, []string{"topic^^"}, CherryPickOption{})
+		if status != 1 {
+			t.Errorf("want %d, but got %d", 1, status)
+		}
+
+		rev, _ := resolveRevision(t, tmpDir, "topic^^")
+		short := repo(t, tmpDir).Database.ShortOid(rev)
+		assertWorkspace(t, tmpDir, map[string]string{
+			"f.txt": fmt.Sprintf(`<<<<<<< HEAD
+four=======
+six>>>>>>> %s... six
+`, short),
+		})
+
+		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), `UU f.txt
+`)
+	})
+
+	t.Run("fails to apply a modify/delete conflict", func(t *testing.T) {
+		tmpDir, stdout, stderr := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		status := cherryPick(t, tmpDir, stdout, stderr, []string{"topic"}, CherryPickOption{})
+		if status != 1 {
+			t.Errorf("want %d, but got %d", 1, status)
+		}
+
+		assertWorkspace(t, tmpDir, map[string]string{
+			"f.txt": "four",
+			"g.txt": "eight",
+		})
+
+		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), `DU g.txt
+`)
+	})
+
+	t.Run("continues a conflicted cherry-pick", func(t *testing.T) {
+		tmpDir, stdout, stderr := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		cherryPick(t, tmpDir, stdout, stderr, []string{"topic"}, CherryPickOption{})
+		Add(tmpDir, []string{"g.txt"}, new(bytes.Buffer), new(bytes.Buffer))
+
+		status := cherryPick(t, tmpDir, stdout, stderr, []string{}, CherryPickOption{Mode: Continue})
+		if status != 0 {
+			t.Errorf("want %d, but got %d", 0, status)
+		}
+
+		commits := repository.NewRevList(repo(t, tmpDir), []string{"@~3.."}).Each()
+		if !reflect.DeepEqual([]string{commits[1].Oid()}, commits[0].Parents) {
+			t.Errorf("expected %v, got %v", []string{commits[1].Oid()}, commits[0].Parents)
+		}
+		messages := []string{}
+		for _, c := range commits {
+			messages = append(messages, strings.Split(c.Message(), "\n")[0])
+		}
+		if !reflect.DeepEqual([]string{"eight", "four", "three"}, messages) {
+			t.Errorf("expected %v, got %v", []string{"eight", "four", "three"}, messages)
+		}
+
+		assertIndexEntries(t, tmpDir, map[string]string{
+			"f.txt": "four",
+			"g.txt": "eight",
+		})
+
+		assertWorkspace(t, tmpDir, map[string]string{
+			"f.txt": "four",
+			"g.txt": "eight",
+		})
+	})
+
+	t.Run("commits after a conflicted cherry-pick", func(t *testing.T) {
+		tmpDir, stdout, stderr := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		cherryPick(t, tmpDir, stdout, stderr, []string{"topic"}, CherryPickOption{})
+		Add(tmpDir, []string{"g.txt"}, new(bytes.Buffer), new(bytes.Buffer))
+		status := commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), CommitOption{
+			ReadOption: write_commit.ReadOption{Message: "commit"},
+		}, time.Now())
+
+		if status != 0 {
+			t.Errorf("want %d, but got %d", 0, status)
+		}
+
+		commits := repository.NewRevList(repo(t, tmpDir), []string{"@~3.."}).Each()
+		if !reflect.DeepEqual([]string{commits[1].Oid()}, commits[0].Parents) {
+			t.Errorf("expected %v, got %v", []string{commits[1].Oid()}, commits[0].Parents)
+		}
+		messages := []string{}
+		for _, c := range commits {
+			messages = append(messages, strings.Split(c.Message(), "\n")[0])
+		}
+		if !reflect.DeepEqual([]string{"eight", "four", "three"}, messages) {
+			t.Errorf("expected %v, got %v", []string{"eight", "four", "three"}, messages)
+		}
 	})
 }

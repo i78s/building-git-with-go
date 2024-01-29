@@ -9,11 +9,14 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
 type CherryPickOption struct {
+	Mode      MergeMode
 	EditorCmd func(path string) editor.Executable
+	IsTTY     bool
 }
 
 type CherryPick struct {
@@ -45,6 +48,15 @@ func NewCherryPick(dir string, args []string, options CherryPickOption, stdout, 
 }
 
 func (c *CherryPick) Run() int {
+	if c.options.Mode == Continue {
+		err := c.handleContinue()
+		if err != nil {
+			fmt.Fprintf(c.stderr, "fatal: %v\n", err)
+			return 128
+		}
+		return 0
+	}
+
 	revision := repository.NewRevision(c.repo, c.args[0])
 	rev, err := revision.Resolve(repository.COMMIT)
 	if err != nil {
@@ -60,11 +72,20 @@ func (c *CherryPick) Run() int {
 	return 0
 }
 
+func (c *CherryPick) mergeType() repository.MergeType {
+	return repository.CherryPick
+}
+
 func (c *CherryPick) pick(commit *database.Commit) error {
 	inputs := c.pickMergeInputs(commit)
 	err := c.resolveMerge(inputs)
 	if err != nil {
 		return err
+	}
+
+	if c.repo.Index.IsConflict() {
+		c.failOnConflict(inputs, commit.Message())
+		return fmt.Errorf("detect conflict")
 	}
 
 	picked := database.NewCommit(
@@ -107,8 +128,34 @@ func (c *CherryPick) resolveMerge(inputs merge.ResolveInputs) error {
 	return nil
 }
 
+func (c *CherryPick) failOnConflict(inputs merge.ResolveInputs, message string) {
+	pendingCommit := c.writeCommit.PendingCommit()
+	pendingCommit.Start(inputs.RightOid(), c.mergeType())
+
+	path := pendingCommit.MessagePath
+	editor.EditFile(path, c.options.EditorCmd(path), c.options.IsTTY, func(e *editor.Editor) {
+		e.Puts(message)
+		e.Puts("")
+		e.Note("Conflicts:")
+		for name := range c.repo.Index.ConflictPaths() {
+			e.Note("\t" + name)
+		}
+		e.Close()
+	})
+
+	fmt.Fprintf(c.stdout, "error: could not apply %s\n", inputs.RightName())
+	for _, line := range strings.Split(write_commit.CONFLICT_NOTES, "\n") {
+		fmt.Fprintf(c.stdout, "hint: %s\n", line)
+	}
+}
+
 func (c *CherryPick) finishCommit(commit *database.Commit) {
 	c.repo.Database.Store(commit)
 	c.repo.Refs.UpdateHead(commit.Oid())
 	c.writeCommit.PrintCommit(commit, c.stdout)
+}
+
+func (c *CherryPick) handleContinue() error {
+	c.repo.Index.Load()
+	return c.writeCommit.WriteCherryPickCommit(c.options.IsTTY)
 }

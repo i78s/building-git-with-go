@@ -22,7 +22,10 @@ var cherryPickCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		options := command.CherryPickOption{}
+		mode, _ := cmd.Flags().GetString("mode")
+		options := command.CherryPickOption{
+			Mode: command.MergeMode(mode),
+		}
 
 		rm, _ := command.NewCherryPick(dir, args, options, stdout, stderr)
 		code := rm.Run()
@@ -32,4 +35,6 @@ var cherryPickCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(cherryPickCmd)
+
+	cherryPickCmd.Flags().StringVar(&mergeMode, "continue", string(command.Continue), "Resume command execution from a saved state")
 }
