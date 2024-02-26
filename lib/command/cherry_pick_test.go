@@ -12,6 +12,16 @@ import (
 	"time"
 )
 
+var now time.Time
+
+func getTime() time.Time {
+	if now.IsZero() {
+		now = time.Now()
+	}
+	now = now.Add(time.Second * 10)
+	return now
+}
+
 func TestCherryPickWithTwoBranches(t *testing.T) {
 	var setUp = func(t *testing.T) (tmpDir string, stdout, stderr *bytes.Buffer) {
 		tmpDir, stdout, stderr = setupTestEnvironment(t)
@@ -19,7 +29,7 @@ func TestCherryPickWithTwoBranches(t *testing.T) {
 		for _, message := range []string{"one", "two", "three", "four"} {
 			commitTree(t, tmpDir, message, map[string]string{
 				"f.txt": message,
-			}, time.Now())
+			}, getTime())
 		}
 		brunchCmd, _ := NewBranch(tmpDir, []string{"topic", "@~2"}, BranchOption{}, new(bytes.Buffer), new(bytes.Buffer))
 		brunchCmd.Run()
@@ -27,16 +37,16 @@ func TestCherryPickWithTwoBranches(t *testing.T) {
 
 		commitTree(t, tmpDir, "five", map[string]string{
 			"g.txt": "five",
-		}, time.Now())
+		}, getTime())
 		commitTree(t, tmpDir, "six", map[string]string{
 			"f.txt": "six",
-		}, time.Now())
+		}, getTime())
 		commitTree(t, tmpDir, "seven", map[string]string{
 			"g.txt": "seven",
-		}, time.Now())
+		}, getTime())
 		commitTree(t, tmpDir, "eight", map[string]string{
 			"g.txt": "eight",
-		}, time.Now())
+		}, getTime())
 
 		checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "master")
 
@@ -52,7 +62,7 @@ func TestCherryPickWithTwoBranches(t *testing.T) {
 			t.Errorf("want %d, but got %d", 0, status)
 		}
 
-		revs := repository.NewRevList(repo(t, tmpDir), []string{"@~3.."})
+		revs := repository.NewRevList(repo(t, tmpDir), []string{"@~3.."}, repository.RevListOption{})
 
 		actual := []string{}
 		for _, c := range revs.Each() {
@@ -128,7 +138,7 @@ six>>>>>>> %s... six
 			t.Errorf("want %d, but got %d", 0, status)
 		}
 
-		commits := repository.NewRevList(repo(t, tmpDir), []string{"@~3.."}).Each()
+		commits := repository.NewRevList(repo(t, tmpDir), []string{"@~3.."}, repository.RevListOption{}).Each()
 		if !reflect.DeepEqual([]string{commits[1].Oid()}, commits[0].Parents) {
 			t.Errorf("expected %v, got %v", []string{commits[1].Oid()}, commits[0].Parents)
 		}
@@ -159,13 +169,13 @@ six>>>>>>> %s... six
 		Add(tmpDir, []string{"g.txt"}, new(bytes.Buffer), new(bytes.Buffer))
 		status := commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), CommitOption{
 			ReadOption: write_commit.ReadOption{Message: "commit"},
-		}, time.Now())
+		}, getTime())
 
 		if status != 0 {
 			t.Errorf("want %d, but got %d", 0, status)
 		}
 
-		commits := repository.NewRevList(repo(t, tmpDir), []string{"@~3.."}).Each()
+		commits := repository.NewRevList(repo(t, tmpDir), []string{"@~3.."}, repository.RevListOption{}).Each()
 		if !reflect.DeepEqual([]string{commits[1].Oid()}, commits[0].Parents) {
 			t.Errorf("expected %v, got %v", []string{commits[1].Oid()}, commits[0].Parents)
 		}
@@ -176,5 +186,46 @@ six>>>>>>> %s... six
 		if !reflect.DeepEqual([]string{"eight", "four", "three"}, messages) {
 			t.Errorf("expected %v, got %v", []string{"eight", "four", "three"}, messages)
 		}
+	})
+
+	t.Run("applies multiple non-conflicting commits", func(t *testing.T) {
+		tmpDir, stdout, stderr := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		status := cherryPick(t, tmpDir, stdout, stderr, []string{"topic~3", "topic^", "topic"}, CherryPickOption{})
+		if status != 0 {
+			t.Errorf("want %d, but got %d", 0, status)
+		}
+
+		commits := repository.NewRevList(repo(t, tmpDir), []string{"@~4.."}, repository.RevListOption{}).Each()
+		messages := []string{}
+		for _, c := range commits {
+			messages = append(messages, strings.Split(c.Message(), "\n")[0])
+		}
+		if !reflect.DeepEqual([]string{"eight", "seven", "five", "four"}, messages) {
+			t.Errorf("expected %v, got %v", []string{"eight", "seven", "five", "four"}, messages)
+		}
+
+		assertIndexEntries(t, tmpDir, map[string]string{
+			"f.txt": "four",
+			"g.txt": "eight",
+		})
+
+		assertWorkspace(t, tmpDir, map[string]string{
+			"f.txt": "four",
+			"g.txt": "eight",
+		})
+	})
+
+	t.Run("stops when a list of commits includes a conflict", func(t *testing.T) {
+		tmpDir, stdout, stderr := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		status := cherryPick(t, tmpDir, stdout, stderr, []string{"topic^", "topic~3"}, CherryPickOption{})
+		if status != 1 {
+			t.Errorf("want %d, but got %d", 1, status)
+		}
+
+		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "DU g.txt\n")
 	})
 }

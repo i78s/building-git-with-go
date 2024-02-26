@@ -31,9 +31,14 @@ type RevList struct {
 	diffs   map[[2]string]map[string][2]database.TreeObject
 	output  []*database.Commit
 	filter  *database.PathFilter
+	walk    bool
 }
 
-func NewRevList(repo *Repository, revs []string) *RevList {
+type RevListOption struct {
+	Walk *bool
+}
+
+func NewRevList(repo *Repository, revs []string, options RevListOption) *RevList {
 	revList := &RevList{
 		repo:    repo,
 		commits: map[string]*database.Commit{},
@@ -42,6 +47,11 @@ func NewRevList(repo *Repository, revs []string) *RevList {
 		prune:   make([]string, 0),
 		diffs:   make(map[[2]string]map[string][2]database.TreeObject),
 		output:  make([]*database.Commit, 0),
+	}
+	if options.Walk == nil {
+		revList.walk = true
+	} else {
+		revList.walk = *options.Walk
 	}
 
 	for _, rev := range revs {
@@ -67,6 +77,14 @@ func (r *RevList) Each() []*database.Commit {
 	return commits
 }
 
+func (r *RevList) ReverseEach() []*database.Commit {
+	commits := r.Each()
+	for i := 0; i < len(commits)/2; i++ {
+		commits[i], commits[len(commits)-i-1] = commits[len(commits)-i-1], commits[i]
+	}
+	return commits
+}
+
 func (r *RevList) TreeDiff(oldOid, newOid string, differ *database.PathFilter) map[string][2]database.TreeObject {
 	key := [2]string{oldOid, newOid}
 	diff, ok := r.diffs[key]
@@ -84,8 +102,10 @@ func (r *RevList) handleRevision(rev string) {
 	} else if match := RANGE.FindStringSubmatch(rev); match != nil {
 		r.setStartPoint(match[1], false)
 		r.setStartPoint(match[2], true)
+		r.walk = true
 	} else if match := EXCLUDE.FindStringSubmatch(rev); match != nil {
 		r.setStartPoint(match[1], false)
+		r.walk = true
 	} else {
 		r.setStartPoint(rev, true)
 	}
@@ -112,12 +132,14 @@ func (r *RevList) enqueueCommit(commit *database.Commit) {
 	if !r.mark(commit.Oid(), seen) {
 		return
 	}
-
-	index := sort.Search(len(r.queue), func(i int) bool {
-		return r.queue[i].Date().Before(commit.Date())
-	})
-
-	r.queue = append(r.queue[:index], append([]*database.Commit{commit}, r.queue[index:]...)...)
+	if r.walk {
+		index := sort.Search(len(r.queue), func(i int) bool {
+			return r.queue[i].Date().Before(commit.Date())
+		})
+		r.queue = append(r.queue[:index], append([]*database.Commit{commit}, r.queue[index:]...)...)
+	} else {
+		r.queue = append(r.queue, commit)
+	}
 }
 
 func (r *RevList) limitList() {
@@ -162,7 +184,7 @@ func (r *RevList) isStillInteresting() bool {
 }
 
 func (r *RevList) addParents(commit *database.Commit) {
-	if !r.mark(commit.Oid(), added) {
+	if !r.walk || !r.mark(commit.Oid(), added) {
 		return
 	}
 

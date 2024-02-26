@@ -57,18 +57,19 @@ func (c *CherryPick) Run() int {
 		return 0
 	}
 
-	revision := repository.NewRevision(c.repo, c.args[0])
-	rev, err := revision.Resolve(repository.COMMIT)
-	if err != nil {
-		return 1
+	for i := 0; i < len(c.args)/2; i++ {
+		c.args[i], c.args[len(c.args)-i-1] = c.args[len(c.args)-i-1], c.args[i]
 	}
-	commitObj, _ := c.repo.Database.Load(rev)
-	commit := commitObj.(*database.Commit)
 
-	err = c.pick(commit)
-	if err != nil {
-		return 1
+	walk := false
+	commits := repository.NewRevList(c.repo, c.args, repository.RevListOption{Walk: &walk})
+	for _, commit := range commits.ReverseEach() {
+		err := c.pick(commit)
+		if err != nil {
+			return 1
+		}
 	}
+
 	return 0
 }
 

@@ -180,7 +180,7 @@ func TestCommitReusingMessages(t *testing.T) {
 		}
 		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), options, time.Now())
 
-		revs := repository.NewRevList(repo(t, tmpDir), []string{"HEAD"})
+		revs := repository.NewRevList(repo(t, tmpDir), []string{"HEAD"}, repository.RevListOption{})
 
 		actual := []string{}
 		for _, c := range revs.Each() {
@@ -226,7 +226,7 @@ func TestCommitAmendingCommits(t *testing.T) {
 		}
 		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), options, time.Now())
 
-		revs := repository.NewRevList(repo(t, tmpDir), []string{"HEAD"})
+		revs := repository.NewRevList(repo(t, tmpDir), []string{"HEAD"}, repository.RevListOption{})
 
 		actual := []string{}
 		for _, c := range revs.Each() {

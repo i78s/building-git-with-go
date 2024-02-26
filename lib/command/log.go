@@ -42,7 +42,7 @@ func NewLog(dir string, args []string, options LogOption, stdout, stderr io.Writ
 	repo := repository.NewRepository(rootPath)
 	prindDiff, _ := print_diff.NewPrintDiff(dir, stdout, stderr)
 
-	revList := repository.NewRevList(repo, args)
+	revList := repository.NewRevList(repo, args, repository.RevListOption{})
 
 	return &Log{
 		rootPath:  rootPath,
