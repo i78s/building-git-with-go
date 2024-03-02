@@ -228,4 +228,129 @@ six>>>>>>> %s... six
 
 		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "DU g.txt\n")
 	})
+
+	t.Run("stops when a range of commits includes a conflict", func(t *testing.T) {
+		tmpDir, stdout, stderr := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		status := cherryPick(t, tmpDir, stdout, stderr, []string{"..topic"}, CherryPickOption{})
+		if status != 1 {
+			t.Errorf("want %d, but got %d", 1, status)
+		}
+
+		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "UU f.txt\n")
+	})
+
+	t.Run("refuses to commit in a conflicted state", func(t *testing.T) {
+		tmpDir, stdout, stderr := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		cherryPick(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), []string{"..topic"}, CherryPickOption{})
+		status := commit(t, tmpDir, stdout, stderr, CommitOption{}, getTime())
+		if status != 128 {
+			t.Errorf("want %d, but got %d", 128, status)
+		}
+
+		expected := `error: Committing is not possible because you have unmerged files.
+hint: Fix them up in the work tree, and then use 'jit add/rm <file>'
+hint: as appropriate to mark resolution and make a commit.
+fatal: Exiting because of an unresolved conflict.`
+
+		if got := stderr.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("refuses to continue in a conflicted state", func(t *testing.T) {
+		tmpDir, stdout, stderr := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		cherryPick(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), []string{"..topic"}, CherryPickOption{})
+		status := cherryPick(t, tmpDir, stdout, stderr, []string{}, CherryPickOption{Mode: Continue})
+		if status != 128 {
+			t.Errorf("want %d, but got %d", 128, status)
+		}
+
+		expected := `error: Committing is not possible because you have unmerged files.
+hint: Fix them up in the work tree, and then use 'jit add/rm <file>'
+hint: as appropriate to mark resolution and make a commit.
+fatal: Exiting because of an unresolved conflict.`
+
+		if got := stderr.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("can continue after resolving the conflicts", func(t *testing.T) {
+		tmpDir, stdout, stderr := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		cherryPick(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), []string{"..topic"}, CherryPickOption{})
+		writeFile(t, tmpDir, "f.txt", "six")
+		Add(tmpDir, []string{"f.txt"}, new(bytes.Buffer), new(bytes.Buffer))
+
+		status := cherryPick(t, tmpDir, stdout, stderr, []string{}, CherryPickOption{Mode: Continue})
+		if status != 0 {
+			t.Errorf("want %d, but got %d", 0, status)
+		}
+
+		commits := repository.NewRevList(repo(t, tmpDir), []string{"@~5.."}, repository.RevListOption{}).Each()
+		if !reflect.DeepEqual([]string{commits[1].Oid()}, commits[0].Parents) {
+			t.Errorf("expected %v, got %v", []string{commits[1].Oid()}, commits[0].Parents)
+		}
+		messages := []string{}
+		for _, c := range commits {
+			messages = append(messages, strings.Split(c.Message(), "\n")[0])
+		}
+		if !reflect.DeepEqual([]string{"eight", "seven", "six", "five", "four"}, messages) {
+			t.Errorf("expected %v, got %v", []string{"eight", "seven", "six", "five", "four"}, messages)
+		}
+
+		assertIndexEntries(t, tmpDir, map[string]string{
+			"f.txt": "six",
+			"g.txt": "eight",
+		})
+
+		assertWorkspace(t, tmpDir, map[string]string{
+			"f.txt": "six",
+			"g.txt": "eight",
+		})
+	})
+
+	t.Run("can continue after commiting the resolved tree", func(t *testing.T) {
+		tmpDir, stdout, stderr := setUp(t)
+		defer os.RemoveAll(tmpDir)
+
+		cherryPick(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), []string{"..topic"}, CherryPickOption{})
+		writeFile(t, tmpDir, "f.txt", "six")
+		Add(tmpDir, []string{"f.txt"}, new(bytes.Buffer), new(bytes.Buffer))
+		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), CommitOption{}, getTime())
+
+		status := cherryPick(t, tmpDir, stdout, stderr, []string{}, CherryPickOption{Mode: Continue})
+		if status != 0 {
+			t.Errorf("want %d, but got %d", 0, status)
+		}
+
+		commits := repository.NewRevList(repo(t, tmpDir), []string{"@~5.."}, repository.RevListOption{}).Each()
+		if !reflect.DeepEqual([]string{commits[1].Oid()}, commits[0].Parents) {
+			t.Errorf("expected %v, got %v", []string{commits[1].Oid()}, commits[0].Parents)
+		}
+		messages := []string{}
+		for _, c := range commits {
+			messages = append(messages, strings.Split(c.Message(), "\n")[0])
+		}
+		if !reflect.DeepEqual([]string{"eight", "seven", "six", "five", "four"}, messages) {
+			t.Errorf("expected %v, got %v", []string{"eight", "seven", "six", "five", "four"}, messages)
+		}
+
+		assertIndexEntries(t, tmpDir, map[string]string{
+			"f.txt": "six",
+			"g.txt": "eight",
+		})
+
+		assertWorkspace(t, tmpDir, map[string]string{
+			"f.txt": "six",
+			"g.txt": "eight",
+		})
+	})
 }

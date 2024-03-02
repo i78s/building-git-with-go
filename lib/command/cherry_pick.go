@@ -25,6 +25,7 @@ type CherryPick struct {
 	options     CherryPickOption
 	repo        *repository.Repository
 	writeCommit *write_commit.WriteCommit
+	sequencer   *repository.Sequencer
 	stdout      io.Writer
 	stderr      io.Writer
 }
@@ -36,12 +37,14 @@ func NewCherryPick(dir string, args []string, options CherryPickOption, stdout, 
 	}
 	repo := repository.NewRepository(rootPath)
 	writeCommit := write_commit.NewWriteCommit(repo, options.EditorCmd)
+	sequencer := repository.NewSequencer(repo)
 	return &CherryPick{
 		rootPath:    rootPath,
 		args:        args,
 		options:     options,
 		repo:        repo,
 		writeCommit: writeCommit,
+		sequencer:   sequencer,
 		stdout:      stdout,
 		stderr:      stderr,
 	}, nil
@@ -51,12 +54,26 @@ func (c *CherryPick) Run() int {
 	if c.options.Mode == Continue {
 		err := c.handleContinue()
 		if err != nil {
-			fmt.Fprintf(c.stderr, "fatal: %v\n", err)
+			if _, ok := err.(*repository.PendingCommitError); ok {
+				fmt.Fprintf(c.stderr, "fatal: %v", err)
+			} else {
+				fmt.Fprint(c.stderr, err)
+			}
 			return 128
 		}
 		return 0
 	}
 
+	c.sequencer.Start()
+	c.storeCommitSequence()
+	err := c.resumeSequencer()
+	if err != nil {
+		return 1
+	}
+	return 0
+}
+
+func (c *CherryPick) storeCommitSequence() {
 	for i := 0; i < len(c.args)/2; i++ {
 		c.args[i], c.args[len(c.args)-i-1] = c.args[len(c.args)-i-1], c.args[i]
 	}
@@ -64,13 +81,8 @@ func (c *CherryPick) Run() int {
 	walk := false
 	commits := repository.NewRevList(c.repo, c.args, repository.RevListOption{Walk: &walk})
 	for _, commit := range commits.ReverseEach() {
-		err := c.pick(commit)
-		if err != nil {
-			return 1
-		}
+		c.sequencer.Pick(commit)
 	}
-
-	return 0
 }
 
 func (c *CherryPick) mergeType() repository.MergeType {
@@ -130,6 +142,7 @@ func (c *CherryPick) resolveMerge(inputs merge.ResolveInputs) error {
 }
 
 func (c *CherryPick) failOnConflict(inputs merge.ResolveInputs, message string) {
+	c.sequencer.Dump()
 	pendingCommit := c.writeCommit.PendingCommit()
 	pendingCommit.Start(inputs.RightOid(), c.mergeType())
 
@@ -158,5 +171,29 @@ func (c *CherryPick) finishCommit(commit *database.Commit) {
 
 func (c *CherryPick) handleContinue() error {
 	c.repo.Index.Load()
-	return c.writeCommit.WriteCherryPickCommit(c.options.IsTTY)
+	if c.writeCommit.PendingCommit().InProgress() {
+		err := c.writeCommit.WriteCherryPickCommit(c.options.IsTTY)
+		if err != nil {
+			return err
+		}
+	}
+	c.sequencer.Load()
+	c.sequencer.DropCommand()
+	return c.resumeSequencer()
+}
+
+func (c *CherryPick) resumeSequencer() error {
+	for {
+		commit := c.sequencer.NextCommand()
+		if commit == nil {
+			break
+		}
+		err := c.pick(commit)
+		if err != nil {
+			return err
+		}
+		c.sequencer.DropCommand()
+	}
+	c.sequencer.Quit()
+	return nil
 }
