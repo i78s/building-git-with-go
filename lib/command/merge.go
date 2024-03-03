@@ -17,6 +17,7 @@ const (
 	Run      MergeMode = "run"
 	Continue MergeMode = "continue"
 	Abort    MergeMode = "abort"
+	Quit     MergeMode = "quit"
 )
 
 type MergeOption struct {
@@ -58,14 +59,14 @@ func NewMerge(dir string, args []string, options MergeOption, stdout, stderr io.
 }
 
 func (m *Merge) Run() int {
-	if m.options.Mode == Abort {
+	switch m.options.Mode {
+	case Abort:
 		if err := m.handleAbort(); err != nil {
 			fmt.Fprintf(m.stderr, "fatal: %s\n", err.Error())
 			return 128
 		}
 		return 0
-	}
-	if m.options.Mode == Continue {
+	case Continue:
 		if err := m.handleContinue(); err != nil {
 			if _, ok := err.(*repository.PendingCommitError); ok {
 				fmt.Fprintf(m.stderr, "fatal: %s\n", err.Error())

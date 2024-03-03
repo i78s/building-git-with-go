@@ -51,7 +51,8 @@ func NewCherryPick(dir string, args []string, options CherryPickOption, stdout, 
 }
 
 func (c *CherryPick) Run() int {
-	if c.options.Mode == Continue {
+	switch c.options.Mode {
+	case Continue:
 		err := c.handleContinue()
 		if err != nil {
 			if _, ok := err.(*repository.PendingCommitError); ok {
@@ -61,6 +62,12 @@ func (c *CherryPick) Run() int {
 			}
 			return 128
 		}
+		return 0
+	case Abort:
+		c.handleAbort()
+		return 0
+	case Quit:
+		c.handleQuit()
 		return 0
 	}
 
@@ -193,6 +200,36 @@ func (c *CherryPick) resumeSequencer() error {
 			return err
 		}
 		c.sequencer.DropCommand()
+	}
+	c.sequencer.Quit()
+	return nil
+}
+
+func (c *CherryPick) handleAbort() {
+	pendingCommit := c.writeCommit.PendingCommit()
+	if pendingCommit.InProgress() {
+		err := c.writeCommit.PendingCommit().Clear(pendingCommit.MergeType())
+		if err != nil {
+			return
+		}
+	}
+	c.repo.Index.LoadForUpdate()
+
+	err := c.sequencer.Abort()
+	if err != nil {
+		fmt.Fprintf(c.stderr, "warning: %s\n", err.Error())
+	}
+
+	c.repo.Index.WriteUpdates()
+}
+
+func (c *CherryPick) handleQuit() error {
+	pendingCommit := c.writeCommit.PendingCommit()
+	if pendingCommit.InProgress() {
+		err := c.repo.PendingCommit.Clear(pendingCommit.MergeType())
+		if err != nil {
+			return err
+		}
 	}
 	c.sequencer.Quit()
 	return nil

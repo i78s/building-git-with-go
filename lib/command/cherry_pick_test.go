@@ -2,6 +2,8 @@ package command
 
 import (
 	"building-git/lib/command/write_commit"
+	"building-git/lib/database"
+	"building-git/lib/editor"
 	"building-git/lib/repository"
 	"bytes"
 	"fmt"
@@ -22,38 +24,39 @@ func getTime() time.Time {
 	return now
 }
 
-func TestCherryPickWithTwoBranches(t *testing.T) {
-	var setUp = func(t *testing.T) (tmpDir string, stdout, stderr *bytes.Buffer) {
-		tmpDir, stdout, stderr = setupTestEnvironment(t)
+func setUpForTestCherryPickWithTwoBranches(t *testing.T) (tmpDir string, stdout, stderr *bytes.Buffer) {
+	tmpDir, stdout, stderr = setupTestEnvironment(t)
 
-		for _, message := range []string{"one", "two", "three", "four"} {
-			commitTree(t, tmpDir, message, map[string]string{
-				"f.txt": message,
-			}, getTime())
-		}
-		brunchCmd, _ := NewBranch(tmpDir, []string{"topic", "@~2"}, BranchOption{}, new(bytes.Buffer), new(bytes.Buffer))
-		brunchCmd.Run()
-		checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "topic")
-
-		commitTree(t, tmpDir, "five", map[string]string{
-			"g.txt": "five",
+	for _, message := range []string{"one", "two", "three", "four"} {
+		commitTree(t, tmpDir, message, map[string]string{
+			"f.txt": message,
 		}, getTime())
-		commitTree(t, tmpDir, "six", map[string]string{
-			"f.txt": "six",
-		}, getTime())
-		commitTree(t, tmpDir, "seven", map[string]string{
-			"g.txt": "seven",
-		}, getTime())
-		commitTree(t, tmpDir, "eight", map[string]string{
-			"g.txt": "eight",
-		}, getTime())
-
-		checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "master")
-
-		return
 	}
+	brunchCmd, _ := NewBranch(tmpDir, []string{"topic", "@~2"}, BranchOption{}, new(bytes.Buffer), new(bytes.Buffer))
+	brunchCmd.Run()
+	checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "topic")
+
+	commitTree(t, tmpDir, "five", map[string]string{
+		"g.txt": "five",
+	}, getTime())
+	commitTree(t, tmpDir, "six", map[string]string{
+		"f.txt": "six",
+	}, getTime())
+	commitTree(t, tmpDir, "seven", map[string]string{
+		"g.txt": "seven",
+	}, getTime())
+	commitTree(t, tmpDir, "eight", map[string]string{
+		"g.txt": "eight",
+	}, getTime())
+
+	checkout(tmpDir, new(bytes.Buffer), new(bytes.Buffer), "master")
+
+	return
+}
+
+func TestCherryPickWithTwoBranches(t *testing.T) {
 	t.Run("applies a commit on top of the current HEAD", func(t *testing.T) {
-		tmpDir, stdout, stderr := setUp(t)
+		tmpDir, stdout, stderr := setUpForTestCherryPickWithTwoBranches(t)
 		defer os.RemoveAll(tmpDir)
 
 		status := cherryPick(t, tmpDir, stdout, stderr, []string{"topic~3"}, CherryPickOption{})
@@ -87,7 +90,7 @@ func TestCherryPickWithTwoBranches(t *testing.T) {
 	})
 
 	t.Run("fails to apply a content conflict", func(t *testing.T) {
-		tmpDir, stdout, stderr := setUp(t)
+		tmpDir, stdout, stderr := setUpForTestCherryPickWithTwoBranches(t)
 		defer os.RemoveAll(tmpDir)
 
 		status := cherryPick(t, tmpDir, stdout, stderr, []string{"topic^^"}, CherryPickOption{})
@@ -109,7 +112,7 @@ six>>>>>>> %s... six
 	})
 
 	t.Run("fails to apply a modify/delete conflict", func(t *testing.T) {
-		tmpDir, stdout, stderr := setUp(t)
+		tmpDir, stdout, stderr := setUpForTestCherryPickWithTwoBranches(t)
 		defer os.RemoveAll(tmpDir)
 
 		status := cherryPick(t, tmpDir, stdout, stderr, []string{"topic"}, CherryPickOption{})
@@ -127,7 +130,7 @@ six>>>>>>> %s... six
 	})
 
 	t.Run("continues a conflicted cherry-pick", func(t *testing.T) {
-		tmpDir, stdout, stderr := setUp(t)
+		tmpDir, stdout, stderr := setUpForTestCherryPickWithTwoBranches(t)
 		defer os.RemoveAll(tmpDir)
 
 		cherryPick(t, tmpDir, stdout, stderr, []string{"topic"}, CherryPickOption{})
@@ -162,7 +165,7 @@ six>>>>>>> %s... six
 	})
 
 	t.Run("commits after a conflicted cherry-pick", func(t *testing.T) {
-		tmpDir, stdout, stderr := setUp(t)
+		tmpDir, stdout, stderr := setUpForTestCherryPickWithTwoBranches(t)
 		defer os.RemoveAll(tmpDir)
 
 		cherryPick(t, tmpDir, stdout, stderr, []string{"topic"}, CherryPickOption{})
@@ -189,7 +192,7 @@ six>>>>>>> %s... six
 	})
 
 	t.Run("applies multiple non-conflicting commits", func(t *testing.T) {
-		tmpDir, stdout, stderr := setUp(t)
+		tmpDir, stdout, stderr := setUpForTestCherryPickWithTwoBranches(t)
 		defer os.RemoveAll(tmpDir)
 
 		status := cherryPick(t, tmpDir, stdout, stderr, []string{"topic~3", "topic^", "topic"}, CherryPickOption{})
@@ -218,7 +221,7 @@ six>>>>>>> %s... six
 	})
 
 	t.Run("stops when a list of commits includes a conflict", func(t *testing.T) {
-		tmpDir, stdout, stderr := setUp(t)
+		tmpDir, stdout, stderr := setUpForTestCherryPickWithTwoBranches(t)
 		defer os.RemoveAll(tmpDir)
 
 		status := cherryPick(t, tmpDir, stdout, stderr, []string{"topic^", "topic~3"}, CherryPickOption{})
@@ -230,7 +233,7 @@ six>>>>>>> %s... six
 	})
 
 	t.Run("stops when a range of commits includes a conflict", func(t *testing.T) {
-		tmpDir, stdout, stderr := setUp(t)
+		tmpDir, stdout, stderr := setUpForTestCherryPickWithTwoBranches(t)
 		defer os.RemoveAll(tmpDir)
 
 		status := cherryPick(t, tmpDir, stdout, stderr, []string{"..topic"}, CherryPickOption{})
@@ -242,7 +245,7 @@ six>>>>>>> %s... six
 	})
 
 	t.Run("refuses to commit in a conflicted state", func(t *testing.T) {
-		tmpDir, stdout, stderr := setUp(t)
+		tmpDir, stdout, stderr := setUpForTestCherryPickWithTwoBranches(t)
 		defer os.RemoveAll(tmpDir)
 
 		cherryPick(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), []string{"..topic"}, CherryPickOption{})
@@ -262,7 +265,7 @@ fatal: Exiting because of an unresolved conflict.`
 	})
 
 	t.Run("refuses to continue in a conflicted state", func(t *testing.T) {
-		tmpDir, stdout, stderr := setUp(t)
+		tmpDir, stdout, stderr := setUpForTestCherryPickWithTwoBranches(t)
 		defer os.RemoveAll(tmpDir)
 
 		cherryPick(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), []string{"..topic"}, CherryPickOption{})
@@ -282,7 +285,7 @@ fatal: Exiting because of an unresolved conflict.`
 	})
 
 	t.Run("can continue after resolving the conflicts", func(t *testing.T) {
-		tmpDir, stdout, stderr := setUp(t)
+		tmpDir, stdout, stderr := setUpForTestCherryPickWithTwoBranches(t)
 		defer os.RemoveAll(tmpDir)
 
 		cherryPick(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), []string{"..topic"}, CherryPickOption{})
@@ -318,7 +321,7 @@ fatal: Exiting because of an unresolved conflict.`
 	})
 
 	t.Run("can continue after commiting the resolved tree", func(t *testing.T) {
-		tmpDir, stdout, stderr := setUp(t)
+		tmpDir, stdout, stderr := setUpForTestCherryPickWithTwoBranches(t)
 		defer os.RemoveAll(tmpDir)
 
 		cherryPick(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), []string{"..topic"}, CherryPickOption{})
@@ -352,5 +355,109 @@ fatal: Exiting because of an unresolved conflict.`
 			"f.txt": "six",
 			"g.txt": "eight",
 		})
+	})
+}
+
+func TestCherryPickWithTwoBranchesAbortingInConflictedState(t *testing.T) {
+	var before = func(t *testing.T) (tmpDir string, stdout, stderr *bytes.Buffer, status int) {
+		tmpDir, stdout, stderr = setUpForTestCherryPickWithTwoBranches(t)
+
+		cherryPick(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), []string{"..topic"}, CherryPickOption{})
+		cherryPick(t, tmpDir, stdout, stderr, []string{}, CherryPickOption{Mode: Abort})
+
+		return
+	}
+	t.Run("exits successfully", func(t *testing.T) {
+		tmpDir, _, stderr, status := before(t)
+		defer os.RemoveAll(tmpDir)
+
+		if status != 0 {
+			t.Errorf("want %d, but got %d", 0, status)
+		}
+		expected := ""
+		if got := stderr.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("resets to the old HEAD", func(t *testing.T) {
+		tmpDir, _, _, _ := before(t)
+		defer os.RemoveAll(tmpDir)
+
+		obj, _ := loadCommit(t, tmpDir, "HEAD")
+
+		expected := "four"
+		if got := strings.TrimSpace(obj.(*database.Commit).Message()); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+
+		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "")
+	})
+
+	t.Run("removes the merge state", func(t *testing.T) {
+		tmpDir, _, _, _ := before(t)
+		defer os.RemoveAll(tmpDir)
+
+		inProgress := repo(t, tmpDir).PendingCommit.InProgress()
+		if inProgress {
+			t.Errorf("want %v, but got %v", false, inProgress)
+		}
+	})
+}
+
+func TestCherryPickWithTwoBranchesAbortingInCommittedState(t *testing.T) {
+	var before = func(t *testing.T) (tmpDir string, stdout, stderr *bytes.Buffer, status int) {
+		tmpDir, stdout, stderr = setUpForTestCherryPickWithTwoBranches(t)
+
+		cherryPick(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), []string{"..topic"}, CherryPickOption{})
+		Add(tmpDir, []string{"."}, new(bytes.Buffer), new(bytes.Buffer))
+		options := CommitOption{
+			IsTTY: true,
+			Edit:  true,
+			EditorCmd: func(path string) editor.Executable {
+				return NewMockEditor(path, "picked\n")
+			},
+		}
+		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), options, time.Now())
+
+		cherryPick(t, tmpDir, stdout, stderr, []string{}, CherryPickOption{Mode: Abort})
+
+		return
+	}
+	t.Run("exits with a warning", func(t *testing.T) {
+		tmpDir, _, stderr, status := before(t)
+		defer os.RemoveAll(tmpDir)
+
+		if status != 0 {
+			t.Errorf("want %d, but got %d", 0, status)
+		}
+		expected := "warning: You seem to have moved HEAD. Not rewinding, check your HEAD!\n"
+		if got := stderr.String(); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+	})
+
+	t.Run("does not reset HEAD", func(t *testing.T) {
+		tmpDir, _, _, _ := before(t)
+		defer os.RemoveAll(tmpDir)
+
+		obj, _ := loadCommit(t, tmpDir, "HEAD")
+
+		expected := "picked"
+		if got := strings.TrimSpace(obj.(*database.Commit).Message()); got != expected {
+			t.Errorf("want %q, but got %q", expected, got)
+		}
+
+		assertGitStatus(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), "")
+	})
+
+	t.Run("removes the merge state", func(t *testing.T) {
+		tmpDir, _, _, _ := before(t)
+		defer os.RemoveAll(tmpDir)
+
+		inProgress := repo(t, tmpDir).PendingCommit.InProgress()
+		if inProgress {
+			t.Errorf("want %v, but got %v", false, inProgress)
+		}
 	})
 }

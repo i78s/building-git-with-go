@@ -8,28 +8,40 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 )
 
+var UNSAFE_MESSAGE = "You seem to have moved HEAD. Not rewinding, check your HEAD!"
+
 type Sequencer struct {
-	repo     *Repository
-	pathname string
-	todoPath string
-	todoFile *lockfile.Lockfile
-	commands []*database.Commit
+	repo      *Repository
+	pathname  string
+	abortPath string
+	headPath  string
+	todoPath  string
+	todoFile  *lockfile.Lockfile
+	commands  []*database.Commit
 }
 
 func NewSequencer(repo *Repository) *Sequencer {
 	pathname := filepath.Join(repo.GitPath, "sequencer")
 	return &Sequencer{
-		repo:     repo,
-		pathname: pathname,
-		todoPath: filepath.Join(pathname, "todo"),
-		commands: []*database.Commit{},
+		repo:      repo,
+		pathname:  pathname,
+		abortPath: filepath.Join(pathname, "abort-safety"),
+		headPath:  filepath.Join(pathname, "head"),
+		todoPath:  filepath.Join(pathname, "todo"),
+		commands:  []*database.Commit{},
 	}
 }
 
 func (s *Sequencer) Start() {
 	os.Mkdir(s.pathname, os.ModePerm)
+
+	headOid, _ := s.repo.Refs.ReadHead()
+	s.writeFile(s.headPath, headOid)
+	s.writeFile(s.abortPath, headOid)
+
 	s.openTodoFile()
 }
 
@@ -46,6 +58,9 @@ func (s *Sequencer) NextCommand() *database.Commit {
 
 func (s *Sequencer) DropCommand() {
 	s.commands = s.commands[1:]
+
+	headOid, _ := s.repo.Refs.ReadHead()
+	s.writeFile(s.abortPath, headOid)
 }
 
 func (s *Sequencer) Load() {
@@ -97,8 +112,32 @@ func (s *Sequencer) Dump() {
 	fmt.Println()
 }
 
+func (s *Sequencer) Abort() error {
+	head, _ := os.ReadFile(s.headPath)
+	headOid := strings.TrimSpace(string(head))
+	expected, _ := os.ReadFile(s.abortPath)
+	actual, _ := s.repo.Refs.ReadHead()
+
+	s.Quit()
+
+	if actual != strings.TrimSpace(string(expected)) {
+		return fmt.Errorf(UNSAFE_MESSAGE)
+	}
+	s.repo.HardReset(headOid)
+	origHead, _ := s.repo.Refs.UpdateHead(headOid)
+	s.repo.Refs.UpateRef(ORIG_HEAD, origHead)
+	return nil
+}
+
 func (s *Sequencer) Quit() {
 	os.RemoveAll(s.pathname)
+}
+
+func (s *Sequencer) writeFile(path, content string) {
+	lockfile := lockfile.NewLockfile(path)
+	lockfile.HoldForUpdate()
+	lockfile.Write([]byte(content + "\n"))
+	lockfile.Commit()
 }
 
 func (s *Sequencer) openTodoFile() {
