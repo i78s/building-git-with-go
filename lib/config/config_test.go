@@ -252,6 +252,36 @@ func TestConfigFileStorage(t *testing.T) {
 		assertFile(t, path, expected)
 	})
 
+	t.Run("removes a section", func(t *testing.T) {
+		path, config := before(t)
+		defer os.RemoveAll(path)
+
+		config.Set([]string{"core", "editor"}, "ed")
+		config.Set([]string{"remote", "origin", "url"}, "ssh://example.com/repo")
+		config.RemoveSection([]string{"core"})
+		config.Save()
+
+		expected := `[remote "origin"]
+	url = ssh://example.com/repo
+`
+		assertFile(t, path, expected)
+	})
+
+	t.Run("removes a subsection", func(t *testing.T) {
+		path, config := before(t)
+		defer os.RemoveAll(path)
+
+		config.Set([]string{"core", "editor"}, "ed")
+		config.Set([]string{"remote", "origin", "url"}, "ssh://example.com/repo")
+		config.RemoveSection([]string{"remote", "origin"})
+		config.Save()
+
+		expected := `[core]
+	editor = ed
+`
+		assertFile(t, path, expected)
+	})
+
 	t.Run("retrieves persisted settings", func(t *testing.T) {
 		path, config := before(t)
 		defer os.RemoveAll(path)

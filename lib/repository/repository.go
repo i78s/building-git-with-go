@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"building-git/lib/config"
 	"building-git/lib/database"
 	"building-git/lib/index"
 
@@ -9,6 +10,7 @@ import (
 
 type Repository struct {
 	GitPath       string
+	Config        *config.Stack
 	Database      *database.Database
 	Index         *index.Index
 	Refs          *Refs
@@ -20,6 +22,7 @@ func NewRepository(rootPath string) *Repository {
 	gitPath := filepath.Join(rootPath, ".git")
 	return &Repository{
 		GitPath:       gitPath,
+		Config:        config.NewStack(gitPath),
 		Database:      database.NewDatabase(filepath.Join(gitPath, "objects")),
 		Index:         index.NewIndex(filepath.Join(gitPath, "index")),
 		Refs:          NewRefs(gitPath),

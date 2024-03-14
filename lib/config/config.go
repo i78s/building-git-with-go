@@ -51,11 +51,11 @@ type Section struct {
 	name []string
 }
 
-func NormalizeSection(name []string) string {
+func NormalizeSection(name []string) [2]string {
 	if len(name) == 0 {
-		return ""
+		return [2]string{}
 	}
-	return strings.ToLower(name[0]) + strings.Join(name[1:], ".")
+	return [2]string{strings.ToLower(name[0]), strings.Join(name[1:], ".")}
 }
 
 func (s *Section) HeadingLine() string {
@@ -80,11 +80,23 @@ func SerializeVariable(name string, value interface{}) string {
 	return fmt.Sprintf("\t%s = %v\n", name, value)
 }
 
+var VALID_SECTION = regexp.MustCompile(`(?i)^[a-z0-9-]+$`)
+var VALID_VARIABLE = regexp.MustCompile(`(?i)^[a-z][a-z0-9-]*$`)
+
+func ConfigValidKey(keyParts []string) bool {
+	if len(keyParts) < 2 {
+		return false
+	}
+	section := keyParts[0]
+	variable := keyParts[len(keyParts)-1]
+	return VALID_SECTION.MatchString(section) && VALID_VARIABLE.MatchString(variable)
+}
+
 type Config struct {
 	path     string
 	lockfile *lockfile.Lockfile
-	lines    map[string][]*Line
-	lineKeys []string
+	lines    map[[2]string][]*Line
+	lineKeys [][2]string
 }
 
 func NewConfig(path string) *Config {
@@ -187,6 +199,74 @@ func (c *Config) ReplaceAll(key []string, value interface{}) {
 	c.addVariable(section, k, v, value)
 }
 
+func (c *Config) Unset(key []string) error {
+	err := c.UnsetAll(key, func(lines []*Line) error {
+		if len(lines) > 1 {
+			return &ConflictError{
+				fmt.Sprintf("%v has multiple values", key),
+			}
+		}
+		return nil
+	})
+	return err
+}
+
+func (c *Config) UnsetAll(key []string, fn func(lines []*Line) error) error {
+	k, v := splitKey(key)
+	section, lines, err := c.findLines(k, v)
+	if err != nil {
+		return err
+	}
+	if section == nil {
+		return nil
+	}
+	err = fn(lines)
+	if err != nil {
+		return err
+	}
+
+	c.removeAll(section, lines)
+	lines = c.lines[NormalizeSection(section.name)]
+	if len(lines) == 1 {
+		c.RemoveSection(k)
+	}
+	return nil
+}
+
+func (c *Config) RemoveSection(key []string) bool {
+	k := NormalizeSection(key)
+	_, exists := c.lines[k]
+	if exists {
+		delete(c.lines, k)
+		newLineKeys := [][2]string{}
+		for _, lk := range c.lineKeys {
+			if lk != k {
+				newLineKeys = append(newLineKeys, lk)
+			}
+		}
+		c.lineKeys = newLineKeys
+	}
+	return exists
+}
+
+func (c *Config) Subsection(name string) []string {
+	k := NormalizeSection([]string{name})
+	sections := []string{}
+	for main := range c.lines {
+		sub := main[1]
+		if main == k && sub != "" {
+			sections = append(sections, sub)
+		}
+	}
+	return sections
+}
+
+func (c *Config) HasSection(name []string) bool {
+	k := NormalizeSection(name)
+	_, exists := c.lines[k]
+	return exists
+}
+
 func splitKey(key []string) ([]string, string) {
 	k := key[:len(key)-1]
 	v := key[len(key)-1:][0]
@@ -253,8 +333,8 @@ func (c *Config) removeAll(section *Section, lines []*Line) {
 }
 
 func (c *Config) readConfigFile() error {
-	c.lines = map[string][]*Line{}
-	c.lineKeys = []string{}
+	c.lines = map[[2]string][]*Line{}
+	c.lineKeys = [][2]string{}
 	section := &Section{}
 
 	file, err := os.Open(c.path)
