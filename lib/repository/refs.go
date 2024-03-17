@@ -18,6 +18,16 @@ const ORIG_HEAD = "ORIG_HEAD"
 
 var symRefRegexp = regexp.MustCompile(`^ref: (.+)$`)
 
+const REFS_DIR = "refs"
+
+func HeadsDir() string {
+	return filepath.Join(REFS_DIR, "heads")
+}
+
+func RemotesDir() string {
+	return filepath.Join(REFS_DIR, "remotes")
+}
+
 type InvalidBranchError struct {
 	msg string
 }
@@ -52,17 +62,18 @@ func (r *Ref) ReadOid() string {
 }
 
 type Refs struct {
-	pathname  string
-	refsPath  string
-	headsPath string
+	pathname    string
+	refsPath    string
+	headsPath   string
+	remotesPath string
 }
 
 func NewRefs(pathname string) *Refs {
-	refsPath := filepath.Join(pathname, "refs")
 	return &Refs{
-		pathname:  pathname,
-		refsPath:  refsPath,
-		headsPath: filepath.Join(refsPath, "heads"),
+		pathname:    pathname,
+		refsPath:    filepath.Join(pathname, REFS_DIR),
+		headsPath:   filepath.Join(pathname, HeadsDir()),
+		remotesPath: filepath.Join(pathname, RemotesDir()),
 	}
 }
 
@@ -114,13 +125,16 @@ func (r *Refs) ReverseRefs() map[string][]*SymRef {
 func (r *Refs) ShortName(path string) (string, error) {
 	joinedPath := filepath.Join(r.pathname, path)
 
-	prefixes := []string{r.headsPath, r.pathname}
+	prefixes := []string{r.remotesPath, r.headsPath, r.pathname}
 	for _, prefix := range prefixes {
 		if strings.HasPrefix(joinedPath, prefix) {
-			relPath, err := filepath.Rel(prefix, joinedPath)
-			if err == nil {
-				return relPath, nil
+			if prefix != "" {
+				relPath, err := filepath.Rel(prefix, joinedPath)
+				if err == nil {
+					return relPath, nil
+				}
 			}
+			return joinedPath, nil
 		}
 	}
 	return "", fmt.Errorf("no matching prefix found for path: %s", path)
@@ -248,7 +262,7 @@ func (r *Refs) listRefs(rootPath string) ([]*SymRef, error) {
 }
 
 func (r *Refs) pathForName(name string) (string, error) {
-	prefixes := []string{r.pathname, r.refsPath, r.headsPath}
+	prefixes := []string{r.pathname, r.refsPath, r.headsPath, r.remotesPath}
 
 	var err error
 	for _, prefix := range prefixes {
