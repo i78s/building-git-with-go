@@ -252,9 +252,10 @@ func (c *Config) RemoveSection(key []string) bool {
 func (c *Config) Subsection(name string) []string {
 	k := NormalizeSection([]string{name})
 	sections := []string{}
-	for main := range c.lines {
-		sub := main[1]
-		if main == k && sub != "" {
+	for key := range c.lines {
+		main := key[0]
+		sub := key[1]
+		if main == k[0] && sub != "" {
 			sections = append(sections, sub)
 		}
 	}

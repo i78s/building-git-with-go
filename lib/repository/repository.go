@@ -35,6 +35,10 @@ func (r *Repository) HardReset(oid string) {
 	NewHardReset(r, oid).Execute()
 }
 
+func (r *Repository) Remotes() *Remotes {
+	return NewRemotes(config.StackFile("local", r.Config))
+}
+
 func (r *Repository) Status(commitOid string) (*Status, error) {
 	status, err := NewStatus(r, commitOid)
 	return status, err
