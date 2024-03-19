@@ -65,11 +65,11 @@ func TestCherryPickWithTwoBranches(t *testing.T) {
 			t.Errorf("want %d, but got %d", 0, status)
 		}
 
-		revs := repository.NewRevList(repo(t, tmpDir), []string{"@~3.."}, repository.RevListOption{})
+		revs, _ := repository.NewRevList(repo(t, tmpDir), []string{"@~3.."}, repository.RevListOption{})
 
 		actual := []string{}
 		for _, c := range revs.Each() {
-			s := strings.Split(c.Message(), "\n")
+			s := strings.Split(c.(*database.Commit).Message(), "\n")
 			actual = append(actual, s[0])
 		}
 		expected := []string{"five", "four", "three"}
@@ -141,13 +141,14 @@ six>>>>>>> %s... six
 			t.Errorf("want %d, but got %d", 0, status)
 		}
 
-		commits := repository.NewRevList(repo(t, tmpDir), []string{"@~3.."}, repository.RevListOption{}).Each()
-		if !reflect.DeepEqual([]string{commits[1].Oid()}, commits[0].Parents) {
-			t.Errorf("expected %v, got %v", []string{commits[1].Oid()}, commits[0].Parents)
+		revs, _ := repository.NewRevList(repo(t, tmpDir), []string{"@~3.."}, repository.RevListOption{})
+		commits := revs.Each()
+		if !reflect.DeepEqual([]string{commits[1].Oid()}, commits[0].(*database.Commit).Parents) {
+			t.Errorf("expected %v, got %v", []string{commits[1].Oid()}, commits[0].(*database.Commit).Parents)
 		}
 		messages := []string{}
 		for _, c := range commits {
-			messages = append(messages, strings.Split(c.Message(), "\n")[0])
+			messages = append(messages, strings.Split(c.(*database.Commit).Message(), "\n")[0])
 		}
 		if !reflect.DeepEqual([]string{"eight", "four", "three"}, messages) {
 			t.Errorf("expected %v, got %v", []string{"eight", "four", "three"}, messages)
@@ -178,13 +179,14 @@ six>>>>>>> %s... six
 			t.Errorf("want %d, but got %d", 0, status)
 		}
 
-		commits := repository.NewRevList(repo(t, tmpDir), []string{"@~3.."}, repository.RevListOption{}).Each()
-		if !reflect.DeepEqual([]string{commits[1].Oid()}, commits[0].Parents) {
-			t.Errorf("expected %v, got %v", []string{commits[1].Oid()}, commits[0].Parents)
+		revs, _ := repository.NewRevList(repo(t, tmpDir), []string{"@~3.."}, repository.RevListOption{})
+		commits := revs.Each()
+		if !reflect.DeepEqual([]string{commits[1].Oid()}, commits[0].(*database.Commit).Parents) {
+			t.Errorf("expected %v, got %v", []string{commits[1].Oid()}, commits[0].(*database.Commit).Parents)
 		}
 		messages := []string{}
 		for _, c := range commits {
-			messages = append(messages, strings.Split(c.Message(), "\n")[0])
+			messages = append(messages, strings.Split(c.(*database.Commit).Message(), "\n")[0])
 		}
 		if !reflect.DeepEqual([]string{"eight", "four", "three"}, messages) {
 			t.Errorf("expected %v, got %v", []string{"eight", "four", "three"}, messages)
@@ -200,10 +202,11 @@ six>>>>>>> %s... six
 			t.Errorf("want %d, but got %d", 0, status)
 		}
 
-		commits := repository.NewRevList(repo(t, tmpDir), []string{"@~4.."}, repository.RevListOption{}).Each()
+		revs, _ := repository.NewRevList(repo(t, tmpDir), []string{"@~4.."}, repository.RevListOption{})
+		commits := revs.Each()
 		messages := []string{}
 		for _, c := range commits {
-			messages = append(messages, strings.Split(c.Message(), "\n")[0])
+			messages = append(messages, strings.Split(c.(*database.Commit).Message(), "\n")[0])
 		}
 		if !reflect.DeepEqual([]string{"eight", "seven", "five", "four"}, messages) {
 			t.Errorf("expected %v, got %v", []string{"eight", "seven", "five", "four"}, messages)
@@ -297,13 +300,14 @@ fatal: Exiting because of an unresolved conflict.`
 			t.Errorf("want %d, but got %d", 0, status)
 		}
 
-		commits := repository.NewRevList(repo(t, tmpDir), []string{"@~5.."}, repository.RevListOption{}).Each()
-		if !reflect.DeepEqual([]string{commits[1].Oid()}, commits[0].Parents) {
-			t.Errorf("expected %v, got %v", []string{commits[1].Oid()}, commits[0].Parents)
+		revs, _ := repository.NewRevList(repo(t, tmpDir), []string{"@~5.."}, repository.RevListOption{})
+		commits := revs.Each()
+		if !reflect.DeepEqual([]string{commits[1].Oid()}, commits[0].(*database.Commit).Parents) {
+			t.Errorf("expected %v, got %v", []string{commits[1].Oid()}, commits[0].(*database.Commit).Parents)
 		}
 		messages := []string{}
 		for _, c := range commits {
-			messages = append(messages, strings.Split(c.Message(), "\n")[0])
+			messages = append(messages, strings.Split(c.(*database.Commit).Message(), "\n")[0])
 		}
 		if !reflect.DeepEqual([]string{"eight", "seven", "six", "five", "four"}, messages) {
 			t.Errorf("expected %v, got %v", []string{"eight", "seven", "six", "five", "four"}, messages)
@@ -334,13 +338,14 @@ fatal: Exiting because of an unresolved conflict.`
 			t.Errorf("want %d, but got %d", 0, status)
 		}
 
-		commits := repository.NewRevList(repo(t, tmpDir), []string{"@~5.."}, repository.RevListOption{}).Each()
-		if !reflect.DeepEqual([]string{commits[1].Oid()}, commits[0].Parents) {
-			t.Errorf("expected %v, got %v", []string{commits[1].Oid()}, commits[0].Parents)
+		revs, _ := repository.NewRevList(repo(t, tmpDir), []string{"@~5.."}, repository.RevListOption{})
+		commits := revs.Each()
+		if !reflect.DeepEqual([]string{commits[1].Oid()}, commits[0].(*database.Commit).Parents) {
+			t.Errorf("expected %v, got %v", []string{commits[1].Oid()}, commits[0].(*database.Commit).Parents)
 		}
 		messages := []string{}
 		for _, c := range commits {
-			messages = append(messages, strings.Split(c.Message(), "\n")[0])
+			messages = append(messages, strings.Split(c.(*database.Commit).Message(), "\n")[0])
 		}
 		if !reflect.DeepEqual([]string{"eight", "seven", "six", "five", "four"}, messages) {
 			t.Errorf("expected %v, got %v", []string{"eight", "seven", "six", "five", "four"}, messages)

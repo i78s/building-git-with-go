@@ -180,11 +180,11 @@ func TestCommitReusingMessages(t *testing.T) {
 		}
 		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), options, time.Now())
 
-		revs := repository.NewRevList(repo(t, tmpDir), []string{"HEAD"}, repository.RevListOption{})
+		revs, _ := repository.NewRevList(repo(t, tmpDir), []string{"HEAD"}, repository.RevListOption{})
 
 		actual := []string{}
 		for _, c := range revs.Each() {
-			s := strings.Split(c.Message(), "\n")
+			s := strings.Split(c.(*database.Commit).Message(), "\n")
 			actual = append(actual, s[0])
 		}
 		expected := []string{"first", "first"}
@@ -226,11 +226,11 @@ func TestCommitAmendingCommits(t *testing.T) {
 		}
 		commit(t, tmpDir, new(bytes.Buffer), new(bytes.Buffer), options, time.Now())
 
-		revs := repository.NewRevList(repo(t, tmpDir), []string{"HEAD"}, repository.RevListOption{})
+		revs, _ := repository.NewRevList(repo(t, tmpDir), []string{"HEAD"}, repository.RevListOption{})
 
 		actual := []string{}
 		for _, c := range revs.Each() {
-			s := strings.Split(c.Message(), "\n")
+			s := strings.Split(c.(*database.Commit).Message(), "\n")
 			actual = append(actual, s[0])
 		}
 		expected := []string{"third [amended]", "second", "first"}

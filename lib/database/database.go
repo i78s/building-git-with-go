@@ -113,6 +113,10 @@ func (d *Database) BuildList(list map[string]*Entry, entry TreeObject, prefix st
 	}
 }
 
+func (d *Database) TreeEntry(oid string) *Entry {
+	return NewEntry(oid, TREE_MODE)
+}
+
 func (d *Database) ShortOid(oid string) string {
 	return oid[:7]
 }

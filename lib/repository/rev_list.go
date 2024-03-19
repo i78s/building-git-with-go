@@ -26,19 +26,26 @@ type RevList struct {
 	commits map[string]*database.Commit
 	flags   map[string]map[RevListFlag]bool
 	queue   []*database.Commit
+	pending []*database.Entry
 	limited bool
 	prune   []string
 	diffs   map[[2]string]map[string][2]database.TreeObject
 	output  []*database.Commit
 	filter  *database.PathFilter
 	walk    bool
+	all     bool
+	objects bool
+	missing bool
 }
 
 type RevListOption struct {
-	Walk *bool
+	Walk    *bool
+	All     bool
+	Objects bool
+	Missing bool
 }
 
-func NewRevList(repo *Repository, revs []string, options RevListOption) *RevList {
+func NewRevList(repo *Repository, revs []string, options RevListOption) (*RevList, error) {
 	revList := &RevList{
 		repo:    repo,
 		commits: map[string]*database.Commit{},
@@ -47,6 +54,9 @@ func NewRevList(repo *Repository, revs []string, options RevListOption) *RevList
 		prune:   make([]string, 0),
 		diffs:   make(map[[2]string]map[string][2]database.TreeObject),
 		output:  make([]*database.Commit, 0),
+		objects: options.Objects,
+		all:     options.All,
+		missing: options.Missing,
 	}
 	if options.Walk == nil {
 		revList.walk = true
@@ -54,35 +64,60 @@ func NewRevList(repo *Repository, revs []string, options RevListOption) *RevList
 		revList.walk = *options.Walk
 	}
 
+	if revList.all {
+		err := revList.includeRefs(repo.Refs.listAllRefs())
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	for _, rev := range revs {
-		revList.handleRevision(rev)
+		err := revList.handleRevision(rev)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if len(revList.queue) == 0 {
-		revList.handleRevision(HEAD)
+		err := revList.handleRevision(HEAD)
+		if err != nil {
+			return nil, err
+		}
 	}
 	revList.filter = database.PathFilterBuild(revList.prune)
 
-	return revList
+	return revList, nil
 }
 
-func (r *RevList) Each() []*database.Commit {
+type RevListObject interface {
+	Oid() string
+	SetOid(string)
+	Type() string
+}
+
+func (r *RevList) Each() []RevListObject {
 	if r.limited {
 		r.limitList()
 	}
+	if r.objects {
+		r.markEdgesUninteresting()
+	}
 
-	var commits []*database.Commit
+	var objects []RevListObject
 	r.traverseCommits(func(c *database.Commit) {
-		commits = append(commits, c)
+		objects = append(objects, c)
 	})
-	return commits
+	r.traversePending(func(obj database.TreeObject) {
+		objects = append(objects, obj.(RevListObject))
+	})
+	return objects
 }
 
-func (r *RevList) ReverseEach() []*database.Commit {
-	commits := r.Each()
-	for i := 0; i < len(commits)/2; i++ {
-		commits[i], commits[len(commits)-i-1] = commits[len(commits)-i-1], commits[i]
+func (r *RevList) ReverseEach() []RevListObject {
+	objects := r.Each()
+	for i := 0; i < len(objects)/2; i++ {
+		objects[i], objects[len(objects)-i-1] = objects[len(objects)-i-1], objects[i]
 	}
-	return commits
+	return objects
 }
 
 func (r *RevList) TreeDiff(oldOid, newOid string, differ *database.PathFilter) map[string][2]database.TreeObject {
@@ -96,7 +131,25 @@ func (r *RevList) TreeDiff(oldOid, newOid string, differ *database.PathFilter) m
 	return r.diffs[key]
 }
 
-func (r *RevList) handleRevision(rev string) {
+func (r *RevList) includeRefs(refs []*SymRef) error {
+	oids := []string{}
+	for _, symRef := range refs {
+		oid, err := symRef.ReadOid()
+		if err != nil {
+			continue
+		}
+		oids = append(oids, oid)
+	}
+	for _, oid := range oids {
+		err := r.handleRevision(oid)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *RevList) handleRevision(rev string) error {
 	if stat, _ := r.repo.Workspace.StatFile(rev); stat != nil {
 		r.prune = append(r.prune, rev)
 	} else if match := RANGE.FindStringSubmatch(rev); match != nil {
@@ -107,16 +160,20 @@ func (r *RevList) handleRevision(rev string) {
 		r.setStartPoint(match[1], false)
 		r.walk = true
 	} else {
-		r.setStartPoint(rev, true)
+		return r.setStartPoint(rev, true)
 	}
+	return nil
 }
 
-func (r *RevList) setStartPoint(rev string, interesting bool) {
+func (r *RevList) setStartPoint(rev string, interesting bool) error {
 	if rev == "" {
 		rev = HEAD
 	}
 
-	oid, _ := NewRevision(r.repo, rev).Resolve(COMMIT)
+	oid, err := NewRevision(r.repo, rev).Resolve(COMMIT)
+	if err != nil && !r.missing {
+		return err
+	}
 	commit := r.loadCommit(oid)
 
 	r.enqueueCommit(commit)
@@ -126,6 +183,7 @@ func (r *RevList) setStartPoint(rev string, interesting bool) {
 		r.mark(oid, uninteresting)
 		r.markParentsUninteresting(commit)
 	}
+	return nil
 }
 
 func (r *RevList) enqueueCommit(commit *database.Commit) {
@@ -226,6 +284,29 @@ func (r *RevList) markParentsUninteresting(commit *database.Commit) {
 	}
 }
 
+func (r *RevList) markEdgesUninteresting() {
+	for _, c := range r.queue {
+		if r.mark(c.Oid(), uninteresting) {
+			r.markTreeUninteresting(c.Tree())
+		}
+
+		for _, oid := range c.Parents {
+			if !r.isMarked(oid, uninteresting) {
+				return
+			}
+			parent := r.loadCommit(oid)
+			r.markTreeUninteresting(parent.Tree())
+		}
+	}
+}
+
+func (r *RevList) markTreeUninteresting(treeOid string) {
+	entry := r.repo.Database.TreeEntry(treeOid)
+	r.traverseTree(entry, func(object *database.Entry) bool {
+		return r.mark(object.Oid(), uninteresting)
+	})
+}
+
 func (r *RevList) simplifyCommit(commit *database.Commit) []string {
 	if len(r.prune) == 0 {
 		return commit.Parents
@@ -262,7 +343,44 @@ func (r *RevList) traverseCommits(fn func(*database.Commit)) {
 		if r.isMarked(commit.Oid(), treesame) {
 			continue
 		}
+
+		r.pending = append(r.pending, r.repo.Database.TreeEntry(commit.Tree()))
 		fn(commit)
+	}
+}
+
+func (r *RevList) traversePending(fn func(entry database.TreeObject)) {
+	if !r.objects {
+		return
+	}
+
+	for _, entry := range r.pending {
+		r.traverseTree(entry, func(object *database.Entry) bool {
+			if r.isMarked(object.Oid(), uninteresting) {
+				return false
+			}
+			if !r.mark(object.Oid(), seen) {
+				return false
+			}
+			fn(object)
+			return true
+		})
+	}
+}
+
+func (r *RevList) traverseTree(entry *database.Entry, fn func(entry *database.Entry) bool) {
+	if !fn(entry) {
+		return
+	}
+	if !entry.IsTree() {
+		return
+	}
+
+	tree, _ := r.repo.Database.Load(entry.Oid())
+	for _, item := range tree.(*database.Tree).Entries {
+		r.traverseTree(item.(*database.Entry), func(object *database.Entry) bool {
+			return fn(object)
+		})
 	}
 }
 

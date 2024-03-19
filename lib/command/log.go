@@ -42,7 +42,7 @@ func NewLog(dir string, args []string, options LogOption, stdout, stderr io.Writ
 	repo := repository.NewRepository(rootPath)
 	prindDiff, _ := print_diff.NewPrintDiff(dir, stdout, stderr)
 
-	revList := repository.NewRevList(repo, args, repository.RevListOption{})
+	revList, _ := repository.NewRevList(repo, args, repository.RevListOption{})
 
 	return &Log{
 		rootPath:  rootPath,
@@ -62,7 +62,7 @@ func (l *Log) Run() int {
 
 	blankLine := false
 	for _, commit := range l.revList.Each() {
-		l.showCommit(blankLine, commit)
+		l.showCommit(blankLine, commit.(*database.Commit))
 		blankLine = true
 	}
 

@@ -86,9 +86,9 @@ func (c *CherryPick) storeCommitSequence() {
 	}
 
 	walk := false
-	commits := repository.NewRevList(c.repo, c.args, repository.RevListOption{Walk: &walk})
+	commits, _ := repository.NewRevList(c.repo, c.args, repository.RevListOption{Walk: &walk})
 	for _, commit := range commits.ReverseEach() {
-		c.sequencer.Pick(commit)
+		c.sequencer.Pick(commit.(*database.Commit))
 	}
 }
 
